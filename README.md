@@ -662,6 +662,67 @@ and approves or rejects. No automated face matching.
 | `/api/kyc/submit` | Upload (owner) |
 | `/api/kyc/[...key]` | Read a document — **owner or admin only** |
 
+### Two steps: reference data, then the card
+
+Approving an ID card means saying *this card belongs to this person*, so the
+reviewer needs something to compare it against. `/account/verification` asks for
+it first:
+
+- **ขั้นที่ 1** — `firstName`, `lastName`, `dateOfBirth` on `users`.
+- **ขั้นที่ 2** — the card image, offered only once step 1 is complete.
+
+These are columns on `users`, not on `seller_verifications`, and they are **kept
+permanently** — unlike the image, which is erased on decision. They are ordinary
+personal data rather than s.26 sensitive data, and they are what an approval
+actually attests to: an approval that outlived the name it was granted for would
+mean nothing.
+
+`name` is left alone. Better Auth takes it from the Google profile and a nickname
+there is fine — it is just not what is printed on the card.
+
+`dateOfBirth` is a date, not a moment, so it is stored at **UTC midnight** and
+the calendar date cannot shift when rendered in another timezone.
+
+#### The 18+ rule is a seller rule only
+
+`lib/identity.ts` holds the rules and is imported by both the client form and the
+server, so one definition governs both:
+
+- a date of birth may not be in the future;
+- a seller must have completed 18 years **on the day they submit**.
+
+Someone under 18 is told so plainly, and told in the same breath that buying and
+bidding still work. The check lives on the KYC path only — nothing in the buyer
+flow reads `dateOfBirth`, so an ordinary buyer never supplies one and is never
+age-gated.
+
+It is enforced in three places, because the first two can be bypassed: the form
+(a `max` on the date input, plus inline errors), `saveIdentityAction`, and
+`/api/kyc/submit`, which re-reads the stored row and refuses the document if the
+identity is incomplete or underage. That endpoint is directly callable, so it
+cannot assume the page gated it.
+
+#### Editing is locked during and after review
+
+`canEditIdentity` refuses edits while a request is **pending or approved**.
+Pending matters as much as approved: a reviewer is comparing exactly this data
+against the card, and a value that changes mid-review makes the comparison
+meaningless. The rule is re-checked inside the action, so a stale tab cannot
+write through a form the server would no longer render.
+
+#### The reviewer sees it beside the card
+
+`/admin/verifications` prints the declared name and date of birth — with the age
+worked out — **above** the image, so the reviewer reads what to expect and then
+checks the card against it, rather than reading the card and rationalising a
+match.
+
+This data is read only for the signed-in user's own row, or by an admin on the
+review page. No public page or API selects it: the auction page and
+`/api/auctions/[id]/state` name their user columns explicitly (`name`, `image`),
+and it is not registered as a Better Auth `additionalField`, so it never reaches
+a session payload either.
+
 ### Who is an admin
 
 ```
@@ -722,6 +783,9 @@ Consequences worth knowing:
   most one document per person exists at any time**.
 - A seller can withdraw a pending request themselves and have the image erased
   without waiting for a reviewer.
+- The declared name and date of birth are **not** erased with the image. They are
+  ordinary personal data and the record of what was approved; removing them is an
+  erasure request, handled outside this flow.
 - Because files are erased on decision, **do not back up `UPLOAD_DIR_KYC`** —
   or if you must, use a backup that expires faster than your retention promise.
   A backup would otherwise outlive the deletion.
