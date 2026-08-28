@@ -1,0 +1,162 @@
+// Prisma schema for thai-auction
+//
+// Docs: https://pris.ly/d/prisma-schema
+// Note: the datasource URL is NOT declared here. In Prisma 7 it is supplied by
+// `prisma.config.ts`, which reads it from the DATABASE_URL environment variable.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// Auction lifecycle.
+/// draft     = seller is still editing, not publicly listed
+/// active    = open for bidding
+/// ended     = finished (time ran out, or bought via buy-now)
+/// cancelled = pulled by the seller/admin before it ended
+enum AuctionStatus {
+  draft
+  active
+  ended
+  cancelled
+
+  @@map("auction_status")
+}
+
+/// Application user.
+/// Field shapes deliberately match Better Auth's core `user` model so it can be
+/// wired up later without a destructive migration: String id, Boolean
+/// emailVerified (NOT a nullable DateTime like Auth.js uses), and updatedAt.
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  image         String?
+  emailVerified Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shippingAddresses ShippingAddress[]
+  auctionItems      AuctionItem[]     @relation("SellerAuctionItems")
+  bids              Bid[]
+
+  @@map("users")
+}
+
+/// Delivery address for a winning bidder.
+/// Thai addresses are stored as components rather than one free-text blob so
+/// shipping cost (which depends on province) and postcode validation are possible.
+model ShippingAddress {
+  id            String   @id @default(cuid())
+  userId        String
+  recipientName String
+  phone         String
+  /// House number, street, village/building — the free-form part.
+  addressLine   String
+  /// ตำบล/แขวง
+  subDistrict   String
+  /// อำเภอ/เขต
+  district      String
+  /// จังหวัด
+  province      String
+  /// รหัสไปรษณีย์ (5 digits)
+  postalCode    String
+  isDefault     Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // A user's addresses are personal data with no financial meaning, so they are
+  // removed together with the account.
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Supports "list my addresses" and "find my default address".
+  @@index([userId, isDefault])
+  @@map("shipping_addresses")
+}
+
+/// Item category shown in the marketplace navigation.
+model Category {
+  id   String @id @default(cuid())
+  /// Thai display name, e.g. "พระเครื่อง"
+  name String @unique
+  /// ASCII URL segment, e.g. "amulets" — keeps category URLs readable and
+  /// avoids percent-encoded Thai in links and analytics.
+  slug String @unique
+
+  auctionItems AuctionItem[]
+
+  @@map("categories")
+}
+
+/// A single item put up for auction.
+model AuctionItem {
+  id          String @id @default(cuid())
+  sellerId    String
+  categoryId  String
+  title       String
+  description String
+
+  /// Ordered image URLs; images[0] is the cover image.
+  images String[]
+
+  /// All money is stored as INTEGER SATANG (1 baht = 100 satang).
+  /// Integers are exact — no floating-point drift — and stay plain JS numbers,
+  /// unlike Prisma's Decimal (a Decimal.js object that cannot cross the
+  /// server/client boundary without conversion). Use lib/money.ts to format.
+  startPrice   Int
+  /// Denormalised highest bid so listing pages don't need an aggregate over
+  /// `bids` for every row. Seeded from startPrice when the auction is created.
+  currentPrice Int
+  /// Optional "ซื้อทันที" price. Null = buy-now disabled for this item.
+  buyNowPrice  Int?
+
+  /// Null = no fixed closing time; the seller ends the auction manually.
+  endTime DateTime?
+
+  status    AuctionStatus @default(draft)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Restrict, not Cascade: an auction is a financial record. Deleting a seller
+  // must not silently erase auctions other people bid on.
+  seller   User     @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  bids     Bid[]
+
+  // "Live auctions, soonest ending first" — the main marketplace query.
+  @@index([status, endTime])
+  // Category browse pages.
+  @@index([categoryId, status])
+  // A seller's own listings.
+  @@index([sellerId])
+  @@map("auction_items")
+}
+
+/// A bid placed on an auction item. Append-only: bids are never edited.
+model Bid {
+  id            String   @id @default(cuid())
+  auctionItemId String
+  bidderId      String
+  /// Integer satang, same convention as AuctionItem prices.
+  amount        Int
+  createdAt     DateTime @default(now())
+
+  auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Cascade)
+  // Restrict: a bid is a binding record, so a bidder cannot be deleted out from
+  // under an auction they are winning.
+  bidder      User        @relation(fields: [bidderId], references: [id], onDelete: Restrict)
+
+  // Two bids on the same item can never share an amount. This turns the classic
+  // "two users bid the same value at once" race into a database-level conflict
+  // instead of a tie the application has to guess at.
+  @@unique([auctionItemId, amount])
+  // Bid history for an item, highest first.
+  @@index([auctionItemId, amount(sort: Desc)])
+  // "My bids" page.
+  @@index([bidderId])
+  @@map("bids")
+}
