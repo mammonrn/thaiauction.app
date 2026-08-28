@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 
 import type { SellActionState } from "@/app/sell/actions";
 import { ImageUploader, type UploadedImage } from "@/components/image-uploader";
+import { ThaiDateTimePicker } from "@/components/thai-datetime-picker";
 import { MAX_DESCRIPTION, MAX_TITLE } from "@/lib/auction-rules";
 
 const initialState: SellActionState = { ok: false, message: null };
@@ -18,6 +19,7 @@ export type AuctionFormValues = {
   description: string;
   startPrice: string;
   buyNowPrice: string;
+  bidIncrement: string;
   timed: boolean;
   endTime: string;
   images: UploadedImage[];
@@ -29,6 +31,7 @@ export function AuctionForm({
   initial,
   submitLabel,
   maxImages,
+  now,
 }: {
   action: (
     prev: SellActionState,
@@ -38,6 +41,8 @@ export function AuctionForm({
   initial: AuctionFormValues;
   submitLabel: string;
   maxImages: number;
+  /** Server render time, forwarded to the date picker. */
+  now: number;
 }) {
   const [state, formAction, pending] = useActionState(action, initialState);
   const v = state.values;
@@ -93,7 +98,7 @@ export function AuctionForm({
       <Row
         label={`รูปภาพ (1-${maxImages} รูป)`}
         error={err?.images}
-        hint="รูปแรกจะเป็นรูปปก ลากลำดับด้วยปุ่ม ← → ระบบจะย่อและแปลงเป็น WebP ให้อัตโนมัติ"
+        hint="รูปแรกจะเป็นรูปปก จัดลำดับด้วยปุ่ม ← →"
       >
         <ImageUploader name="images" max={maxImages} initial={initial.images} />
       </Row>
@@ -122,6 +127,20 @@ export function AuctionForm({
         </Row>
       </div>
 
+      <Row
+        label="ขั้นต่ำการเพิ่มราคาบิด (บาท)"
+        error={err?.bidIncrement}
+        hint="ผู้เสนอราคาต้องเพิ่มขึ้นอย่างน้อยครั้งละเท่านี้"
+      >
+        <input
+          name="bidIncrement"
+          required
+          inputMode="decimal"
+          defaultValue={v?.bidIncrement ?? initial.bidIncrement}
+          className={`${inputClass} max-w-40`}
+        />
+      </Row>
+
       <fieldset className="flex flex-col gap-3">
         <legend className="text-sm font-medium">ประเภทการประมูล</legend>
         <label className="flex items-center gap-2 text-sm">
@@ -147,12 +166,10 @@ export function AuctionForm({
 
         {timed ? (
           <Row label="วันและเวลาที่จบ" error={err?.endTime}>
-            <input
-              type="datetime-local"
+            <ThaiDateTimePicker
               name="endTime"
-              required
               defaultValue={v?.endTime ?? initial.endTime}
-              className={`${inputClass} max-w-64`}
+              now={now}
             />
           </Row>
         ) : null}

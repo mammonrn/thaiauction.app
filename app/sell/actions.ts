@@ -62,6 +62,7 @@ function readForm(formData: FormData) {
     description: String(formData.get("description") ?? "").trim(),
     startPriceRaw: String(formData.get("startPrice") ?? ""),
     buyNowPriceRaw: String(formData.get("buyNowPrice") ?? ""),
+    bidIncrementRaw: String(formData.get("bidIncrement") ?? ""),
     timed,
     endTimeRaw,
     // The client posts one hidden input per image, in display order.
@@ -76,6 +77,7 @@ function echo(form: ReturnType<typeof readForm>): Record<string, string> {
     description: form.description,
     startPrice: form.startPriceRaw,
     buyNowPrice: form.buyNowPriceRaw,
+    bidIncrement: form.bidIncrementRaw,
     auctionType: form.timed ? "timed" : "open",
     endTime: form.endTimeRaw,
   };
@@ -85,6 +87,7 @@ function echo(form: ReturnType<typeof readForm>): Record<string, string> {
 function buildInput(form: ReturnType<typeof readForm>, requireImages: boolean) {
   const startPriceSatang = parsePrice(form.startPriceRaw);
   const buyNowPriceSatang = parsePrice(form.buyNowPriceRaw);
+  const bidIncrementSatang = parsePrice(form.bidIncrementRaw);
   const endTime =
     form.timed && form.endTimeRaw ? new Date(form.endTimeRaw) : null;
 
@@ -94,6 +97,9 @@ function buildInput(form: ReturnType<typeof readForm>, requireImages: boolean) {
     description: form.description,
     startPriceSatang: startPriceSatang ?? -1,
     buyNowPriceSatang,
+    // -1 rather than the default, so a blank or unparseable value is reported
+    // instead of silently becoming ฿10.
+    bidIncrementSatang: bidIncrementSatang ?? -1,
     endTime,
     images: form.images,
   };
@@ -142,6 +148,7 @@ export async function createAuctionAction(
         // The opening bid is the current price until somebody bids.
         currentPrice: input.startPriceSatang,
         buyNowPrice: input.buyNowPriceSatang,
+        bidIncrement: input.bidIncrementSatang,
         endTime: input.endTime,
         status: "draft",
       },
@@ -211,6 +218,7 @@ export async function updateAuctionAction(
         // that, so this can never overwrite a real bid.
         currentPrice: input.startPriceSatang,
         buyNowPrice: input.buyNowPriceSatang,
+        bidIncrement: input.bidIncrementSatang,
         endTime: input.endTime,
       },
     });
@@ -258,6 +266,7 @@ export async function publishAuctionAction(
       description: item.description,
       startPriceSatang: item.startPrice,
       buyNowPriceSatang: item.buyNowPrice,
+      bidIncrementSatang: item.bidIncrement,
       endTime: item.endTime,
       images: item.images,
     },

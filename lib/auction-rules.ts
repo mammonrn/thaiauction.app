@@ -40,12 +40,25 @@ export const MAX_PRICE_SATANG = 1_000_000_00;
 /** A timed auction must run at least this long, so it cannot close instantly. */
 export const MIN_DURATION_MS = 60 * 60 * 1000;
 
+/**
+ * Default bid step: ฿10.
+ *
+ * Low enough not to shut out cheap listings, high enough that bidding does not
+ * crawl up in single satang. Sellers can change it per item, and the column
+ * carries the same value as its default so rows created before this field
+ * existed behave sensibly.
+ */
+export const DEFAULT_BID_INCREMENT_SATANG = 1000;
+/** ฿1 — anything smaller makes the step meaningless. */
+export const MIN_BID_INCREMENT_SATANG = 100;
+
 export type AuctionDraftInput = {
   categoryId: string;
   title: string;
   description: string;
   startPriceSatang: number;
   buyNowPriceSatang: number | null;
+  bidIncrementSatang: number;
   endTime: Date | null;
   images: string[];
 };
@@ -57,6 +70,7 @@ export type AuctionFieldErrors = Partial<
     | "description"
     | "startPrice"
     | "buyNowPrice"
+    | "bidIncrement"
     | "endTime"
     | "images",
     string
@@ -102,6 +116,25 @@ export function validateAuctionInput(
       // over before it starts.
       errors.buyNowPrice = "ราคาซื้อทันทีต้องสูงกว่าราคาเริ่มต้น";
     }
+  }
+
+  if (
+    !Number.isInteger(input.bidIncrementSatang) ||
+    input.bidIncrementSatang < MIN_BID_INCREMENT_SATANG
+  ) {
+    errors.bidIncrement = "ขั้นต่ำการเพิ่มราคาต้องอย่างน้อย 1 บาท";
+  } else if (input.bidIncrementSatang > MAX_PRICE_SATANG) {
+    errors.bidIncrement = "ขั้นต่ำการเพิ่มราคาสูงเกินกำหนด";
+  } else if (
+    input.buyNowPriceSatang !== null &&
+    !errors.startPrice &&
+    !errors.buyNowPrice &&
+    input.bidIncrementSatang > input.buyNowPriceSatang - input.startPriceSatang
+  ) {
+    // Otherwise the very first legal bid already exceeds the buy-now price, so
+    // no one could ever bid without overshooting it.
+    errors.bidIncrement =
+      "ขั้นต่ำการเพิ่มราคาสูงเกินไป จนบิดครั้งแรกจะเกินราคาซื้อทันที";
   }
 
   if (input.endTime) {

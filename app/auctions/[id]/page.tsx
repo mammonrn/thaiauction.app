@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { formatBaht } from "@/lib/money";
+import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
 import { imageUrl } from "@/lib/uploads";
 
@@ -123,7 +124,7 @@ export default async function AuctionDetailPage({
             </span>
             {item.endTime ? (
               <span className="text-xs text-black/50 dark:text-white/50">
-                จบ {item.endTime.toLocaleString("th-TH")}
+                จบ {formatThaiDateTime(item.endTime)}
               </span>
             ) : null}
           </div>

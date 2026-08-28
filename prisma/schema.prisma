@@ -125,6 +125,10 @@ model AuctionItem {
   currentPrice Int
   /// Optional "ซื้อทันที" price. Null = buy-now disabled for this item.
   buyNowPrice  Int?
+  /// Smallest step a new bid must clear the current price by, in satang.
+  /// Set by the seller when listing; enforced by the bidding system.
+  /// Defaults to 1000 satang (฿10) so existing rows get a sane step.
+  bidIncrement Int  @default(1000)
 
   /// Null = no fixed closing time; the seller ends the auction manually.
   endTime DateTime?

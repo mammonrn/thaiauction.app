@@ -5,10 +5,21 @@ import { createAuctionAction } from "@/app/sell/actions";
 import { prisma } from "@/lib/prisma";
 import { requireVerifiedSeller } from "@/lib/seller";
 import { MAX_IMAGES_PER_ITEM } from "@/lib/uploads";
+import { DEFAULT_BID_INCREMENT_SATANG } from "@/lib/auction-rules";
+import { satangToBaht } from "@/lib/money";
 
 export default async function NewAuctionPage() {
   // Redirects to /account/phone when the seller has no verified number.
   await requireVerifiedSeller("/sell/new");
+
+  // Request time, handed to the date picker so its "too soon" hint is measured
+  // against the same clock the Server Action validates with.
+  //
+  // react-hooks/purity targets client components that may re-render at any
+  // moment. This is an async Server Component on a dynamic route: it runs once
+  // per request, and reading the clock is exactly what it should do.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
@@ -34,6 +45,7 @@ export default async function NewAuctionPage() {
         action={createAuctionAction}
         categories={categories}
         maxImages={MAX_IMAGES_PER_ITEM}
+        now={now}
         submitLabel="บันทึกฉบับร่าง"
         initial={{
           categoryId: "",
@@ -41,6 +53,7 @@ export default async function NewAuctionPage() {
           description: "",
           startPrice: "",
           buyNowPrice: "",
+          bidIncrement: String(satangToBaht(DEFAULT_BID_INCREMENT_SATANG)),
           timed: false,
           endTime: "",
           images: [],

@@ -5,7 +5,8 @@ import { updateAuctionAction } from "@/app/sell/actions";
 import { AuctionForm } from "@/components/auction-form";
 import { PublishControls } from "@/components/publish-controls";
 import { editLockReason, isEditable } from "@/lib/auction-rules";
-import { satangToBaht } from "@/lib/money";
+import { formatBaht, satangToBaht } from "@/lib/money";
+import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { MAX_IMAGES_PER_ITEM, imageUrl } from "@/lib/uploads";
@@ -30,10 +31,22 @@ export default async function EditAuctionPage({
   // Scoped to the owner: another seller's id simply does not resolve.
   const item = await prisma.auctionItem.findFirst({
     where: { id, sellerId: user.id },
-    include: { _count: { select: { bids: true } } },
+    include: {
+      _count: { select: { bids: true } },
+      category: { select: { name: true } },
+    },
   });
 
   if (!item) notFound();
+
+  // Request time, handed to the date picker so its "too soon" hint is measured
+  // against the same clock the Server Action validates with.
+  //
+  // react-hooks/purity targets client components that may re-render at any
+  // moment. This is an async Server Component on a dynamic route: it runs once
+  // per request, and reading the clock is exactly what it should do.
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   const categories = await prisma.category.findMany({
     orderBy: { name: "asc" },
@@ -77,13 +90,29 @@ export default async function EditAuctionPage({
         </p>
       ) : null}
 
-      <PublishControls itemId={item.id} status={item.status} />
+      <PublishControls
+        itemId={item.id}
+        status={item.status}
+        summary={{
+          title: item.title,
+          categoryName: item.category.name,
+          imageUrls: item.images.map(imageUrl),
+          startPrice: formatBaht(item.startPrice),
+          buyNowPrice:
+            item.buyNowPrice === null ? null : formatBaht(item.buyNowPrice),
+          bidIncrement: `ครั้งละ ${formatBaht(item.bidIncrement)}`,
+          endTimeLabel: item.endTime
+            ? formatThaiDateTime(item.endTime)
+            : "ไม่ระบุเวลาจบ (ผู้ขายปิดเอง)",
+        }}
+      />
 
       {editable ? (
         <AuctionForm
           action={updateAuctionAction}
           categories={categories}
           maxImages={MAX_IMAGES_PER_ITEM}
+          now={now}
           submitLabel="บันทึกการแก้ไข"
           initial={{
             itemId: item.id,
@@ -93,6 +122,7 @@ export default async function EditAuctionPage({
             startPrice: String(satangToBaht(item.startPrice)),
             buyNowPrice:
               item.buyNowPrice === null ? "" : String(satangToBaht(item.buyNowPrice)),
+            bidIncrement: String(satangToBaht(item.bidIncrement)),
             timed: item.endTime !== null,
             endTime: item.endTime ? toLocalInput(item.endTime) : "",
             images: item.images.map((key) => ({ key, url: imageUrl(key) })),
