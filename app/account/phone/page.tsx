@@ -5,8 +5,18 @@ import { isStubMode } from "@/lib/thaibulksms";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
-export default async function PhonePage() {
+export default async function PhonePage({
+  searchParams,
+}: PageProps<"/account/phone">) {
   const { user } = await requireSession("/account/phone");
+  const { reason, next } = await searchParams;
+
+  // Only a relative, single-slash path is accepted, so ?next= cannot be turned
+  // into an open redirect back out of the site.
+  const backTo =
+    typeof next === "string" && next.startsWith("/") && !next.startsWith("//")
+      ? next
+      : null;
 
   const verified = await prisma.verifiedPhone.findMany({
     where: { userId: user.id },
@@ -38,6 +48,21 @@ export default async function PhonePage() {
         <p className="text-sm text-black/60 dark:text-white/60">
           ยืนยันเบอร์เพื่อให้ผู้ซื้อ-ผู้ขายติดต่อกันได้จริง
         </p>
+
+        {reason === "sell" ? (
+          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+            ต้องยืนยันเบอร์โทรก่อนจึงจะลงสินค้าประมูลได้
+            เพื่อให้ผู้ซื้อติดต่อผู้ขายได้จริง
+            {backTo ? (
+              <>
+                {" "}
+                <Link href={backTo} className="underline underline-offset-4">
+                  กลับไปหน้าลงสินค้า
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : null}
       </div>
 
       <PhoneVerification

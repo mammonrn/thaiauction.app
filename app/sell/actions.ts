@@ -1,0 +1,315 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+
+import {
+  isEditable,
+  validateAuctionInput,
+  type AuctionFieldErrors,
+} from "@/lib/auction-rules";
+import { bahtToSatang } from "@/lib/money";
+import { prisma } from "@/lib/prisma";
+import { requireVerifiedSeller } from "@/lib/seller";
+import { requireSession } from "@/lib/session";
+import { UploadError, attachImagesToItem, deleteImages } from "@/lib/uploads";
+
+export type SellActionState = {
+  ok: boolean;
+  message: string | null;
+  errors?: AuctionFieldErrors;
+  values?: Record<string, string>;
+};
+
+const GENERIC_FAILURE = "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
+
+/**
+ * Load a listing only if it belongs to the signed-in seller.
+ *
+ * userId sits in the WHERE clause rather than being compared after the read, so
+ * a guessed id simply matches nothing and "not yours" is indistinguishable from
+ * "does not exist" — the same rule the shipping addresses follow.
+ */
+async function findOwnedItem(itemId: string, sellerId: string) {
+  if (!itemId) return null;
+
+  return prisma.auctionItem.findFirst({
+    where: { id: itemId, sellerId },
+    select: {
+      id: true,
+      status: true,
+      images: true,
+      _count: { select: { bids: true } },
+    },
+  });
+}
+
+function parsePrice(raw: string): number | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const baht = Number(trimmed);
+  if (!Number.isFinite(baht) || baht < 0) return null;
+  return bahtToSatang(baht);
+}
+
+function readForm(formData: FormData) {
+  const timed = formData.get("auctionType") === "timed";
+  const endTimeRaw = String(formData.get("endTime") ?? "").trim();
+
+  return {
+    categoryId: String(formData.get("categoryId") ?? ""),
+    title: String(formData.get("title") ?? "").trim(),
+    description: String(formData.get("description") ?? "").trim(),
+    startPriceRaw: String(formData.get("startPrice") ?? ""),
+    buyNowPriceRaw: String(formData.get("buyNowPrice") ?? ""),
+    timed,
+    endTimeRaw,
+    // The client posts one hidden input per image, in display order.
+    images: formData.getAll("images").map(String).filter(Boolean),
+  };
+}
+
+function echo(form: ReturnType<typeof readForm>): Record<string, string> {
+  return {
+    categoryId: form.categoryId,
+    title: form.title,
+    description: form.description,
+    startPrice: form.startPriceRaw,
+    buyNowPrice: form.buyNowPriceRaw,
+    auctionType: form.timed ? "timed" : "open",
+    endTime: form.endTimeRaw,
+  };
+}
+
+/** Shared parse + validate for create and update. */
+function buildInput(form: ReturnType<typeof readForm>, requireImages: boolean) {
+  const startPriceSatang = parsePrice(form.startPriceRaw);
+  const buyNowPriceSatang = parsePrice(form.buyNowPriceRaw);
+  const endTime =
+    form.timed && form.endTimeRaw ? new Date(form.endTimeRaw) : null;
+
+  const input = {
+    categoryId: form.categoryId,
+    title: form.title,
+    description: form.description,
+    startPriceSatang: startPriceSatang ?? -1,
+    buyNowPriceSatang,
+    endTime,
+    images: form.images,
+  };
+
+  const errors = validateAuctionInput(input, { requireImages });
+
+  // A timed auction with no date at all is a separate mistake from a bad date.
+  if (form.timed && !form.endTimeRaw) {
+    errors.endTime = "กรุณาเลือกวันและเวลาที่จบ";
+  }
+
+  return { input, errors };
+}
+
+export async function createAuctionAction(
+  _prev: SellActionState,
+  formData: FormData,
+): Promise<SellActionState> {
+  const { user } = await requireVerifiedSeller("/sell/new");
+
+  const form = readForm(formData);
+  const { input, errors } = buildInput(form, false);
+
+  // The category must exist, or the foreign key would fail with a raw error.
+  if (input.categoryId) {
+    const category = await prisma.category.count({ where: { id: input.categoryId } });
+    if (category === 0) errors.categoryId = "หมวดหมู่ไม่ถูกต้อง";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, message: "กรุณาตรวจสอบข้อมูล", errors, values: echo(form) };
+  }
+
+  let itemId: string;
+  try {
+    // Created first with no images, so the item id exists to name their folder;
+    // the staged files are then moved in and the row updated with their keys.
+    const created = await prisma.auctionItem.create({
+      data: {
+        sellerId: user.id,
+        categoryId: input.categoryId,
+        title: input.title,
+        description: input.description,
+        images: [],
+        startPrice: input.startPriceSatang,
+        // The opening bid is the current price until somebody bids.
+        currentPrice: input.startPriceSatang,
+        buyNowPrice: input.buyNowPriceSatang,
+        endTime: input.endTime,
+        status: "draft",
+      },
+      select: { id: true },
+    });
+    itemId = created.id;
+
+    const stored = await attachImagesToItem(user.id, itemId, input.images);
+    if (stored.length > 0) {
+      await prisma.auctionItem.update({
+        where: { id: itemId },
+        data: { images: stored },
+      });
+    }
+  } catch (error) {
+    if (error instanceof UploadError) {
+      return { ok: false, message: error.message, values: echo(form) };
+    }
+    console.error("[sell] create failed:", error);
+    return { ok: false, message: GENERIC_FAILURE, values: echo(form) };
+  }
+
+  revalidatePath("/sell");
+  redirect(`/sell/${itemId}/edit?created=1`);
+}
+
+export async function updateAuctionAction(
+  _prev: SellActionState,
+  formData: FormData,
+): Promise<SellActionState> {
+  const { user } = await requireSession("/sell");
+
+  const itemId = String(formData.get("itemId") ?? "");
+  const owned = await findOwnedItem(itemId, user.id);
+  if (!owned) return { ok: false, message: "ไม่พบรายการนี้" };
+
+  // Re-checked here, not just hidden in the UI: a stale tab could post an edit
+  // after the first bid arrives.
+  if (!isEditable({ status: owned.status, bidCount: owned._count.bids })) {
+    return { ok: false, message: "รายการนี้แก้ไขไม่ได้แล้ว" };
+  }
+
+  const form = readForm(formData);
+  const { input, errors } = buildInput(form, owned.status === "active");
+
+  if (input.categoryId) {
+    const category = await prisma.category.count({ where: { id: input.categoryId } });
+    if (category === 0) errors.categoryId = "หมวดหมู่ไม่ถูกต้อง";
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return { ok: false, message: "กรุณาตรวจสอบข้อมูล", errors, values: echo(form) };
+  }
+
+  try {
+    const stored = await attachImagesToItem(user.id, owned.id, input.images);
+
+    await prisma.auctionItem.updateMany({
+      where: { id: owned.id, sellerId: user.id },
+      data: {
+        categoryId: input.categoryId,
+        title: input.title,
+        description: input.description,
+        images: stored,
+        startPrice: input.startPriceSatang,
+        // Safe to move while there are no bids; the edit gate above guarantees
+        // that, so this can never overwrite a real bid.
+        currentPrice: input.startPriceSatang,
+        buyNowPrice: input.buyNowPriceSatang,
+        endTime: input.endTime,
+      },
+    });
+
+    // Images dropped in this edit are removed from disk, so deleted photos do
+    // not linger on the VPS.
+    const removed = owned.images.filter((key) => !stored.includes(key));
+    await deleteImages(removed);
+  } catch (error) {
+    if (error instanceof UploadError) {
+      return { ok: false, message: error.message, values: echo(form) };
+    }
+    console.error("[sell] update failed:", error);
+    return { ok: false, message: GENERIC_FAILURE, values: echo(form) };
+  }
+
+  revalidatePath("/sell");
+  revalidatePath(`/sell/${owned.id}/edit`);
+  revalidatePath(`/auctions/${owned.id}`);
+  return { ok: true, message: "บันทึกการแก้ไขแล้ว" };
+}
+
+/** draft -> active. Only now are the publish-time rules enforced. */
+export async function publishAuctionAction(
+  _prev: SellActionState,
+  formData: FormData,
+): Promise<SellActionState> {
+  const { user } = await requireVerifiedSeller("/sell");
+
+  const itemId = String(formData.get("itemId") ?? "");
+  const owned = await findOwnedItem(itemId, user.id);
+  if (!owned) return { ok: false, message: "ไม่พบรายการนี้" };
+  if (owned.status !== "draft") {
+    return { ok: false, message: "รายการนี้เผยแพร่ไปแล้ว" };
+  }
+
+  const item = await prisma.auctionItem.findFirstOrThrow({
+    where: { id: owned.id, sellerId: user.id },
+  });
+
+  const errors = validateAuctionInput(
+    {
+      categoryId: item.categoryId,
+      title: item.title,
+      description: item.description,
+      startPriceSatang: item.startPrice,
+      buyNowPriceSatang: item.buyNowPrice,
+      endTime: item.endTime,
+      images: item.images,
+    },
+    { requireImages: true },
+  );
+
+  if (Object.keys(errors).length > 0) {
+    return {
+      ok: false,
+      message: "ยังเผยแพร่ไม่ได้ กรุณาแก้ไขให้ครบก่อน",
+      errors,
+    };
+  }
+
+  // Guarded on status as well as owner, so two clicks cannot publish twice.
+  const { count } = await prisma.auctionItem.updateMany({
+    where: { id: owned.id, sellerId: user.id, status: "draft" },
+    data: { status: "active" },
+  });
+
+  if (count === 0) return { ok: false, message: "รายการนี้เผยแพร่ไปแล้ว" };
+
+  revalidatePath("/sell");
+  revalidatePath(`/auctions/${owned.id}`);
+  return { ok: true, message: "เผยแพร่แล้ว" };
+}
+
+/** Drafts can be deleted outright; anything published is cancelled instead. */
+export async function deleteDraftAction(
+  _prev: SellActionState,
+  formData: FormData,
+): Promise<SellActionState> {
+  const { user } = await requireSession("/sell");
+
+  const itemId = String(formData.get("itemId") ?? "");
+  const owned = await findOwnedItem(itemId, user.id);
+  if (!owned) return { ok: false, message: "ไม่พบรายการนี้" };
+
+  if (owned.status !== "draft") {
+    return { ok: false, message: "ลบได้เฉพาะรายการที่ยังเป็นฉบับร่าง" };
+  }
+
+  try {
+    const { count } = await prisma.auctionItem.deleteMany({
+      where: { id: owned.id, sellerId: user.id, status: "draft" },
+    });
+    if (count > 0) await deleteImages(owned.images);
+  } catch (error) {
+    console.error("[sell] delete failed:", error);
+    return { ok: false, message: GENERIC_FAILURE };
+  }
+
+  revalidatePath("/sell");
+  return { ok: true, message: "ลบฉบับร่างแล้ว" };
+}
