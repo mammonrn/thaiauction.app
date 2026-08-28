@@ -554,3 +554,98 @@ the seller's last chance to catch a wrong price or photo.
 
 Built on native `<dialog>`, which provides focus trapping, Esc-to-close and
 background inertness that a div-based modal would have to reimplement.
+
+## Bidding
+
+### Concurrency
+
+Every bid and every close runs inside a transaction that first takes a row lock:
+
+```sql
+SELECT ... FROM auction_items WHERE id = $1 FOR UPDATE
+```
+
+PostgreSQL serialises simultaneous bidders on that row, so the second one reads
+the price the first **committed**, not the stale price it saw on arrival.
+Checking `currentPrice` in application code alone would not work — both requests
+would read the same value and both would pass. The existing unique index on
+`(auctionItemId, amount)` is a second line of defence, so even a path that
+skipped the lock could not record two bids at one amount.
+
+Verified two ways against a throwaway database:
+
+- **20 parallel transactions** — 20 identical bids produced exactly one accepted
+  bid and one row; 20 ascending bids produced a strictly rising sequence, each
+  clearing the previous price by at least the increment, with the losers of each
+  race correctly rejected rather than overwriting a higher price.
+- **8 concurrent browsers over real HTTP** — all clicking bid at the same amount
+  at once produced exactly one recorded bid and one success message.
+
+### Bid rules
+
+| Rule | Why |
+| --- | --- |
+| Verified phone required | A bid commits the bidder to pay; the seller must be able to reach the winner |
+| Seller cannot bid on their own item | Shill bidding |
+| Current leader cannot raise their own bid | It only inflates the price they will pay |
+| `amount >= currentPrice + bidIncrement` | The seller's step |
+| `amount <= buyNowPrice` | Bids may not exceed the advertised buy-now price |
+
+Where `currentPrice + bidIncrement` would land **above** buy-now, buy-now itself
+becomes the only acceptable amount. Without that special case the increment
+could put the item out of reach and nobody could bid at all.
+
+A bid equal to buy-now ends the auction immediately with that bidder as winner.
+
+### Settlement
+
+The outcome is **recorded, not derived** — `endedAt`, `endReason` and `winnerId`
+are written when the auction stops, so it stays a fixed fact.
+
+| Trigger | Result |
+| --- | --- |
+| `endTime` passes | `ended`, winner = highest bidder or none |
+| Bid at buy-now | `ended`, reason `buy_now` |
+| Seller ends early, with bids | `ended`, highest bidder wins |
+| Seller ends early, no bids | `cancelled`, no winner — a withdrawal, not a sale |
+
+**Expiry is handled lazily plus a sweep.** Viewing an auction, or polling its
+live state, settles it — which covers everything anyone is actually looking at.
+For auctions that end with nobody watching:
+
+```bash
+npm run auctions:settle
+```
+
+A script rather than an HTTP endpoint, so cron runs it with the `DATABASE_URL`
+the app already has: no public route to protect and no shared secret to manage.
+It is idempotent, so a missed run costs nothing. Suggested crontab:
+
+```
+*/5 * * * * cd /srv/thaiauction && /usr/bin/npm run auctions:settle >> /var/log/thaiauction-settle.log 2>&1
+```
+
+### Live prices
+
+The detail page polls a small JSON endpoint every 5s, paused while the tab is
+hidden. On a single VPS running one Node process, SSE or WebSockets would add
+connection management and a sticky-session constraint to save a few seconds on
+an auction that runs for hours. The countdown is measured against the server's
+clock, sent with each poll, so a device with the wrong time still shows the
+right remaining time.
+
+Note for anyone extending this: the panel adopts fresh server props during
+render. Ending an auction happens in a sibling component, and without that sync
+the price panel keeps its mounted state and shows a stale "active" until the
+next poll.
+
+### Bid history privacy
+
+Bidder names are masked to a first character — `ส***`, or `คุณ` for your own
+bids. A full name beside a bid amount invites approaching the underbidder
+off-platform or working out a rival's budget.
+
+### Auction length
+
+Capped at one year, measured from the listing's `createdAt` rather than from
+now, so editing a draft weeks later cannot quietly extend the window.
