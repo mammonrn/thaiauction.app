@@ -16,7 +16,27 @@ import "server-only";
  * https://docs.omise.co/api-authentication
  */
 
-const API_BASE = "https://api.omise.co";
+const DEFAULT_API_BASE = "https://api.omise.co";
+
+/**
+ * Where requests go.
+ *
+ * Overridable only so the payment flow can be exercised end to end against a
+ * stub during development, and guarded so that is all it can ever do: an
+ * override is IGNORED unless the secret key is a test key. A live key always
+ * talks to Omise, whatever the environment says — an env var must not be able
+ * to redirect real money to another host.
+ */
+function apiBase(): string {
+  const override = process.env.OMISE_API_BASE;
+  if (!override) return DEFAULT_API_BASE;
+
+  if (!secretKey().startsWith("skey_test_")) {
+    console.error("[omise] ignoring OMISE_API_BASE: live key in use");
+    return DEFAULT_API_BASE;
+  }
+  return override.replace(/\/$/, "");
+}
 
 /** PromptPay's own limits, quoted in the Omise docs. Integer satang. */
 export const PROMPTPAY_MIN_SATANG = 2_000;
@@ -112,7 +132,7 @@ async function request<T>(
 ): Promise<T> {
   const auth = Buffer.from(`${secretKey()}:`).toString("base64");
 
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(`${apiBase()}${path}`, {
     method: init.method,
     headers: {
       Authorization: `Basic ${auth}`,

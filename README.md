@@ -804,3 +804,196 @@ with stricter handling requirements, and is not needed to check identity.
 means a number was proved reachable; **verified identity** means a human checked
 a government ID. They are worded and coloured differently on purpose — letting
 them read alike would overstate what the weaker one proves.
+
+## Payments (Omise)
+
+The winner pays through Omise, by card or PromptPay QR. The marketplace
+receives the money, keeps 10%, and transfers the rest to the seller by hand.
+
+| Route | Who |
+| --- | --- |
+| `/auctions/[id]/pay` | The auction's current winner, nobody else |
+| `/api/payments/[id]/state` | The payer only — poll target |
+| `/admin/payouts` | Administrators only |
+| `/account/bank` | The seller — where their share is sent |
+
+```
+OMISE_PUBLIC_KEY   pkey_...   safe in the browser; tokenises cards
+OMISE_SECRET_KEY   skey_...   server only, never sent to a client
+```
+
+`OMISE_ALLOW_LIVE=1` is required before a live (non-`skey_test_`) key will be
+used at all, so a production key dropped into a staging `.env` fails loudly
+instead of moving real money.
+
+### Card data never reaches this server
+
+The browser tokenises with Omise.js against the **public** key; what arrives at
+the Server Action is a `tokn_...` handle. This is the only way to accept cards
+without a PCI-DSS licence, and it is enforced structurally rather than by
+convention: **the card inputs have no `name` attribute**, so they cannot be
+serialised into a Server Action's FormData even if the submit handler were
+wrong. The action reads no field but `token`.
+
+### Omise is the only authority on whether money moved
+
+Payment status is written **exclusively** from a Retrieve Charge response
+(`GET /charges/{id}`). Nothing the browser reports is believed.
+
+There is deliberately **no webhook endpoint**. Omise's own docs say deliveries
+are not guaranteed to be retried and that verifying through the API is the
+alternative, so the API is used as the single source of truth rather than as a
+second one — which also means no third secret to manage and no public endpoint
+to protect. Confirmation happens in two places:
+
+- the pay page polls `/api/payments/[id]/state`, and each poll makes the server
+  re-ask Omise — this is what turns a scanned QR into a settled auction;
+- `npm run auctions:settle` reconciles anything nobody is watching.
+
+### Money is split from Omise's real numbers
+
+The Charge object carries `fee`, `fee_vat` and `net`, where net is
+"funding_amount after fees, interest and VAT deducted". Commission is taken
+from `net` — what the marketplace actually received — not from what the buyer
+paid:
+
+```
+amount      what the buyer paid (the winning bid)
+− fee       Omise's fee          } straight from the Charge,
+− fee_vat   VAT on that fee      } never estimated
+= net
+− commission   10% of net, FLOORED
+= sellerNet
+```
+
+Integer satang throughout, and 10% is integer division, never `0.1 *`. The
+commission is floored so rounding never falls in the platform's favour, and
+`sellerNet` is computed by subtraction, so the parts always sum to exactly
+`net` with no satang unaccounted for.
+
+### Double payment is prevented by PostgreSQL, not by an if-statement
+
+Two partial unique indexes, written by hand because Prisma cannot express them:
+
+```sql
+UNIQUE (auctionItemId) WHERE status = 'successful'  -- one payment, ever
+UNIQUE (auctionItemId) WHERE status = 'pending'     -- one live attempt
+```
+
+An application-level "has this been paid?" check is not enough — two concurrent
+requests both pass it. Only one can win a unique index. Verified by firing 12
+simultaneous attempts at one auction: one accepted, eleven refused, and exactly
+**one** charge created at the gateway.
+
+The one-pending rule exists because **Omise's expire endpoint does not cover
+PromptPay**, so a QR that has been handed out cannot be recalled. Refusing to
+open a second attempt is the only way to be sure a buyer is not charged twice.
+PromptPay charges therefore carry a short gateway-enforced `expires_at`, so
+"wait for the first attempt to resolve" is always bounded.
+
+A charge is created in two steps — reserve the row, then call Omise, then
+record the id — and the row is claimed *before* any charge exists, so two
+clicks cannot both reach the gateway. Every charge carries its payment row id
+in `metadata`, so the reconcile sweep can find and adopt a charge created just
+before a crash rather than leaving money unaccounted for.
+
+### The 24-hour rule and the re-offer chain
+
+A winner has 24 hours to pay. If they do not:
+
+1. a **strike** is recorded against them;
+2. the item is offered to the next highest bidder, **at their own bid** — they
+   never offered the forfeited price, so charging it would invent a bid nobody
+   made, and `currentPrice` moves down with the offer;
+3. that person gets their own fresh 24 hours;
+4. when nobody is left, the auction ends `unpaid`.
+
+Skipped when choosing the next holder: anyone who already forfeited this
+auction (their strike row is the record, so the chain cannot loop back), and
+anyone already banned.
+
+Run from the existing settlement script, in a deliberate order:
+
+```
+npm run auctions:settle    # 1. close expired auctions
+                           # 2. reconcile payments against Omise
+                           # 3. forfeit lapsed deadlines
+```
+
+Reconciling **before** judging deadlines is the important part: a payment that
+landed while nobody was watching must be seen first, or a buyer who paid on
+time would be struck for not paying.
+
+### Payouts
+
+`/admin/payouts` lists what is owed. Every figure shown is stored, not
+recalculated — a page that recomputed them could quietly disagree with what was
+actually taken. Marking a transfer requires a bank reference, is guarded on
+`payoutStatus` so two admins cannot both record it, and **snapshots the account
+paid**: a seller can change their bank details later, and what was paid must
+not change with them.
+
+The seller's account name is compared against their KYC name and the result
+recorded, but **not enforced**. Thai bank statements carry title prefixes
+(นาย/นาง/นางสาว) and inconsistent spacing, so a strict match would refuse
+legitimate accounts; `lib/thai-name.ts` normalises both sides and a mismatch
+raises a flag for the human releasing the money.
+
+## Anti-shill and strikes
+
+### Refusing the seller bidding on themselves
+
+`placeBid` already rejects the seller's own account. `lib/anti-shill.ts`
+catches the same person arriving through a second one, on either signal the
+marketplace has already **proved**:
+
+- a phone number verified by SMS on both accounts;
+- the same name and date of birth, checked against an ID card by a human.
+
+Both refuse the bid outright, with a message saying which matched. Two accounts
+that have both left KYC blank are not a match — they are simply two buyers.
+
+These run *before* the bidding transaction opens, so the auction's row lock is
+never held across them. An item's seller never changes, so reading it
+beforehand is sound.
+
+### Shared origin is a question, not an answer
+
+Every bid records `ipAddress` and `userAgent`. `/admin/fraud` groups them:
+several **different** accounts bidding on **one** seller's items from one
+origin. That is what a sock-puppet ring looks like — and also what a family on
+one router looks like, so **nothing is blocked automatically**. The page says
+so on its face, and a person decides.
+
+### Strikes
+
+Three unpaid wins removes the right to **bid** — nothing else. A struck-out
+user can still sign in, browse, and sell; the sanction matches the harm, which
+is taking an auction off the market and not paying for it.
+
+Counted from `payment_strikes` rows rather than a column, so there is no
+counter that can drift from the events it summarises, and unique on
+`(userId, auctionItemId)` so one missed deadline can never count twice however
+often the sweep runs.
+
+Visibility: the seller sees a warning badge beside a bidder on **their own**
+listing, and admins see everything. It is never public and never exposed by the
+live-state API — a seller deciding whether to let an auction run has a real
+interest in knowing, and a stranger does not. Users see their own strike count
+plainly at `/account/bids`; someone one deadline away from losing the right to
+bid should not find out by being refused.
+
+## Privacy and retention
+
+`/privacy` is linked from the footer on every page. It exists because the
+marketplace collects IP addresses to detect shill bidding, and PDPA requires
+that collection to be disclosed with its purpose and retention.
+
+```
+npm run bids:prune    # daily; clears bid origin metadata past its window
+```
+
+IP and User-Agent are erased after **180 days**. The bid itself is never
+deleted — it is a financial record; its origin is not. The script uses
+`updateMany` to null the two columns, never `deleteMany`, and that distinction
+is the whole point of it.
