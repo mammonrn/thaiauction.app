@@ -28,15 +28,8 @@ export function VerificationReview({
     initialState,
   );
 
-  const done = approveState.ok || rejectState.ok;
-
-  if (done) {
-    return (
-      <p role="status" className="text-sm text-green-700 dark:text-green-400">
-        {approveState.message ?? rejectState.message} · รูปบัตรถูกลบแล้ว
-      </p>
-    );
-  }
+  // No success branch: a decision redirects to the queue with a banner, since
+  // the decided row leaves the list and unmounts this component.
 
   return (
     <div className="flex flex-col gap-4">

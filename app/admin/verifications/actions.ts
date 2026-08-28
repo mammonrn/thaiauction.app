@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { requireAdmin } from "@/lib/admin";
 import { deleteKycDocument } from "@/lib/kyc-storage";
@@ -70,10 +71,11 @@ async function decide(
   revalidatePath("/admin/verifications");
   revalidatePath("/account/verification");
 
-  return {
-    ok: true,
-    message: status === "approved" ? "อนุมัติแล้ว" : "ปฏิเสธแล้ว",
-  };
+  // Redirect rather than return a message: a decided request leaves the queue,
+  // which unmounts the component that would have shown it, so the admin would
+  // otherwise just see the row vanish. Outside the try above, because redirect()
+  // signals by throwing and must not be swallowed as a failure.
+  redirect(`/admin/verifications?decided=${status}`);
 }
 
 export async function approveVerificationAction(

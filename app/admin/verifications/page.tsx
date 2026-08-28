@@ -5,9 +5,13 @@ import { requireAdmin } from "@/lib/admin";
 import { prisma } from "@/lib/prisma";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 
-export default async function AdminVerificationsPage() {
+export default async function AdminVerificationsPage({
+  searchParams,
+}: PageProps<"/admin/verifications">) {
   // 404s for anyone who is not an administrator.
   await requireAdmin("/admin/verifications");
+
+  const { decided } = await searchParams;
 
   const [pending, recent] = await Promise.all([
     prisma.sellerVerification.findMany({
@@ -53,6 +57,16 @@ export default async function AdminVerificationsPage() {
           รูปบัตรจะถูกลบทันทีที่กดอนุมัติหรือปฏิเสธ
         </p>
       </div>
+
+      {decided === "approved" || decided === "rejected" ? (
+        <p
+          role="status"
+          className="rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4 text-sm text-green-800 dark:text-green-300"
+        >
+          บันทึกผลเรียบร้อย — {decided === "approved" ? "อนุมัติ" : "ปฏิเสธ"}
+          คำขอแล้ว และลบรูปบัตรออกจากระบบเรียบร้อย
+        </p>
+      ) : null}
 
       <section className="flex flex-col gap-4">
         <h2 className="text-sm font-medium">รอตรวจสอบ ({pending.length})</h2>
