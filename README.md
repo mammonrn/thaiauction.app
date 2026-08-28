@@ -238,3 +238,79 @@ where they are enforced. The Server Action never trusts the client checks.
 Note for anyone adding another form: React 19 resets an uncontrolled form once
 its action resolves. A failing action must echo the submitted values back in its
 state (see `AddressActionState.values`) or the user loses everything they typed.
+
+## Postcode auto-fill
+
+Typing a 5-digit postcode in the address form fills in จังหวัด / อำเภอ / ตำบล.
+The lookup is entirely client-side — no runtime call to any external service.
+
+### Dataset, source and license
+
+| | |
+| --- | --- |
+| Source | [kongvut/thai-province-data](https://github.com/kongvut/thai-province-data) |
+| File | `api/latest/sub_district_with_district_and_province.json` |
+| License | **MIT** — commercial use permitted |
+| Bundled as | `lib/data/thai-postcodes.json` |
+| Regenerate | `node scripts/build-postcode-index.mjs` |
+
+The upstream `LICENSE` is MIT (Copyright © 2025 Kongvut Sangkla), which permits
+use, modification and distribution including commercially, provided the
+copyright notice and permission notice are retained. Keep the attribution in
+`scripts/build-postcode-index.mjs` and in the generated file's `source` /
+`license` fields if the data is redistributed.
+
+An alternative, `Sellsuki/thai-address-database`, was considered and rejected:
+it declares ISC only in `package.json` with no LICENSE file in the published
+package, and derives from a WTFPL upstream. Both are usable commercially, but
+kongvut's ships a real license file, names its copyright holder, is still
+maintained, and documents its provenance.
+
+### Why the index is rebuilt rather than used as-is
+
+The upstream file is **6.2 MB**: it embeds the full province and district
+record inside each of the 7,452 sub-district rows, plus timestamps, English
+names and coordinates this project does not use. `scripts/build-postcode-index.mjs`
+de-duplicates provinces and districts into lookup tables and drops the unused
+columns, giving **272 KB (59 KB gzipped)** — small enough to ship to the
+browser. It is loaded with a dynamic `import()`, so it lands in its own chunk
+and is fetched only when an address form is opened.
+
+### Why resolution is per field
+
+Thailand has only **955 postcodes** for 7,452 sub-districts, so a postcode is a
+coarse key:
+
+| A postcode identifies… | Share of postcodes |
+| --- | --- |
+| the province | 99.2% |
+| the district | 81.8% |
+| the sub-district | **3.5%** |
+
+Filling all three only when all three are certain would auto-fill almost
+nothing. So each field is resolved on its own: filled when the postcode leaves
+exactly one possibility, and presented as a dropdown of the real candidates
+when it does not. Nothing is guessed.
+
+Every field stays editable, and each dropdown carries an "อื่นๆ (กรอกเอง)"
+option that swaps it for a text box — the dataset can lag new administrative
+areas. An unrecognised postcode is not an error: the fields stay manual and a
+note explains why.
+
+### Implementation notes
+
+`lib/postcode-lookup.ts` exposes the index as an external store
+(`subscribe`/`getSnapshot`) read with `useSyncExternalStore`, and every resolved
+value is derived during render. Storing them in state and syncing with effects
+would trip the React Compiler's `set-state-in-effect` rule and cause cascading
+re-renders.
+
+Two cascade rules are load-bearing, both found by testing:
+
+- A candidate list falls back to the unscoped postcode when scoping by the
+  value above it matches nothing. Without this, typing a province the dataset
+  does not know blanks the district — which is `required`, so the form silently
+  refuses to save.
+- Choosing a real area prunes a narrower pick that cannot sit inside it, but
+  only when the chosen value exists in the dataset, so a hand-typed value never
+  discards what the user entered.
