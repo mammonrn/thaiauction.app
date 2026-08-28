@@ -314,3 +314,94 @@ Two cascade rules are load-bearing, both found by testing:
 - Choosing a real area prunes a narrower pick that cannot sit inside it, but
   only when the chosen value exists in the dataset, so a hand-typed value never
   discards what the user entered.
+
+## Phone verification (Thaibulksms OTP)
+
+`/account/phone` verifies a Thai mobile number by SMS.
+
+### Credentials
+
+Both are required — **every** OTP call carries `key` and `secret` in its request
+body:
+
+```
+THAIBULKSMS_API_KEY
+THAIBULKSMS_API_SECRET
+```
+
+> These are the **OTP** credentials, issued in the OTP console at
+> <https://otp-manager.thaibulksms.com>. They are **not** the Send-SMS API
+> key/secret: that is a different product at `api-v2.thaibulksms.com` using HTTP
+> Basic auth. Using the SMS pair here returns `Application not found.`
+
+### The API
+
+Taken from Thaibulksms' own OTP manual
+([PDF](https://assets.thaibulksms.com/documents/Thaibulksms-otp.pdf)) and their
+official Node client [`thaibulksms-api`](https://www.npmjs.com/package/thaibulksms-api),
+published by 1Moby Co., Ltd. — the company that owns Thaibulksms.
+
+| | |
+| --- | --- |
+| Request | `POST https://otp.thaibulksms.com/v2/otp/request` — `{ key, secret, msisdn }` |
+| → | `{ status: "success", token, refno }` |
+| Verify | `POST https://otp.thaibulksms.com/v2/otp/verify` — `{ key, secret, token, pin }` |
+| → | `{ status: "success", message: "Code is correct." }` |
+
+**Thaibulksms generates, sends, times out and checks the PIN.** This app never
+generates or stores a code — only the opaque `token`. The PIN's real lifetime is
+whatever the OTP console is configured for (its SMS says "Valid for 5 minutes").
+
+Notable provider errors, mapped to Thai messages in `lib/thaibulksms.ts`:
+`Code is invalid.`, `Token is expire.`, `Application not found.`,
+`ERROR_MSISDN_EXCEEDED_LIMIT` (115) and `ERROR_INSUFFICIENT_CREDIT` (116, HTTP 423).
+
+### Where "verified" lives
+
+`verified_phones`, keyed `(userId, phone)` — not on the user and not on each
+address. One user legitimately has several numbers (their own and a
+recipient's), the same number is often reused across addresses and should not
+cost a second SMS, and this keeps a record of when each was proved.
+
+### Limits
+
+Applied **before** the provider is called, so abuse never becomes a billed SMS
+(`lib/otp-policy.ts`):
+
+| Limit | Value |
+| --- | --- |
+| Resend cooldown | 60 s |
+| Sends per number | 5 per hour |
+| Wrong PINs per challenge | 5, then the challenge is dead |
+| Local expiry | 5 min |
+
+The send limits are keyed on the **phone number**, not the account, so they
+cannot be sidestepped by switching accounts and one account cannot spam a
+stranger's handset.
+
+Verification looks the token up server-side from the caller's own newest live
+challenge; the client only ever sends the number and 6 digits. Consuming the
+challenge and writing the verified number happen in one transaction, so a token
+cannot be replayed and a number cannot be marked verified without one.
+
+### Testing without spending credit
+
+Since Thaibulksms generates the PIN, there is no way to log the real code. For
+development and staging:
+
+```
+OTP_STUB_MODE="stub-sms-no-real-otp"   # then the code is 000000
+```
+
+The value must match exactly; anything else is rejected rather than ignored, so
+a leftover `1` cannot silently disable SMS verification. It is deliberately not
+tied to `NODE_ENV` — `next start` always runs as production, which would make
+stub mode unusable on a staging build. Every stubbed call logs a warning.
+**Never set this on the production VPS.**
+
+### What still needs testing on the VPS
+
+The real SMS round-trip cannot be exercised here: it needs live credentials and
+sends a real, billed message. On the VPS, with `OTP_STUB_MODE` unset, confirm
+that the SMS arrives, that its `refno` matches the one shown on screen, and that
+the code verifies.
