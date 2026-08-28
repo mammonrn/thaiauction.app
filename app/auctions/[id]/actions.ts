@@ -5,7 +5,10 @@ import { revalidatePath } from "next/cache";
 import { bahtToSatang, formatBaht } from "@/lib/money";
 import { endAuctionBySeller, placeBid } from "@/lib/bidding";
 import { prisma } from "@/lib/prisma";
+import { requestOrigin } from "@/lib/request-origin";
 import { requireSession } from "@/lib/session";
+import { shillMessage } from "@/lib/anti-shill";
+import { banMessage } from "@/lib/strikes";
 
 export type BidActionState = {
   ok: boolean;
@@ -46,7 +49,12 @@ export async function placeBidAction(
 
   let result;
   try {
-    result = await placeBid(itemId, user.id, bahtToSatang(baht));
+    result = await placeBid(
+      itemId,
+      user.id,
+      bahtToSatang(baht),
+      await requestOrigin(),
+    );
   } catch (error) {
     console.error("[bid] failed:", error);
     return { ok: false, message: "เสนอราคาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
@@ -70,8 +78,22 @@ export async function placeBidAction(
           : "จำนวนเงินต่ำเกินไป",
     };
 
+    // These two carry their own explanation, built from why the bid was
+    // refused: a banned bidder is told how many strikes and that everything
+    // except bidding still works, and a suspected shill is told which signal
+    // matched, so neither is left guessing.
+    const explained =
+      result.reason === "banned"
+        ? banMessage(result.strikes ?? 0)
+        : result.reason === "shill" && result.shillLink
+          ? shillMessage(result.shillLink)
+          : null;
+
     revalidatePath(`/auctions/${itemId}`);
-    return { ok: false, message: messages[result.reason] ?? "เสนอราคาไม่สำเร็จ" };
+    return {
+      ok: false,
+      message: explained ?? messages[result.reason] ?? "เสนอราคาไม่สำเร็จ",
+    };
   }
 
   revalidatePath(`/auctions/${itemId}`);
