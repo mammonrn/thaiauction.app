@@ -43,6 +43,54 @@ enum SellerVerificationStatus {
   @@map("seller_verification_status")
 }
 
+/// How a payment stands with Omise. Mirrors the Charge `status` values we act
+/// on; Omise also has `reversed`, which only applies to authorise-then-capture
+/// flows this project does not use (every charge is captured immediately).
+enum PaymentStatus {
+  /// Charge created, money not received yet. A PromptPay QR is waiting to be
+  /// scanned, or a card charge is mid-flight.
+  pending
+  successful
+  failed
+  /// The QR's window closed before anyone paid it.
+  expired
+
+  @@map("payment_status")
+}
+
+enum PaymentMethod {
+  card
+  promptpay
+
+  @@map("payment_method")
+}
+
+/// Where an ended auction stands on getting paid for.
+///
+/// Kept on the item, not derived from `payments`, because it is the lifecycle
+/// fact the settlement sweep reads and writes under the auction's row lock —
+/// the same lock bidding uses. `payments` records what the gateway did; this
+/// records what the marketplace owes and to whom.
+enum AuctionPaymentState {
+  /// Nothing to collect: no bids, or the seller cancelled.
+  not_applicable
+  /// Someone holds the right to buy and their deadline is running.
+  awaiting_payment
+  paid
+  /// Every bidder in turn let their deadline pass. Nothing was sold.
+  unpaid
+
+  @@map("auction_payment_state")
+}
+
+/// Progress of a manual bank transfer to a seller.
+enum PayoutStatus {
+  pending
+  transferred
+
+  @@map("payout_status")
+}
+
 enum AuctionStatus {
   draft
   active
@@ -91,6 +139,10 @@ model User {
   auctionItems          AuctionItem[]        @relation("SellerAuctionItems")
   wonAuctionItems       AuctionItem[]        @relation("WonAuctionItems")
   bids                  Bid[]
+  payments              Payment[]
+  paidOutPayments       Payment[]            @relation("PayoutMarkedBy")
+  strikes               PaymentStrike[]
+  bankAccount           SellerBankAccount?
 
   sessions Session[]
   accounts Account[]
@@ -182,23 +234,34 @@ model AuctionItem {
   /// the bid history is ever archived or re-read differently later.
   endedAt   DateTime?
   endReason AuctionEndReason?
+  /// Who currently holds the right to buy. This is NOT frozen at settlement:
+  /// if the winner lets their deadline pass, the right moves to the next
+  /// highest bidder and this column moves with it. Null once nobody is left.
   winnerId  String?
+
+  paymentState AuctionPaymentState @default(not_applicable)
+  /// When the current holder's right to buy lapses. Null when no offer is live.
+  paymentDueAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Restrict, not Cascade: an auction is a financial record. Deleting a seller
   // must not silently erase auctions other people bid on.
-  seller   User     @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
-  winner   User?    @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
-  category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  seller   User            @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
+  winner   User?           @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
+  category Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   bids     Bid[]
+  payments Payment[]
+  strikes  PaymentStrike[]
 
   // "Live auctions, soonest ending first" — the main marketplace query.
   // Category browse pages.
   // A seller's own listings.
   // Sweeping auctions whose time has passed but that nobody has opened yet.
   @@index([status, endTime])
+  // Sweeping offers whose 24-hour deadline has passed.
+  @@index([paymentState, paymentDueAt])
   @@index([winnerId])
   @@index([categoryId, status])
   @@index([sellerId])
@@ -215,6 +278,14 @@ model Bid {
   amount        Int
   createdAt     DateTime @default(now())
 
+  /// Where the bid came from, kept only to spot shill rings — several accounts
+  /// bidding from one machine on one seller's items. Nullable because these are
+  /// ERASED after 180 days (scripts/prune-bid-metadata.ts) while the bid itself
+  /// is kept forever: the bid is a financial record, the network metadata is
+  /// not. Never shown to other users; the admin fraud page is the only reader.
+  ipAddress String?
+  userAgent String?
+
   auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Cascade)
   // Restrict: a bid is a binding record, so a bidder cannot be deleted out from
   // under an auction they are winning.
@@ -228,6 +299,8 @@ model Bid {
   @@unique([auctionItemId, amount])
   @@index([auctionItemId, amount(sort: Desc)])
   @@index([bidderId])
+  // The fraud sweep groups recent bids by origin.
+  @@index([ipAddress, createdAt])
   @@map("bids")
 }
 
@@ -388,4 +461,143 @@ model SellerVerification {
   // A seller's own history, newest first.
   @@index([userId, submittedAt])
   @@map("seller_verifications")
+}
+
+/// One attempt to pay for a won auction.
+///
+/// Every row corresponds to a real Omise Charge, so this table is the local
+/// mirror of what the gateway did — never a substitute for it. Status is only
+/// ever written from a Retrieve Charge response (`GET /charges/{id}`), never
+/// from anything the browser sends, because the browser is not a party we can
+/// trust about whether money moved.
+///
+/// A failed or expired attempt is KEPT rather than replaced. Two things depend
+/// on that: the buyer can see why a card was declined, and a partial-outage
+/// investigation can reconstruct the order of events.
+model Payment {
+  id            String @id @default(cuid())
+  auctionItemId String
+  /// Who is paying. Always the auction's current winner at the time the charge
+  /// was created — checked server-side, never taken from the request body.
+  payerId       String
+
+  method PaymentMethod
+  status PaymentStatus @default(pending)
+
+  /// Omise's charge id (`chrg_...`). Unique, so the same charge can never be
+  /// recorded twice even if two requests race to write it.
+  omiseChargeId String @unique
+
+  // --- money, integer satang throughout --------------------------------
+  /// What the buyer owes: the winning bid. Read from the auction row on the
+  /// server; a client-supplied amount is never trusted.
+  amount Int
+
+  /// Straight from the Charge object once it succeeds — Omise's real numbers,
+  /// not an estimate of them. Null while the charge is still pending.
+  /// `net` is Omise's own "amount after fees, interest and VAT", so
+  /// commission is taken from it rather than from `amount`.
+  fee        Int?
+  feeVat     Int?
+  net        Int?
+  /// 10% of `net`, floored, so the platform never rounds in its own favour.
+  commission Int?
+  /// `net - commission`. What the seller is owed, to the satang.
+  sellerNet  Int?
+
+  /// Omise's own words when a charge fails, shown to the buyer so a decline is
+  /// actionable ("insufficient funds" vs "wrong CVV").
+  failureCode    String?
+  failureMessage String?
+
+  /// PromptPay only: where the QR image lives, and when it stops being valid.
+  qrDownloadUri String?
+  expiresAt     DateTime?
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // --- payout to the seller (manual bank transfer) ----------------------
+  payoutStatus        PayoutStatus @default(pending)
+  payoutAt            DateTime?
+  /// The bank's transaction reference, typed in by the admin who sent it.
+  payoutReference     String?
+  payoutById          String?
+  /// The account actually paid, snapshotted at transfer time. The seller may
+  /// change their bank details later; what was paid must not change with them.
+  payoutAccountNumber String?
+  payoutAccountName   String?
+
+  auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Restrict)
+  // Restrict throughout: a payment is a financial record. Nobody involved in
+  // one can be deleted out from under it.
+  payer       User        @relation(fields: [payerId], references: [id], onDelete: Restrict)
+  payoutBy    User?       @relation("PayoutMarkedBy", fields: [payoutById], references: [id], onDelete: Restrict)
+
+  // The payout queue: what is paid but not yet transferred.
+  @@index([status, payoutStatus])
+  // A buyer's payment history, and reconciling one auction's attempts.
+  @@index([auctionItemId, createdAt])
+  @@index([payerId, createdAt])
+  // The reconcile sweep: pending charges to re-check against Omise.
+  @@index([status, createdAt])
+  @@map("payments")
+}
+
+/// A recorded failure to pay for an auction that was won.
+///
+/// One row per (user, auction), enforced by the unique index — a single missed
+/// deadline can never count twice, however many times a sweep runs over it.
+/// Three strikes removes the right to bid; see lib/strikes.ts.
+///
+/// This doubles as the record of who has already forfeited a given auction, so
+/// the re-offer loop knows not to come back to them.
+model PaymentStrike {
+  id            String @id @default(cuid())
+  userId        String
+  auctionItemId String
+
+  /// What was owed when the deadline passed, kept so an admin reviewing a ban
+  /// can see the scale of what went unpaid.
+  amount Int
+
+  createdAt DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, auctionItemId])
+  // Counting a user's strikes, and listing them newest first.
+  @@index([userId, createdAt])
+  @@map("payment_strikes")
+}
+
+/// Where a seller's share is sent. One account per seller.
+///
+/// Held separately from `users` so the sensitive-ish banking details are not
+/// selected by accident on any query that reads a user, and so the whole record
+/// can be dropped without touching the account.
+model SellerBankAccount {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  /// Bank identifier from lib/thai-banks.ts, e.g. "kbank".
+  bankCode      String
+  accountNumber String
+  /// The holder name exactly as the bank prints it.
+  accountName   String
+
+  /// Whether `accountName` matched the seller's KYC name when it was saved.
+  /// Recorded rather than enforced: Thai bank names carry title prefixes and
+  /// inconsistent spacing, so a mismatch is a flag for the admin who releases
+  /// the payout, not a reason to refuse the account. Recomputed on every save.
+  nameMatchesKyc Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seller_bank_accounts")
 }
