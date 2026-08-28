@@ -172,14 +172,14 @@ export function PublishControls({
           className={
             publishState.ok
               ? "text-sm text-green-700"
-              : "text-sm text-red-600"
+              : "text-sm text-brand"
           }
         >
           {publishState.message}
         </p>
       ) : null}
       {deleteState.message && !deleteState.ok ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {deleteState.message}
         </p>
       ) : null}

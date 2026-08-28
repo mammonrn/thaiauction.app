@@ -69,7 +69,7 @@ export function KycSubmitForm({ submitLabel }: { submitLabel: string }) {
       </button>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {error}
         </p>
       ) : null}
@@ -99,7 +99,7 @@ export function KycWithdrawButton() {
           className={
             state.ok
               ? "text-sm text-green-700"
-              : "text-sm text-red-600"
+              : "text-sm text-brand"
           }
         >
           {state.message}

@@ -13,6 +13,7 @@ import {
   type ListingCard as Listing,
 } from "@/lib/listing";
 import Image from "next/image";
+import { btnPrimarySm, btnSecondarySm } from "@/lib/button";
 
 /**
  * The marketplace.
@@ -180,14 +181,14 @@ function EmptyState({ filtered }: { filtered: boolean }) {
         {filtered ? (
           <Link
             href="/"
-            className="rounded-md border border-black/12 bg-white px-4 py-2 text-sm text-ink/75 hover:border-brand/50 hover:text-brand"
+            className={btnSecondarySm}
           >
             ดูสินค้าทั้งหมด
           </Link>
         ) : null}
         <Link
           href="/sell/new"
-          className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+          className={btnPrimarySm}
         >
           ลงขายสินค้าชิ้นแรก
         </Link>

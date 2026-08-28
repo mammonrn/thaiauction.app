@@ -39,7 +39,7 @@ export function GoogleSignInButton({ redirectTo }: { redirectTo: string }) {
       </button>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {error}
         </p>
       ) : null}

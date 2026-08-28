@@ -131,16 +131,16 @@ export default async function VerificationPage() {
       ) : null}
 
       {status === "rejected" ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-red-600/40 bg-red-600/10 px-5 py-4">
-          <p className="font-medium text-red-800">
+        <section className="flex flex-col gap-2 rounded-xl border border-brand/40 bg-brand/[.06] px-5 py-4">
+          <p className="font-medium text-brand-dark">
             คำขอถูกปฏิเสธ
           </p>
           {latest?.rejectionReason ? (
-            <p className="text-sm text-red-800/80">
+            <p className="text-sm text-brand-dark/80">
               เหตุผล: {latest.rejectionReason}
             </p>
           ) : null}
-          <p className="text-sm text-red-800/80">
+          <p className="text-sm text-brand-dark/80">
             แก้ไขตามเหตุผลข้างต้นแล้วส่งใหม่ได้เลย
           </p>
         </section>

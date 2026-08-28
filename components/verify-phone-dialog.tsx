@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef } from "react";
 
 import { PhoneOtp } from "@/components/phone-otp";
-import { btnPrimary } from "@/lib/button";
+import { btnGhost, btnPrimary } from "@/lib/button";
 
 /**
  * Verify a number without leaving the auction.
@@ -55,7 +55,7 @@ export function VerifyPhoneDialog({ stubMode }: { stubMode: boolean }) {
               type="button"
               onClick={() => dialog.current?.close()}
               aria-label="ปิด"
-              className="shrink-0 rounded-lg px-2 py-1 text-ink/50 transition-colors hover:bg-black/[.05] hover:text-ink"
+              className={`${btnGhost} shrink-0`}
             >
               ✕
             </button>

@@ -184,7 +184,7 @@ export function LiveAuction({
           className={
             bidState.ok
               ? "text-sm text-green-700"
-              : "text-sm text-red-600"
+              : "text-sm text-brand"
           }
         >
           {bidState.message}

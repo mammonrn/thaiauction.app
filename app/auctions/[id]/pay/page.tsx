@@ -111,11 +111,11 @@ export default async function PayPage({
           </p>
         </section>
       ) : overdue ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-red-600/30 bg-red-50 p-5 text-sm">
-          <h2 className="font-semibold text-red-800">
+        <section className="flex flex-col gap-2 rounded-xl border border-brand/30 bg-brand/[.05] p-5 text-sm">
+          <h2 className="font-semibold text-brand-dark">
             หมดเวลาชำระเงินแล้ว
           </h2>
-          <p className="text-red-900/80">
+          <p className="text-brand-dark/80">
             สิทธิ์การซื้อถูกส่งต่อให้ผู้เสนอราคารายถัดไป
             และระบบได้บันทึกการไม่ชำระเงินไว้ในบัญชีของคุณ
           </p>

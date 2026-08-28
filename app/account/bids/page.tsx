@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { countStrikes, STRIKE_LIMIT } from "@/lib/strikes";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
+import { btnPrimarySm } from "@/lib/button";
 
 /**
  * A buyer's own bidding history.
@@ -76,7 +77,7 @@ export default async function MyBidsPage() {
         <section
           className={`rounded-xl border p-5 text-sm ${
             banned
-              ? "border-red-600/30 bg-red-50"
+              ? "border-brand/30 bg-brand/[.05]"
               : "border-amber-500/40 bg-amber-50"
           }`}
         >
@@ -149,7 +150,7 @@ export default async function MyBidsPage() {
                 item.paymentDueAt.getTime() > now ? (
                   <Link
                     href={`/auctions/${item.id}/pay`}
-                    className="mt-1 self-start rounded-lg bg-brand hover:bg-brand-dark transition-colors px-4 py-2 text-xs font-medium text-white"
+                    className={`${btnPrimarySm} mt-1 self-start`}
                   >
                     ชำระเงิน
                   </Link>
@@ -173,7 +174,7 @@ function Badge({
   const styles = {
     good: "bg-green-600/15 text-green-800",
     warn: "bg-amber-600/15 text-amber-800",
-    bad: "bg-red-600/15 text-red-800",
+    bad: "bg-red-600/15 text-brand-dark",
     plain: "bg-black/[0.06] text-ink/70",
   }[tone];
 

@@ -182,7 +182,7 @@ export function AuctionForm({
           className={
             state.ok
               ? "text-sm text-green-700"
-              : "text-sm text-red-600"
+              : "text-sm text-brand"
           }
         >
           {state.message}
@@ -221,7 +221,7 @@ function Row({
         <span className="text-xs text-ink/50">{hint}</span>
       ) : null}
       {error ? (
-        <span className="text-xs text-red-600">{error}</span>
+        <span className="text-xs text-brand">{error}</span>
       ) : null}
     </label>
   );

@@ -312,7 +312,7 @@ export function AddressForm({
       </div>
 
       {state.message && !state.ok ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {state.message}
         </p>
       ) : null}
@@ -383,7 +383,7 @@ function SelectField({
         <option value={CUSTOM}>อื่นๆ (กรอกเอง)</option>
       </select>
       {error ? (
-        <span id={errorId} className="text-xs text-red-600">
+        <span id={errorId} className="text-xs text-brand">
           {error}
         </span>
       ) : null}
@@ -423,7 +423,7 @@ function Field({
         <span className="text-xs text-ink/50">{hint}</span>
       ) : null}
       {error ? (
-        <span id={errorId} className="text-xs text-red-600">
+        <span id={errorId} className="text-xs text-brand">
           {error}
         </span>
       ) : null}

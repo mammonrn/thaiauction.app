@@ -165,14 +165,14 @@ function SingleButtonForm({
         disabled={pending}
         className={
           danger
-            ? "rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
+            ? "rounded-lg border border-brand/40 px-3 py-1.5 text-sm text-brand transition hover:bg-brand/10 disabled:opacity-60"
             : "rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 disabled:opacity-60"
         }
       >
         {pending ? pendingLabel : label}
       </button>
       {state.message && !state.ok ? (
-        <span role="alert" className="text-sm text-red-600">
+        <span role="alert" className="text-sm text-brand">
           {state.message}
         </span>
       ) : null}

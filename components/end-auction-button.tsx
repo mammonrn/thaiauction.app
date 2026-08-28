@@ -65,7 +65,7 @@ export function EndAuctionButton({
       )}
 
       {state.message && !state.ok ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {state.message}
         </p>
       ) : null}

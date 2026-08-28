@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { ListingCard } from "@/components/listing-card";
 import { ListingControls, Pagination } from "@/components/listing-controls";
+import { btnPrimarySm } from "@/lib/button";
 import {
   findCategoriesWithCounts,
   findListings,
@@ -85,7 +86,7 @@ export default async function SearchPage({
             </p>
             <Link
               href="/"
-              className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-dark"
+              className={btnPrimarySm}
             >
               ดูสินค้าทั้งหมด
             </Link>

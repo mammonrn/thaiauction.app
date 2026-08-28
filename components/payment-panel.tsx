@@ -263,7 +263,7 @@ export function PaymentPanel({
       ) : null}
 
       {payment?.status === "failed" || payment?.status === "expired" ? (
-        <p className="rounded-lg border border-red-500/40 bg-red-50 px-4 py-3 text-sm text-red-800">
+        <p className="rounded-lg border border-brand/40 bg-brand/[.05] px-4 py-3 text-sm text-brand-dark">
           {payment.status === "expired"
             ? "QR หมดอายุแล้ว กรุณาสร้างใหม่"
             : (payment.failureMessage ?? "ชำระเงินไม่สำเร็จ กรุณาลองใหม่")}
@@ -282,7 +282,7 @@ export function PaymentPanel({
               {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
             </button>
             {qrState.message ? (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-brand">
                 {qrState.message}
               </p>
             ) : null}
@@ -326,12 +326,12 @@ export function PaymentPanel({
               {busy ? "กำลังดำเนินการ…" : `ชำระ ${formatBaht(amount)}`}
             </button>
             {cardError ? (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-brand">
                 {cardError}
               </p>
             ) : null}
             {cardState.message ? (
-              <p className="text-sm text-red-600">
+              <p className="text-sm text-brand">
                 {cardState.message}
               </p>
             ) : null}

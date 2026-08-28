@@ -143,7 +143,7 @@ export default async function AdminPayoutsPage() {
                       )}
                     </>
                   ) : (
-                    <p className="text-red-600">
+                    <p className="text-brand">
                       ผู้ขายยังไม่ได้บันทึกบัญชีธนาคาร — โอนไม่ได้จนกว่าจะบันทึก
                     </p>
                   )}

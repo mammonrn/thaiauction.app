@@ -78,7 +78,7 @@ export function PhoneOtp({
         <p
           role="status"
           className={
-            sendState.ok ? "text-sm text-green-700" : "text-sm text-red-600"
+            sendState.ok ? "text-sm text-green-700" : "text-sm text-brand"
           }
         >
           {sendState.message}
@@ -142,7 +142,7 @@ function VerifyStep({
         {pending ? "กำลังตรวจสอบ…" : "ยืนยันรหัส"}
       </button>
       {state.message ? (
-        <p role="status" className="text-sm text-red-600">
+        <p role="status" className="text-sm text-brand">
           {state.message}
         </p>
       ) : null}

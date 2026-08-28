@@ -131,7 +131,7 @@ export default async function AdminVerificationsPage({
                     documentUrl={`/api/kyc/${row.documentKey}`}
                   />
                 ) : (
-                  <p className="text-sm text-red-600">
+                  <p className="text-sm text-brand">
                     ไม่พบไฟล์เอกสาร
                   </p>
                 )}
@@ -155,7 +155,7 @@ export default async function AdminVerificationsPage({
                     className={
                       row.status === "approved"
                         ? "rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700"
-                        : "rounded-full bg-red-600/10 px-2 py-0.5 text-xs text-red-700"
+                        : "rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand-dark"
                     }
                   >
                     {row.status === "approved" ? "อนุมัติ" : "ปฏิเสธ"}

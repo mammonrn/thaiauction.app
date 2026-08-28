@@ -78,7 +78,7 @@ export function IdentityForm({
             className={
               state.ok
                 ? "text-sm text-green-700"
-                : "text-sm text-red-600"
+                : "text-sm text-brand"
             }
           >
             {state.message}
@@ -114,7 +114,7 @@ function Field({
         {...rest}
       />
       {error ? (
-        <span id={errorId} className="text-xs text-red-600">
+        <span id={errorId} className="text-xs text-brand">
           {error}
         </span>
       ) : null}

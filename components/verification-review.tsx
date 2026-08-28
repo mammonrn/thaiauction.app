@@ -113,12 +113,12 @@ export function VerificationReview({
       ) : null}
 
       {approveState.message && !approveState.ok ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {approveState.message}
         </p>
       ) : null}
       {rejectState.message && !rejectState.ok ? (
-        <p role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-brand">
           {rejectState.message}
         </p>
       ) : null}
