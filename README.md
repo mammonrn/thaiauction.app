@@ -184,3 +184,57 @@ someone else's Google identity.
 missing `accounts.issuer` and the `(issuer, accountId)` unique index, which
 breaks sign-in at runtime. If you regenerate the schema with that CLI, re-check
 those against the library's own `getAuthTables()` before migrating.
+
+## Account pages
+
+| Route | Purpose |
+| --- | --- |
+| `/account` | Profile (name, email, Google avatar) and links to the sections below |
+| `/account/addresses` | Shipping address CRUD |
+| `/account/security` | Add a password to a Google-only account |
+
+All three call `requireSession()`, so they are protected by the real
+database-backed check, not just the optimistic `proxy.ts` redirect.
+
+### Shipping addresses
+
+Mutations are Server Actions in `app/account/addresses/actions.ts`. Each one
+resolves the target row through `findOwnedAddress()`, which puts `userId` in the
+`WHERE` clause instead of reading the row and comparing afterwards — so a
+guessed id matches nothing and there is no gap between the check and the write.
+
+**One default per user** is enforced in two places:
+
+1. `setDefaultAddressAction` clears the existing default and sets the new one
+   inside a single `prisma.$transaction`, in that order.
+2. A partial unique index in the database is the backstop:
+
+   ```sql
+   CREATE UNIQUE INDEX "shipping_addresses_one_default_per_user"
+     ON "shipping_addresses" ("userId") WHERE "isDefault";
+   ```
+
+Prisma's schema language cannot express a `WHERE` clause on an index, so that
+index lives in a hand-written migration and is deliberately **absent from
+`schema.prisma`**. This does not upset Prisma: `migrate status` reports the
+schema up to date, and `migrate dev --create-only` generates an empty migration
+rather than trying to drop the index.
+
+Related behaviour: the first address saved becomes the default automatically,
+and deleting the default promotes the oldest remaining address in the same
+transaction, so a user with any addresses always has one selected.
+
+### Validation
+
+`lib/address-validation.ts` carries no `"use client"` or `"use server"`
+directive, so the same rules run in the browser for feedback and on the server
+where they are enforced. The Server Action never trusts the client checks.
+
+- **Phone** — mobile `0[6/8/9]` + 8 digits (10 total), or landline `0[2-7]` + 7
+  digits (9 total). `+66` / `0066` prefixes and spaces, dashes, dots and
+  parentheses are stripped before validating, and the normalised form is stored.
+- **Postal code** — exactly 5 digits, never starting with 0.
+
+Note for anyone adding another form: React 19 resets an uncontrolled form once
+its action resolves. A failing action must echo the submitted values back in its
+state (see `AddressActionState.values`) or the user loses everything they typed.
