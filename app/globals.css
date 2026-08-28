@@ -1,26 +1,133 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/**
+ * Design tokens.
+ *
+ * The palette is fixed by the brief, not chosen here. Red carries the brand
+ * chrome (header, hero, primary actions); GOLD IS RESERVED for one job only —
+ * the price readout and genuine urgency — so it never becomes wallpaper.
+ *
+ * There is no dark theme. The palette has no dark counterpart and Thai
+ * marketplaces are light-only; a half-translated dark mode looked worse than
+ * none, so `dark:` variants were removed rather than guessed at.
+ */
+@theme {
+  --color-brand: #c41e2a;
+  --color-brand-dark: #8b0000;
+  --color-gold: #f0b429;
+  --color-ink: #1a1a1a;
+  --color-paper: #f7f7f7;
+
+  /* IBM Plex Sans Thai and IBM Plex Mono are one superfamily, drawn to sit
+     together. The mono is not decoration: prices update live while an auction
+     runs, and tabular figures stop the digits jittering on every poll. */
+  --font-sans: var(--font-plex-thai), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, monospace;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  body {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  /* Keyboard focus must stay visible everywhere, including over red chrome. */
+  :focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/**
+ * Signature 1 — the tear line.
+ *
+ * A listing card is a ticket: the top half is the thing, the bottom half is
+ * what it costs you. The notch and perforation mark where one becomes the
+ * other, so the device encodes the card's actual structure instead of
+ * decorating its edges.
+ *
+ * The notches live on the seam element, not the card, so they track the seam
+ * wherever it lands at any card width. The card therefore must NOT clip its
+ * overflow — the image is rounded by its own wrapper instead.
+ */
+.ticket-seam {
+  position: relative;
+  height: 0;
+  border-top: 1px dashed color-mix(in srgb, var(--color-ink) 18%, transparent);
+}
+
+.ticket-seam::before,
+.ticket-seam::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  /* Matches whatever the card sits on; overridden where that is not paper. */
+  background: var(--notch-color, var(--color-paper));
+  transform: translateY(-50%);
+}
+
+.ticket-seam::before {
+  left: -7px;
+}
+
+.ticket-seam::after {
+  right: -7px;
+}
+
+/**
+ * Signature 2 — the price window.
+ *
+ * A recessed readout: dark glass, gold digits, tabular figures. Auctions are
+ * about a number that keeps moving, so the number is given a physical housing
+ * rather than being set as ordinary bold text. This is the one loud element on
+ * the page; everything around it stays quiet.
+ */
+.price-window {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35em;
+  background: var(--color-ink);
+  color: var(--color-gold);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+  border-radius: 5px;
+  padding: 0.3em 0.55em;
+  box-shadow:
+    inset 0 2px 4px rgb(0 0 0 / 0.55),
+    inset 0 -1px 0 rgb(255 255 255 / 0.08);
+}
+
+.price-window .price-currency {
+  font-size: 0.75em;
+  opacity: 0.7;
+}
+
+/* Horizontal rails (categories, closing-soon) scroll on touch without a
+   visible scrollbar eating vertical space on mobile. */
+.rail {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
 }
