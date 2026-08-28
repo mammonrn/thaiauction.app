@@ -36,7 +36,9 @@ enum AuctionStatus {
 model User {
   id            String   @id @default(cuid())
   email         String   @unique
-  name          String?
+  /// Required (not String?) to match Better Auth's user table contract, which
+  /// declares name as a required string and always supplies one on sign-up.
+  name          String
   image         String?
   emailVerified Boolean  @default(false)
   createdAt     DateTime @default(now())
@@ -196,6 +198,11 @@ model Session {
 /// hash, while the Google row keeps its OAuth tokens.
 model Account {
   id                    String    @id
+  /// Identifies which system issued this account: the OAuth issuer for a
+  /// social login, or a locally-generated issuer for a "credential" row.
+  /// Required by better-auth 1.7.2 and used together with accountId to
+  /// uniquely identify an external identity.
+  issuer                String
   accountId             String
   providerId            String
   userId                String
@@ -210,6 +217,7 @@ model Account {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
+  @@unique([issuer, accountId])
   @@index([userId])
   @@map("accounts")
 }

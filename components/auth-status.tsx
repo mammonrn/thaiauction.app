@@ -51,12 +51,12 @@ export async function AuthStatus() {
             aria-hidden="true"
             className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/15"
           >
-            {(user.name ?? user.email).charAt(0).toUpperCase()}
+            {user.name.charAt(0).toUpperCase()}
           </div>
         )}
         <div>
           <p className="text-sm font-medium">
-            เข้าสู่ระบบแล้ว: {user.name ?? user.email}
+            เข้าสู่ระบบแล้ว: {user.name}
           </p>
           <p className="text-sm text-black/60 dark:text-white/60">
             {user.email}
