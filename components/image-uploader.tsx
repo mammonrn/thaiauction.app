@@ -3,6 +3,9 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 
+import { btnSecondarySm } from "@/lib/button";
+import { thumbUrl } from "@/lib/image-keys";
+
 export type UploadedImage = { key: string; url: string };
 
 /**
@@ -56,6 +59,22 @@ export function ImageUploader({
     if (inputRef.current) inputRef.current.value = "";
   }
 
+  /**
+   * Make one image the cover.
+   *
+   * The cover IS position zero — there is no separate flag — so promoting is a
+   * move to the front. That is also why deleting the cover needs no special
+   * case: whatever is left at position zero becomes the cover.
+   */
+  function makeCover(index: number) {
+    setImages((current) => {
+      if (index === 0) return current;
+      const next = [...current];
+      const [picked] = next.splice(index, 1);
+      return [picked, ...next];
+    });
+  }
+
   function move(index: number, delta: number) {
     setImages((current) => {
       const next = [...current];
@@ -79,7 +98,8 @@ export function ImageUploader({
             className="relative h-28 w-28 overflow-hidden rounded-lg border border-black/10"
           >
             <Image
-              src={image.url}
+              // The card-sized copy: a preview grid has no use for 1600px.
+              src={thumbUrl(image.key)}
               alt=""
               fill
               sizes="112px"
@@ -87,10 +107,18 @@ export function ImageUploader({
               unoptimized
             />
             {index === 0 ? (
-              <span className="absolute left-1 top-1 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+              <span className="absolute left-1 top-1 rounded bg-brand px-1.5 py-0.5 text-[10px] font-medium text-white">
                 ปก
               </span>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                onClick={() => makeCover(index)}
+                className="absolute left-1 top-1 rounded bg-ink/70 px-1.5 py-0.5 text-[10px] text-white transition-colors hover:bg-brand"
+              >
+                ตั้งเป็นปก
+              </button>
+            )}
             <div className="absolute inset-x-0 bottom-0 flex justify-between bg-black/60 text-white">
               <button
                 type="button"
@@ -126,18 +154,26 @@ export function ImageUploader({
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          multiple
-          onChange={(e) => handleFiles(e.target.files)}
-          disabled={images.length >= max}
-          className="text-sm file:mr-3 file:rounded-lg file:border file:border-black/15 file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
-        />
+        <label
+          className={`${btnSecondarySm} ${
+            images.length >= max ? "pointer-events-none opacity-60" : "cursor-pointer"
+          }`}
+        >
+          {images.length === 0 ? "เลือกรูปภาพ" : "เพิ่มรูป"}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={(e) => handleFiles(e.target.files)}
+            disabled={images.length >= max}
+            className="sr-only"
+          />
+        </label>
         <span className="text-xs text-ink/50">
           {images.length}/{max} รูป
           {busy > 0 ? ` — กำลังอัปโหลด ${busy} ไฟล์…` : ""}
+          {images.length > 1 ? " · รูปแรกคือรูปปก" : ""}
         </span>
       </div>
 

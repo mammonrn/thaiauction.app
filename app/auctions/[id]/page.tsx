@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { EndAuctionButton } from "@/components/end-auction-button";
 import { VerificationLevel } from "@/components/verification-level";
+import { ImageGallery } from "@/components/image-gallery";
 import { avatarUrl } from "@/lib/avatar";
 import { VerifyPhoneDialog } from "@/components/verify-phone-dialog";
 import { isStubMode } from "@/lib/thaibulksms";
@@ -17,7 +18,6 @@ import { formatBaht } from "@/lib/money";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
-import { imageUrl } from "@/lib/uploads";
 
 export default async function AuctionDetailPage({
   params,
@@ -107,45 +107,7 @@ export default async function AuctionDetailPage({
       </Link>
 
       <div className="grid gap-8 rounded-xl bg-white p-4 sm:p-6 md:grid-cols-2">
-        <div className="flex flex-col gap-3">
-          <div className="relative aspect-square overflow-hidden rounded-xl bg-black/5">
-            {item.images[0] ? (
-              <Image
-                src={imageUrl(item.images[0])}
-                alt={item.title}
-                fill
-                sizes="(min-width: 768px) 50vw, 100vw"
-                className="object-cover"
-                priority
-                unoptimized
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center text-sm text-ink/40">
-                ไม่มีรูปภาพ
-              </div>
-            )}
-          </div>
-
-          {item.images.length > 1 ? (
-            <div className="flex flex-wrap gap-2">
-              {item.images.slice(1).map((key) => (
-                <div
-                  key={key}
-                  className="relative h-20 w-20 overflow-hidden rounded-lg border border-black/10"
-                >
-                  <Image
-                    src={imageUrl(key)}
-                    alt=""
-                    fill
-                    sizes="80px"
-                    className="object-cover"
-                    unoptimized
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
+        <ImageGallery keys={item.images} title={item.title} />
 
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">

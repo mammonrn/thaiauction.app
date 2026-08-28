@@ -19,11 +19,15 @@ export type AvatarActionState = { ok: boolean; message: string | null };
  * The previous file is removed only AFTER the row points at the new one, so a
  * failure between the two leaves a stale file rather than a broken picture.
  */
-export async function uploadAvatarAction(
+export async function avatarAction(
   _prev: AvatarActionState,
   formData: FormData,
 ): Promise<AvatarActionState> {
   const { user } = await requireSession("/account");
+
+  if (formData.get("intent") === "remove") {
+    return removeAvatar(user.id);
+  }
 
   const file = formData.get("avatar");
   if (!(file instanceof File) || file.size === 0) {
@@ -57,14 +61,18 @@ export async function uploadAvatarAction(
   return { ok: true, message: "เปลี่ยนรูปโปรไฟล์แล้ว" };
 }
 
-/** Drop the uploaded picture and fall back to the one from Google. */
-export async function removeAvatarAction(
-  _prev: AvatarActionState,
-): Promise<AvatarActionState> {
-  const { user } = await requireSession("/account");
+/**
+ * Drop the uploaded picture and fall back to the one from Google.
+ *
+ * Reached through the same action as upload, keyed on `intent`. Two separate
+ * useActionState hooks meant two message slots, and whichever the component
+ * rendered first masked the other — a failed upload hid the result of the
+ * removal that followed it. One action, one state, one message.
+ */
+async function removeAvatar(userId: string): Promise<AvatarActionState> {
 
   const current = await prisma.user.findUniqueOrThrow({
-    where: { id: user.id },
+    where: { id: userId },
     select: { avatarKey: true },
   });
   if (!current.avatarKey) {
@@ -72,7 +80,7 @@ export async function removeAvatarAction(
   }
 
   await prisma.user.update({
-    where: { id: user.id },
+    where: { id: userId },
     data: { avatarKey: null },
   });
   await deleteAvatar(current.avatarKey);

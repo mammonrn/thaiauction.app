@@ -3,7 +3,7 @@ import Link from "next/link";
 import { CountdownClock } from "@/components/countdown-clock";
 import { ListingCard } from "@/components/listing-card";
 import { ListingControls, Pagination } from "@/components/listing-controls";
-import { imageUrl } from "@/lib/image-keys";
+import { thumbUrl } from "@/lib/image-keys";
 import { formatBaht } from "@/lib/money";
 import {
   findCategoriesWithCounts,
@@ -125,7 +125,7 @@ function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
                 <div className="relative aspect-square overflow-hidden rounded-md bg-white/10">
                   {item.images[0] ? (
                     <Image
-                      src={imageUrl(item.images[0])}
+                      src={thumbUrl(item.images[0])}
                       alt=""
                       fill
                       sizes="(min-width: 640px) 128px, 112px"

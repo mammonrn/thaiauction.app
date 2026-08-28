@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { PriceWindow } from "@/components/price-window";
-import { imageUrl } from "@/lib/image-keys";
+import { thumbUrl } from "@/lib/image-keys";
 import type { ListingCard as Listing } from "@/lib/listing";
 import { isClosingSoon, timeLeft } from "@/lib/time-left";
 
@@ -38,7 +38,9 @@ export function ListingCard({
         <div className="relative aspect-square overflow-hidden rounded-t-lg bg-black/5">
           {cover ? (
             <Image
-              src={imageUrl(cover)}
+              // The card-sized copy. A grid of these at 220px has no use
+              // for the 1600px display image.
+              src={thumbUrl(cover)}
               alt=""
               fill
               sizes="(min-width: 1024px) 220px, (min-width: 640px) 30vw, 45vw"

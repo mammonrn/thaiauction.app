@@ -4,8 +4,7 @@ import Image from "next/image";
 import { useActionState, useRef } from "react";
 
 import {
-  removeAvatarAction,
-  uploadAvatarAction,
+  avatarAction,
   type AvatarActionState,
 } from "@/app/account/avatar/actions";
 import { btnSecondarySm, btnGhost } from "@/lib/button";
@@ -32,14 +31,9 @@ export function AvatarUpload({
   hasUpload: boolean;
 }) {
   const form = useRef<HTMLFormElement>(null);
-  const [state, action, pending] = useActionState(uploadAvatarAction, EMPTY);
-  const [removeState, removeAction, removing] = useActionState(
-    removeAvatarAction,
-    EMPTY,
-  );
-
-  const message = state.message ?? removeState.message;
-  const ok = state.message ? state.ok : removeState.ok;
+  // One action for both operations, so there is one message slot and a failed
+  // upload cannot mask the result of the removal that follows it.
+  const [state, action, pending] = useActionState(avatarAction, EMPTY);
 
   return (
     <div className="flex flex-col gap-3">
@@ -80,21 +74,22 @@ export function AvatarUpload({
           </form>
 
           {hasUpload ? (
-            <form action={removeAction}>
-              <button type="submit" disabled={removing} className={btnGhost}>
-                {removing ? "กำลังลบ…" : "ใช้รูปจาก Google"}
+            <form action={action}>
+              <input type="hidden" name="intent" value="remove" />
+              <button type="submit" disabled={pending} className={btnGhost}>
+                ใช้รูปจาก Google
               </button>
             </form>
           ) : null}
         </div>
       </div>
 
-      {message ? (
+      {state.message ? (
         <p
           role="status"
-          className={`text-sm ${ok ? "text-green-700" : "text-red-600"}`}
+          className={`text-sm ${state.ok ? "text-green-700" : "text-red-600"}`}
         >
-          {message}
+          {state.message}
         </p>
       ) : null}
     </div>

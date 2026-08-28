@@ -147,11 +147,13 @@ export default async function AccountPage() {
           title="รหัสผ่าน"
           detail={hasPassword ? "ตั้งไว้แล้ว" : "ยังไม่ได้ตั้ง — เข้าสู่ระบบด้วย Google"}
         />
+        {/* The label states the fact, the button performs the action. Both
+            saying "ออกจากระบบ" made one of them redundant. */}
         <div className="flex items-center justify-between gap-4 px-5 py-3.5">
           <span className="flex flex-col gap-0.5">
-            <span className="font-medium">ออกจากระบบ</span>
+            <span className="font-medium">อุปกรณ์นี้</span>
             <span className="text-sm text-ink/55">
-              ออกจากบัญชีนี้บนอุปกรณ์นี้
+              กำลังเข้าสู่ระบบอยู่
             </span>
           </span>
           <SignOutButton />
