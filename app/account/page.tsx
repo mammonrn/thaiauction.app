@@ -9,12 +9,13 @@ export default async function AccountPage() {
   const { user } = await requireSession("/account");
 
   // Small counts to give each link a sense of state, rather than a bare list.
-  const [addressCount, credentialAccount] = await Promise.all([
+  const [addressCount, credentialAccount, verifiedPhoneCount] = await Promise.all([
     prisma.shippingAddress.count({ where: { userId: user.id } }),
     prisma.account.findFirst({
       where: { userId: user.id, providerId: "credential" },
       select: { password: true },
     }),
+    prisma.verifiedPhone.count({ where: { userId: user.id } }),
   ]);
 
   const hasPassword = Boolean(credentialAccount?.password);
@@ -73,6 +74,15 @@ export default async function AccountPage() {
             addressCount === 0
               ? "ยังไม่มีที่อยู่ — เพิ่มไว้เพื่อใช้ตอนชนะประมูล"
               : `บันทึกไว้ ${addressCount} ที่อยู่`
+          }
+        />
+        <AccountLink
+          href="/account/phone"
+          title="เบอร์โทรศัพท์"
+          detail={
+            verifiedPhoneCount === 0
+              ? "ยังไม่ได้ยืนยันเบอร์ — ยืนยันเพื่อให้ติดต่อได้จริง"
+              : `ยืนยันแล้ว ${verifiedPhoneCount} เบอร์`
           }
         />
         <AccountLink

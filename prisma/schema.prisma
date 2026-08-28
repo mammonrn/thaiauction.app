@@ -45,6 +45,8 @@ model User {
   updatedAt     DateTime @updatedAt
 
   shippingAddresses ShippingAddress[]
+  verifiedPhones    VerifiedPhone[]
+  phoneOtpRequests  PhoneOtpRequest[]
   auctionItems      AuctionItem[]     @relation("SellerAuctionItems")
   bids              Bid[]
 
@@ -233,4 +235,62 @@ model Verification {
 
   @@index([identifier])
   @@map("verifications")
+}
+
+/// A phone number this user has proved they control, via an SMS OTP.
+///
+/// Verification is recorded per (user, number) rather than on the user or on
+/// each shipping address: one user legitimately has several numbers (their own
+/// plus a recipient's), the same number is often reused across addresses and
+/// should not cost another SMS, and this keeps a durable record of when each
+/// was proved.
+model VerifiedPhone {
+  id     String @id @default(cuid())
+  userId String
+  /// Normalised Thai mobile number, e.g. "0812345678".
+  phone  String
+
+  verifiedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, phone])
+  @@index([userId])
+  @@map("verified_phones")
+}
+
+/// One outstanding OTP challenge.
+///
+/// Thaibulksms generates, sends and checks the PIN itself, so no code is stored
+/// here — only the opaque `token` its request endpoint returns, which is what
+/// its verify endpoint expects back. Rows are kept after use as the audit trail
+/// that the rate limits are computed from.
+model PhoneOtpRequest {
+  id     String @id @default(cuid())
+  userId String
+  phone  String
+
+  /// Opaque handle from Thaibulksms; passed back on verify. Never shown to the
+  /// user and never accepted from the client.
+  token String
+  /// Short reference shown in the SMS so the user can match code to request.
+  refno String
+
+  /// Wrong-PIN count, to stop a 6-digit code being brute-forced.
+  attempts   Int       @default(0)
+  /// Local copy of the expiry, so an obviously dead challenge is rejected
+  /// without spending a Thaibulksms API call.
+  expiresAt  DateTime
+  /// Set once the challenge succeeds, so a token cannot be replayed.
+  consumedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Finding the newest live challenge, and counting recent sends per number
+  // for the rate limit.
+  @@index([userId, phone, createdAt])
+  @@index([phone, createdAt])
+  @@map("phone_otp_requests")
 }
