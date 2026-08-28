@@ -37,7 +37,9 @@ export async function placeBidAction(
   if (verified === 0) {
     return {
       ok: false,
-      message: "กรุณายืนยันเบอร์โทรศัพท์ก่อนเสนอราคา (ไปที่ บัญชีของฉัน > เบอร์โทรศัพท์)",
+      // The page offers a dialog for this; someone reaching here has a stale
+      // tab, so the fix is to reload rather than to navigate somewhere else.
+      message: "กรุณายืนยันเบอร์โทรศัพท์ก่อนเสนอราคา — โหลดหน้านี้ใหม่แล้วกดปุ่มยืนยันเบอร์โทร",
     };
   }
 
