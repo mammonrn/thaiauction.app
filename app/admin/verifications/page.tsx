@@ -51,18 +51,18 @@ export default async function AdminVerificationsPage({
   ]);
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-col gap-2">
         <Link
           href="/"
-          className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+          className="text-sm text-ink/60 underline-offset-4 hover:underline"
         >
           ← กลับหน้าแรก
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
           ตรวจสอบการยืนยันตัวตน
         </h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           เทียบชื่อ-นามสกุลและวันเกิดที่ผู้ขายแจ้ง กับที่ปรากฏบนบัตร
           · รูปบัตรจะถูกลบทันทีที่กดอนุมัติหรือปฏิเสธ
         </p>
@@ -71,7 +71,7 @@ export default async function AdminVerificationsPage({
       {decided === "approved" || decided === "rejected" ? (
         <p
           role="status"
-          className="rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4 text-sm text-green-800 dark:text-green-300"
+          className="rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4 text-sm text-green-800"
         >
           บันทึกผลเรียบร้อย — {decided === "approved" ? "อนุมัติ" : "ปฏิเสธ"}
           คำขอแล้ว และลบรูปบัตรออกจากระบบเรียบร้อย
@@ -82,7 +82,7 @@ export default async function AdminVerificationsPage({
         <h2 className="text-sm font-medium">รอตรวจสอบ ({pending.length})</h2>
 
         {pending.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-black/20 px-5 py-8 text-center text-sm text-black/60 dark:border-white/20 dark:text-white/60">
+          <p className="rounded-xl border border-dashed border-black/20 px-5 py-8 text-center text-sm text-ink/60">
             ไม่มีคำขอที่รอตรวจสอบ
           </p>
         ) : (
@@ -90,13 +90,13 @@ export default async function AdminVerificationsPage({
             {pending.map((row) => (
               <li
                 key={row.id}
-                className="flex flex-col gap-4 rounded-xl border border-black/10 p-5 dark:border-white/15"
+                className="flex flex-col gap-4 rounded-xl bg-white p-5"
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-sm text-black/60 dark:text-white/60">
+                  <span className="text-sm text-ink/60">
                     บัญชี: {row.user.name} · {row.user.email}
                   </span>
-                  <span className="text-xs text-black/50 dark:text-white/50">
+                  <span className="text-xs text-ink/50">
                     ส่งเมื่อ {formatThaiDateTime(row.submittedAt)}
                   </span>
                 </div>
@@ -104,9 +104,9 @@ export default async function AdminVerificationsPage({
                 {/* The reference data, stated before the image so the reviewer
                     reads what to expect and then checks the card against it,
                     rather than reading the card and rationalising a match. */}
-                <dl className="flex flex-col gap-1 rounded-lg border border-black/10 bg-black/[.02] p-4 text-sm dark:border-white/15 dark:bg-white/5">
+                <dl className="flex flex-col gap-1 rounded-lg border border-black/10 bg-black/[.02] p-4 text-sm">
                   <div className="flex flex-wrap justify-between gap-2">
-                    <dt className="text-black/60 dark:text-white/60">
+                    <dt className="text-ink/60">
                       ชื่อ-นามสกุลที่แจ้ง
                     </dt>
                     <dd className="text-base font-semibold">
@@ -114,7 +114,7 @@ export default async function AdminVerificationsPage({
                     </dd>
                   </div>
                   <div className="flex flex-wrap justify-between gap-2">
-                    <dt className="text-black/60 dark:text-white/60">
+                    <dt className="text-ink/60">
                       วันเกิดที่แจ้ง
                     </dt>
                     <dd className="text-base font-semibold">
@@ -131,7 +131,7 @@ export default async function AdminVerificationsPage({
                     documentUrl={`/api/kyc/${row.documentKey}`}
                   />
                 ) : (
-                  <p className="text-sm text-red-600 dark:text-red-400">
+                  <p className="text-sm text-red-600">
                     ไม่พบไฟล์เอกสาร
                   </p>
                 )}
@@ -144,9 +144,9 @@ export default async function AdminVerificationsPage({
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">ประวัติการตรวจสอบล่าสุด</h2>
         {recent.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">ยังไม่มีประวัติ</p>
+          <p className="text-sm text-ink/60">ยังไม่มีประวัติ</p>
         ) : (
-          <ul className="flex flex-col divide-y divide-black/5 text-sm dark:divide-white/10">
+          <ul className="flex flex-col divide-y divide-black/5 text-sm">
             {recent.map((row) => (
               <li key={row.id} className="flex flex-col gap-1 py-3">
                 <span className="flex flex-wrap items-center gap-2">
@@ -154,20 +154,20 @@ export default async function AdminVerificationsPage({
                   <span
                     className={
                       row.status === "approved"
-                        ? "rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-400"
-                        : "rounded-full bg-red-600/10 px-2 py-0.5 text-xs text-red-700 dark:text-red-400"
+                        ? "rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700"
+                        : "rounded-full bg-red-600/10 px-2 py-0.5 text-xs text-red-700"
                     }
                   >
                     {row.status === "approved" ? "อนุมัติ" : "ปฏิเสธ"}
                   </span>
                 </span>
-                <span className="text-xs text-black/60 dark:text-white/60">
+                <span className="text-xs text-ink/60">
                   โดย {row.reviewedBy?.email ?? "-"} ·{" "}
                   {row.reviewedAt ? formatThaiDateTime(row.reviewedAt) : "-"}
                   {row.documentDeletedAt ? " · ลบรูปแล้ว" : ""}
                 </span>
                 {row.rejectionReason ? (
-                  <span className="text-xs text-black/60 dark:text-white/60">
+                  <span className="text-xs text-ink/60">
                     เหตุผล: {row.rejectionReason}
                   </span>
                 ) : null}

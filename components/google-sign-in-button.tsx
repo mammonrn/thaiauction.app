@@ -31,14 +31,14 @@ export function GoogleSignInButton({ redirectTo }: { redirectTo: string }) {
         type="button"
         onClick={handleClick}
         disabled={pending}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-black/15 bg-white px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/20 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10"
+        className="flex w-full items-center justify-center gap-3 rounded-lg border border-black/15 bg-white px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <GoogleLogo />
         {pending ? "กำลังพาไปที่ Google…" : "เข้าสู่ระบบด้วย Google"}
       </button>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {error}
         </p>
       ) : null}

@@ -12,7 +12,7 @@ import {
 const initialState: OtpActionState = { ok: false, message: null };
 
 const inputClass =
-  "rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5";
+  "rounded-lg border border-black/15 px-3 py-2";
 
 export function PhoneVerification({
   verified,
@@ -33,7 +33,7 @@ export function PhoneVerification({
   return (
     <div className="flex flex-col gap-8">
       {stubMode ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800">
           โหมดทดสอบ (OTP_STUB_MODE) — ไม่ส่ง SMS จริง ใช้รหัส{" "}
           <code className="font-mono font-semibold">000000</code>
         </p>
@@ -42,7 +42,7 @@ export function PhoneVerification({
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-sm font-medium">เพิ่มเบอร์ใหม่</h2>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             เราจะส่งรหัส 6 หลักไปที่เบอร์นี้ทาง SMS
           </p>
         </div>
@@ -74,8 +74,8 @@ export function PhoneVerification({
             role="status"
             className={
               sendState.ok
-                ? "text-sm text-green-700 dark:text-green-400"
-                : "text-sm text-red-600 dark:text-red-400"
+                ? "text-sm text-green-700"
+                : "text-sm text-red-600"
             }
           >
             {sendState.message}
@@ -91,7 +91,7 @@ export function PhoneVerification({
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium">เบอร์ที่ยืนยันแล้ว</h2>
         {verified.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             ยังไม่มีเบอร์ที่ยืนยัน
           </p>
         ) : (
@@ -99,11 +99,11 @@ export function PhoneVerification({
             {verified.map((entry) => (
               <li
                 key={entry.phone}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 px-4 py-3 dark:border-white/15"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-black/10 px-4 py-3"
               >
                 <span className="flex flex-col gap-0.5">
                   <span className="font-medium">{entry.phone}</span>
-                  <span className="text-xs text-black/50 dark:text-white/50">
+                  <span className="text-xs text-ink/50">
                     ยืนยันเมื่อ {entry.verifiedAt}
                   </span>
                 </span>
@@ -122,7 +122,7 @@ function VerifyStep({ phone }: { phone: string }) {
 
   if (state.ok) {
     return (
-      <p role="status" className="text-sm text-green-700 dark:text-green-400">
+      <p role="status" className="text-sm text-green-700">
         {state.message}
       </p>
     );
@@ -131,7 +131,7 @@ function VerifyStep({ phone }: { phone: string }) {
   return (
     <form
       action={action}
-      className="flex flex-col gap-3 rounded-xl border border-black/10 bg-black/[.02] p-4 dark:border-white/15 dark:bg-white/5"
+      className="flex flex-col gap-3 rounded-xl border border-black/10 bg-black/[.02] p-4"
     >
       <input type="hidden" name="phone" value={phone} />
       <label className="flex flex-col gap-1.5">
@@ -156,7 +156,7 @@ function VerifyStep({ phone }: { phone: string }) {
           {pending ? "กำลังตรวจสอบ…" : "ยืนยันรหัส"}
         </button>
         {state.message ? (
-          <span role="alert" className="text-sm text-red-600 dark:text-red-400">
+          <span role="alert" className="text-sm text-red-600">
             {state.message}
           </span>
         ) : null}
@@ -177,7 +177,7 @@ function RemoveButton({ phone }: { phone: string }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 dark:text-red-400"
+        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10"
       >
         ลบ
       </button>
@@ -190,14 +190,14 @@ function RemoveButton({ phone }: { phone: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60 dark:text-red-400"
+        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
       >
         {pending ? "กำลังลบ…" : "ลบเลย"}
       </button>
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
       >
         ยกเลิก
       </button>

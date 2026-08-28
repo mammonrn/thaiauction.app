@@ -27,16 +27,16 @@ export default async function NewAuctionPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-col gap-2">
         <Link
           href="/sell"
-          className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+          className="text-sm text-ink/60 underline-offset-4 hover:underline"
         >
           ← กลับรายการสินค้าของฉัน
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">ลงสินค้าประมูล</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           บันทึกเป็นฉบับร่างก่อน แล้วค่อยตรวจทานและกดเผยแพร่
         </p>
       </div>

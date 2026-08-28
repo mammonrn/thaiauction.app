@@ -19,16 +19,16 @@ export function EndAuctionButton({
 
   if (state.ok) {
     return (
-      <p role="status" className="text-sm text-green-700 dark:text-green-400">
+      <p role="status" className="text-sm text-green-700">
         {state.message}
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-xl border border-black/10 p-5 dark:border-white/15">
+    <div className="flex flex-col gap-2 rounded-xl bg-white p-5">
       <h2 className="text-sm font-medium">จบการประมูลก่อนกำหนด</h2>
-      <p className="text-sm text-black/60 dark:text-white/60">
+      <p className="text-sm text-ink/60">
         {bidCount > 0
           ? "ผู้ที่เสนอราคาสูงสุดตอนนี้จะเป็นผู้ชนะทันที"
           : "ยังไม่มีผู้เสนอราคา การจบตอนนี้จะเป็นการยกเลิกรายการ (ไม่มีผู้ชนะ)"}
@@ -41,14 +41,14 @@ export function EndAuctionButton({
           <button
             type="submit"
             disabled={pending}
-            className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60 dark:text-red-400"
+            className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
           >
             {pending ? "กำลังจบ…" : bidCount > 0 ? "จบและประกาศผู้ชนะ" : "ยกเลิกรายการ"}
           </button>
           <button
             type="button"
             onClick={() => setConfirming(false)}
-            className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+            className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
           >
             ยกเลิก
           </button>
@@ -57,14 +57,14 @@ export function EndAuctionButton({
         <button
           type="button"
           onClick={() => setConfirming(true)}
-          className="self-start rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+          className="self-start rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
         >
           จบประมูลทันที
         </button>
       )}
 
       {state.message && !state.ok ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {state.message}
         </p>
       ) : null}

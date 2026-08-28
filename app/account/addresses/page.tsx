@@ -25,16 +25,16 @@ export default async function AddressesPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-16">
+    <main className="flex w-full flex-col gap-5">
       <div className="flex flex-col gap-2">
         <Link
           href="/account"
-          className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+          className="text-sm text-ink/60 underline-offset-4 hover:underline sm:hidden"
         >
           ← กลับหน้าบัญชีของฉัน
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">ที่อยู่จัดส่ง</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           จัดการที่อยู่สำหรับจัดส่งสินค้าที่คุณชนะประมูล
         </p>
       </div>

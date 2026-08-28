@@ -45,10 +45,10 @@ export function PublishControls({
   if (status !== "draft") return null;
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-black/10 p-5 dark:border-white/15">
+    <div className="flex flex-col gap-3 rounded-xl bg-white p-5">
       <div className="flex flex-col gap-1">
         <h2 className="text-sm font-medium">เผยแพร่</h2>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           ตอนนี้เป็นฉบับร่าง คนอื่นยังมองไม่เห็น เมื่อเผยแพร่แล้วจะแก้ไขได้จน
           กว่าจะมีคนเสนอราคาคนแรก
         </p>
@@ -73,14 +73,14 @@ export function PublishControls({
             <button
               type="submit"
               disabled={removing}
-              className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60 dark:text-red-400"
+              className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
             >
               {removing ? "กำลังลบ…" : "ลบเลย"}
             </button>
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
             >
               ยกเลิก
             </button>
@@ -89,7 +89,7 @@ export function PublishControls({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 dark:text-red-400"
+            className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10"
           >
             ลบฉบับร่าง
           </button>
@@ -107,7 +107,7 @@ export function PublishControls({
           <h3 id="publish-confirm-title" className="text-lg font-semibold">
             ตรวจสอบก่อนเผยแพร่
           </h3>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             เมื่อมีผู้เสนอราคาแล้วจะแก้ไขรายการนี้ไม่ได้อีก
             กรุณาตรวจสอบให้ครบถ้วน
           </p>
@@ -117,7 +117,7 @@ export function PublishControls({
               {summary.imageUrls.map((url, index) => (
                 <div
                   key={url}
-                  className="relative h-16 w-16 overflow-hidden rounded-lg border border-black/10 dark:border-white/15"
+                  className="relative h-16 w-16 overflow-hidden rounded-lg border border-black/10"
                 >
                   <Image src={url} alt="" fill sizes="64px" className="object-cover" unoptimized />
                   {index === 0 ? (
@@ -157,7 +157,7 @@ export function PublishControls({
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm transition hover:bg-black/5"
             >
               กลับไปแก้ไข
             </button>
@@ -170,15 +170,15 @@ export function PublishControls({
           role="alert"
           className={
             publishState.ok
-              ? "text-sm text-green-700 dark:text-green-400"
-              : "text-sm text-red-600 dark:text-red-400"
+              ? "text-sm text-green-700"
+              : "text-sm text-red-600"
           }
         >
           {publishState.message}
         </p>
       ) : null}
       {deleteState.message && !deleteState.ok ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {deleteState.message}
         </p>
       ) : null}
@@ -188,8 +188,8 @@ export function PublishControls({
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-black/5 pb-1.5 dark:border-white/10">
-      <dt className="text-black/60 dark:text-white/60">{label}</dt>
+    <div className="flex justify-between gap-4 border-b border-black/5 pb-1.5">
+      <dt className="text-ink/60">{label}</dt>
       <dd className="text-right font-medium">{value}</dd>
     </div>
   );

@@ -40,7 +40,7 @@ export function VerificationReview({
         href={documentUrl}
         target="_blank"
         rel="noreferrer noopener"
-        className="relative block h-64 w-full overflow-hidden rounded-lg border border-black/10 bg-black/5 dark:border-white/15 dark:bg-white/10"
+        className="relative block h-64 w-full overflow-hidden rounded-lg border border-black/10 bg-black/5"
       >
         <Image
           src={documentUrl}
@@ -68,7 +68,7 @@ export function VerificationReview({
           <button
             type="button"
             onClick={() => setRejecting(true)}
-            className="rounded-lg border border-red-600/40 px-4 py-2 text-sm text-red-600 transition hover:bg-red-600/10 dark:text-red-400"
+            className="rounded-lg border border-red-600/40 px-4 py-2 text-sm text-red-600 transition hover:bg-red-600/10"
           >
             ปฏิเสธ
           </button>
@@ -86,9 +86,9 @@ export function VerificationReview({
               rows={2}
               maxLength={500}
               placeholder="เช่น รูปเบลอ อ่านเลขบัตรไม่ออก"
-              className="rounded-lg border border-black/15 px-3 py-2 text-sm dark:border-white/20 dark:bg-white/5"
+              className="rounded-lg border border-black/15 px-3 py-2 text-sm"
             />
-            <span className="text-xs text-black/50 dark:text-white/50">
+            <span className="text-xs text-ink/50">
               ผู้ขายจะเห็นข้อความนี้ จึงควรบอกให้ชัดว่าต้องแก้อะไร
             </span>
           </label>
@@ -96,14 +96,14 @@ export function VerificationReview({
             <button
               type="submit"
               disabled={rejectPending}
-              className="rounded-lg border border-red-600/40 px-4 py-2 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60 dark:text-red-400"
+              className="rounded-lg border border-red-600/40 px-4 py-2 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
             >
               {rejectPending ? "กำลังบันทึก…" : "ยืนยันการปฏิเสธ"}
             </button>
             <button
               type="button"
               onClick={() => setRejecting(false)}
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              className="rounded-lg border border-black/15 px-4 py-2 text-sm transition hover:bg-black/5"
             >
               ยกเลิก
             </button>
@@ -112,12 +112,12 @@ export function VerificationReview({
       ) : null}
 
       {approveState.message && !approveState.ok ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {approveState.message}
         </p>
       ) : null}
       {rejectState.message && !rejectState.ok ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {rejectState.message}
         </p>
       ) : null}

@@ -22,17 +22,17 @@ export default async function SecurityPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-md flex-col gap-8 px-6 py-16">
+    <main className="flex w-full flex-col gap-5">
       <div className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">
           ความปลอดภัยของบัญชี
         </h1>
-        <p className="text-sm text-black/60 dark:text-white/60">{user.email}</p>
+        <p className="text-sm text-ink/60">{user.email}</p>
       </div>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">วิธีเข้าสู่ระบบที่เชื่อมไว้</h2>
-        <ul className="flex flex-col gap-1 text-sm text-black/70 dark:text-white/70">
+        <ul className="flex flex-col gap-1 text-sm text-ink/70">
           {linkedProviders.map(({ providerId }) => (
             <li key={providerId}>
               {providerId === "credential" ? "อีเมล + รหัสผ่าน" : providerId}
@@ -46,7 +46,7 @@ export default async function SecurityPage() {
           <h2 className="text-sm font-medium">
             {hasPassword ? "รหัสผ่าน" : "ตั้งรหัสผ่านเพิ่ม"}
           </h2>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             {hasPassword
               ? "บัญชีนี้ตั้งรหัสผ่านไว้แล้ว สามารถเข้าสู่ระบบด้วยอีเมลและรหัสผ่านได้"
               : "ตั้งรหัสผ่านเพื่อให้เข้าสู่ระบบด้วยอีเมลได้ โดยไม่ต้องพึ่ง Google"}
@@ -58,7 +58,7 @@ export default async function SecurityPage() {
 
       <Link
         href="/"
-        className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+        className="text-sm text-ink/60 underline-offset-4 hover:underline sm:hidden"
       >
         กลับหน้าแรก
       </Link>

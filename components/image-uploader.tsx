@@ -76,7 +76,7 @@ export function ImageUploader({
         {images.map((image, index) => (
           <div
             key={image.key}
-            className="relative h-28 w-28 overflow-hidden rounded-lg border border-black/10 dark:border-white/15"
+            className="relative h-28 w-28 overflow-hidden rounded-lg border border-black/10"
           >
             <Image
               src={image.url}
@@ -133,16 +133,16 @@ export function ImageUploader({
           multiple
           onChange={(e) => handleFiles(e.target.files)}
           disabled={images.length >= max}
-          className="text-sm file:mr-3 file:rounded-lg file:border file:border-black/15 file:bg-transparent file:px-3 file:py-1.5 file:text-sm dark:file:border-white/20"
+          className="text-sm file:mr-3 file:rounded-lg file:border file:border-black/15 file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
         />
-        <span className="text-xs text-black/50 dark:text-white/50">
+        <span className="text-xs text-ink/50">
           {images.length}/{max} รูป
           {busy > 0 ? ` — กำลังอัปโหลด ${busy} ไฟล์…` : ""}
         </span>
       </div>
 
       {error ? (
-        <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+        <p role="alert" className="text-xs text-red-600">
           {error}
         </p>
       ) : null}

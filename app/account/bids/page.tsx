@@ -58,10 +58,10 @@ export default async function MyBidsPage() {
   const now = Date.now();
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
+    <main className="flex w-full flex-col gap-5">
       <Link
         href="/account"
-        className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+        className="text-sm text-ink/60 underline-offset-4 hover:underline sm:hidden"
       >
         ← บัญชีของฉัน
       </Link>
@@ -76,8 +76,8 @@ export default async function MyBidsPage() {
         <section
           className={`rounded-xl border p-5 text-sm ${
             banned
-              ? "border-red-600/30 bg-red-50 dark:bg-red-950/30"
-              : "border-amber-500/40 bg-amber-50 dark:bg-amber-950/30"
+              ? "border-red-600/30 bg-red-50"
+              : "border-amber-500/40 bg-amber-50"
           }`}
         >
           <h2 className="font-semibold">
@@ -94,7 +94,7 @@ export default async function MyBidsPage() {
       ) : null}
 
       {items.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           คุณยังไม่เคยเสนอราคาสินค้าใด
         </p>
       ) : (
@@ -120,7 +120,7 @@ export default async function MyBidsPage() {
             return (
               <li
                 key={item.id}
-                className="flex flex-col gap-1 rounded-xl border border-black/10 p-4 text-sm dark:border-white/15"
+                className="flex flex-col gap-1 rounded-xl bg-white p-4 text-sm"
               >
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <Link
@@ -131,12 +131,12 @@ export default async function MyBidsPage() {
                   </Link>
                   <Badge tone={outcome.tone}>{outcome.text}</Badge>
                 </div>
-                <p className="text-black/70 dark:text-white/70">
+                <p className="text-ink/70">
                   เสนอราคาสูงสุดของคุณ{" "}
                   {myBid ? formatBaht(myBid.amount) : "-"} · ราคาปิด{" "}
                   {formatBaht(item.currentPrice)}
                 </p>
-                <p className="text-xs text-black/55 dark:text-white/55">
+                <p className="text-xs text-ink/55">
                   {lastPayment?.paidAt
                     ? `ชำระเมื่อ ${formatThaiDateTime(lastPayment.paidAt)}`
                     : won && !paid && item.paymentDueAt
@@ -149,7 +149,7 @@ export default async function MyBidsPage() {
                 item.paymentDueAt.getTime() > now ? (
                   <Link
                     href={`/auctions/${item.id}/pay`}
-                    className="mt-1 self-start rounded-lg bg-black px-4 py-2 text-xs font-medium text-white dark:bg-white dark:text-black"
+                    className="mt-1 self-start rounded-lg bg-brand hover:bg-brand-dark transition-colors px-4 py-2 text-xs font-medium text-white"
                   >
                     ชำระเงิน
                   </Link>
@@ -171,10 +171,10 @@ function Badge({
   children: React.ReactNode;
 }) {
   const styles = {
-    good: "bg-green-600/15 text-green-800 dark:text-green-300",
-    warn: "bg-amber-600/15 text-amber-800 dark:text-amber-300",
-    bad: "bg-red-600/15 text-red-800 dark:text-red-300",
-    plain: "bg-black/[0.06] text-black/70 dark:bg-white/10 dark:text-white/70",
+    good: "bg-green-600/15 text-green-800",
+    warn: "bg-amber-600/15 text-amber-800",
+    bad: "bg-red-600/15 text-red-800",
+    plain: "bg-black/[0.06] text-ink/70",
   }[tone];
 
   return (

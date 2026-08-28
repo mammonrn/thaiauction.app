@@ -75,19 +75,19 @@ export default async function AdminPayoutsPage() {
   const owed = due.reduce((total, row) => total + (row.sellerNet ?? 0), 0);
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-10 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">
           รอโอนให้ผู้ขาย
         </h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           {due.length} รายการ รวม {formatBaht(owed)} — ค่าคอมมิชชั่น{" "}
           {COMMISSION_PERCENT}% หักจากยอดหลังลบค่าธรรมเนียม Omise แล้ว
         </p>
       </header>
 
       {due.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           ไม่มีรายการรอโอน
         </p>
       ) : (
@@ -98,7 +98,7 @@ export default async function AdminPayoutsPage() {
             return (
               <li
                 key={row.id}
-                className="flex flex-col gap-4 rounded-xl border border-black/10 p-5 dark:border-white/15"
+                className="flex flex-col gap-4 rounded-xl bg-white p-5"
               >
                 <div className="flex flex-col gap-1">
                   <Link
@@ -107,7 +107,7 @@ export default async function AdminPayoutsPage() {
                   >
                     {row.auctionItem.title}
                   </Link>
-                  <span className="text-xs text-black/60 dark:text-white/60">
+                  <span className="text-xs text-ink/60">
                     ผู้ซื้อ {row.payer.name} · ชำระเมื่อ{" "}
                     {row.paidAt ? formatThaiDateTime(row.paidAt) : "-"}
                   </span>
@@ -115,25 +115,25 @@ export default async function AdminPayoutsPage() {
 
                 <Breakdown row={row} />
 
-                <div className="rounded-lg bg-black/[0.03] p-4 text-sm dark:bg-white/[0.06]">
+                <div className="rounded-lg bg-black/[0.03] p-4 text-sm">
                   <p className="font-medium">โอนให้ {seller.name}</p>
                   {account ? (
                     <>
-                      <p className="text-black/70 dark:text-white/70">
+                      <p className="text-ink/70">
                         {bankName(account.bankCode)} · {account.accountNumber}
                       </p>
-                      <p className="text-black/70 dark:text-white/70">
+                      <p className="text-ink/70">
                         ชื่อบัญชี: {account.accountName}
                       </p>
                       {/* The KYC comparison is advisory: Thai bank names carry
                           title prefixes and inconsistent spacing, so a
                           mismatch is a prompt to look, not a verdict. */}
                       {account.nameMatchesKyc ? (
-                        <p className="text-green-700 dark:text-green-400">
+                        <p className="text-green-700">
                           ✓ ตรงกับชื่อที่ยืนยันตัวตน
                         </p>
                       ) : (
-                        <p className="text-amber-700 dark:text-amber-400">
+                        <p className="text-amber-700">
                           ⚠ ไม่ตรงกับชื่อที่ยืนยันตัวตน (
                           {seller.firstName && seller.lastName
                             ? `${seller.firstName} ${seller.lastName}`
@@ -143,7 +143,7 @@ export default async function AdminPayoutsPage() {
                       )}
                     </>
                   ) : (
-                    <p className="text-red-600 dark:text-red-400">
+                    <p className="text-red-600">
                       ผู้ขายยังไม่ได้บันทึกบัญชีธนาคาร — โอนไม่ได้จนกว่าจะบันทึก
                     </p>
                   )}
@@ -159,7 +159,7 @@ export default async function AdminPayoutsPage() {
       <section className="flex flex-col gap-4">
         <h2 className="text-lg font-semibold">โอนแล้วล่าสุด</h2>
         {sent.length === 0 ? (
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             ยังไม่มีประวัติการโอน
           </p>
         ) : (
@@ -167,15 +167,15 @@ export default async function AdminPayoutsPage() {
             {sent.map((row) => (
               <li
                 key={row.id}
-                className="flex flex-col gap-1 rounded-lg border border-black/10 p-4 dark:border-white/15"
+                className="flex flex-col gap-1 rounded-lg bg-white p-4"
               >
                 <span className="font-medium">{row.auctionItem.title}</span>
-                <span className="text-black/70 dark:text-white/70">
+                <span className="text-ink/70">
                   {formatBaht(row.sellerNet ?? 0)} →{" "}
                   {row.payoutAccountName ?? row.auctionItem.seller.name} ·{" "}
                   {row.payoutAccountNumber ?? "-"}
                 </span>
-                <span className="text-xs text-black/60 dark:text-white/60">
+                <span className="text-xs text-ink/60">
                   อ้างอิง {row.payoutReference} · โอนเมื่อ{" "}
                   {row.payoutAt ? formatThaiDateTime(row.payoutAt) : "-"} · โดย{" "}
                   {row.payoutBy?.email ?? "-"}
@@ -228,7 +228,7 @@ function Figure({
 }) {
   return (
     <div className="flex flex-col">
-      <dt className="text-xs text-black/60 dark:text-white/60">{label}</dt>
+      <dt className="text-xs text-ink/60">{label}</dt>
       <dd className={strong ? "font-semibold" : undefined}>
         {value < 0 ? `−${formatBaht(-value)}` : formatBaht(value)}
       </dd>

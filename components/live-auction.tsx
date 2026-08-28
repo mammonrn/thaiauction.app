@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 
 import { placeBidAction, type BidActionState } from "@/app/auctions/[id]/actions";
+import { PriceWindow } from "@/components/price-window";
 import { formatBaht, satangToBaht } from "@/lib/money";
 
 export type AuctionLiveState = {
@@ -134,14 +135,12 @@ export function LiveAuction({
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1 rounded-xl border border-black/10 p-5 dark:border-white/15">
-        <span className="text-sm text-black/60 dark:text-white/60">
+      <div className="flex flex-col gap-1 rounded-xl border border-black/10 bg-white p-5">
+        <span className="text-sm text-ink/60">
           ราคาปัจจุบัน
         </span>
-        <span className="text-3xl font-semibold tabular-nums">
-          {formatBaht(state.currentPrice)}
-        </span>
-        <span className="text-sm text-black/60 dark:text-white/60">
+        <PriceWindow satang={state.currentPrice} size="lg" />
+        <span className="text-sm text-ink/60">
           {state.bidCount} การเสนอราคา
           {state.leader ? ` · ผู้เสนอสูงสุด ${state.leader}` : ""}
         </span>
@@ -159,12 +158,12 @@ export function LiveAuction({
             : `จบแล้ว — ${END_REASON_LABEL[state.endReason ?? ""] ?? "ปิดการประมูล"}`}
         </span>
         {!live && state.winner ? (
-          <span className="text-sm text-green-700 dark:text-green-400">
+          <span className="text-sm text-green-700">
             ผู้ชนะ: {state.winner} ที่ {formatBaht(state.currentPrice)}
           </span>
         ) : null}
         {!live && !state.winner ? (
-          <span className="text-sm text-black/60 dark:text-white/60">
+          <span className="text-sm text-ink/60">
             ไม่มีผู้ชนะ (ไม่มีผู้เสนอราคา)
           </span>
         ) : null}
@@ -178,8 +177,8 @@ export function LiveAuction({
           role={bidState.ok ? "status" : "alert"}
           className={
             bidState.ok
-              ? "text-sm text-green-700 dark:text-green-400"
-              : "text-sm text-red-600 dark:text-red-400"
+              ? "text-sm text-green-700"
+              : "text-sm text-red-600"
           }
         >
           {bidState.message}
@@ -190,7 +189,7 @@ export function LiveAuction({
         canBid ? (
           <form
             action={bidAction}
-            className="flex flex-col gap-3 rounded-xl border border-black/10 p-5 dark:border-white/15"
+            className="flex flex-col gap-3 rounded-xl border border-black/10 bg-white p-5"
           >
             <input type="hidden" name="itemId" value={itemId} />
             <label className="flex flex-col gap-1.5">
@@ -203,9 +202,9 @@ export function LiveAuction({
                 // polling, so the common case is one tap.
                 key={state.minimumBid}
                 defaultValue={String(satangToBaht(state.minimumBid))}
-                className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5"
+                className="rounded-lg border border-black/15 px-3 py-2"
               />
-              <span className="text-xs text-black/60 dark:text-white/60">
+              <span className="text-xs text-ink/60">
                 เสนอได้ตั้งแต่ {formatBaht(state.minimumBid)} ขึ้นไป
                 {state.buyNowPrice !== null
                   ? ` และไม่เกิน ${formatBaht(state.buyNowPrice)} (ราคาซื้อทันที)`
@@ -215,13 +214,13 @@ export function LiveAuction({
             <button
               type="submit"
               disabled={bidding}
-              className="self-start rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-60"
+              className="self-start rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
             >
               {bidding ? "กำลังเสนอราคา…" : "เสนอราคา"}
             </button>
           </form>
         ) : (
-          <p className="rounded-lg border border-dashed border-black/20 px-4 py-3 text-sm text-black/60 dark:border-white/20 dark:text-white/60">
+          <p className="rounded-lg border border-dashed border-black/20 px-4 py-3 text-sm text-ink/60">
             {reasonCannotBid}
           </p>
         )

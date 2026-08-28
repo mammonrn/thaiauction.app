@@ -16,7 +16,7 @@ export function SellerBadges({
   return (
     <span className="flex flex-wrap items-center gap-1.5">
       {identityVerified ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2 py-0.5 text-xs font-medium text-blue-700 dark:text-blue-400">
+        <span className="inline-flex items-center gap-1 rounded-full bg-blue-600/10 px-2 py-0.5 text-xs font-medium text-blue-700">
           <svg width="12" height="12" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
             <path
               fillRule="evenodd"
@@ -29,7 +29,7 @@ export function SellerBadges({
       ) : null}
 
       {phoneVerified ? (
-        <span className="inline-flex items-center gap-1 rounded-full bg-black/[.06] px-2 py-0.5 text-xs text-black/70 dark:bg-white/10 dark:text-white/70">
+        <span className="inline-flex items-center gap-1 rounded-full bg-black/[.06] px-2 py-0.5 text-xs text-ink/70">
           ยืนยันเบอร์โทรแล้ว
         </span>
       ) : null}

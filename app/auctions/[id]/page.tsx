@@ -83,17 +83,17 @@ export default async function AuctionDetailPage({
         : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
       <Link
         href="/"
-        className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+        className="text-sm text-ink/60 underline-offset-4 hover:underline"
       >
         ← กลับหน้าแรก
       </Link>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 rounded-xl bg-white p-4 sm:p-6 md:grid-cols-2">
         <div className="flex flex-col gap-3">
-          <div className="relative aspect-square overflow-hidden rounded-xl bg-black/5 dark:bg-white/10">
+          <div className="relative aspect-square overflow-hidden rounded-xl bg-black/5">
             {item.images[0] ? (
               <Image
                 src={imageUrl(item.images[0])}
@@ -105,7 +105,7 @@ export default async function AuctionDetailPage({
                 unoptimized
               />
             ) : (
-              <div className="flex h-full items-center justify-center text-sm text-black/40 dark:text-white/40">
+              <div className="flex h-full items-center justify-center text-sm text-ink/40">
                 ไม่มีรูปภาพ
               </div>
             )}
@@ -116,7 +116,7 @@ export default async function AuctionDetailPage({
               {item.images.slice(1).map((key) => (
                 <div
                   key={key}
-                  className="relative h-20 w-20 overflow-hidden rounded-lg border border-black/10 dark:border-white/15"
+                  className="relative h-20 w-20 overflow-hidden rounded-lg border border-black/10"
                 >
                   <Image
                     src={imageUrl(key)}
@@ -134,7 +134,7 @@ export default async function AuctionDetailPage({
 
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <span className="text-sm text-black/60 dark:text-white/60">
+            <span className="text-sm text-ink/60">
               {item.category.name}
             </span>
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -165,7 +165,7 @@ export default async function AuctionDetailPage({
             }}
           />
 
-          <p className="text-xs text-black/50 dark:text-white/50">
+          <p className="text-xs text-ink/50">
             เปิดที่ {formatBaht(item.startPrice)} · เพิ่มขั้นต่ำครั้งละ{" "}
             {formatBaht(item.bidIncrement)}
           </p>
@@ -173,7 +173,7 @@ export default async function AuctionDetailPage({
           {/* Seller identity, with the trust badges. This block was lost in an
               earlier refactor of the price panel; restored here because the
               badges belong beside the person, not the price. */}
-          <div className="flex items-center gap-3 border-t border-black/10 pt-5 dark:border-white/15">
+          <div className="flex items-center gap-3 border-t border-black/10 pt-5">
             {item.seller.image ? (
               <Image
                 src={item.seller.image}
@@ -186,7 +186,7 @@ export default async function AuctionDetailPage({
             ) : (
               <div
                 aria-hidden="true"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/15"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium"
               >
                 {item.seller.name.charAt(0).toUpperCase()}
               </div>
@@ -207,11 +207,11 @@ export default async function AuctionDetailPage({
       </div>
 
       {item.bids.length > 0 ? (
-        <section className="flex flex-col gap-3">
+        <section className="flex flex-col gap-3 rounded-xl bg-white p-4 sm:p-6">
           <h2 className="text-sm font-medium">
             ประวัติการเสนอราคา ({item._count.bids})
           </h2>
-          <ul className="flex flex-col divide-y divide-black/5 dark:divide-white/10">
+          <ul className="flex flex-col divide-y divide-black/5">
             {item.bids.map((bid, index) => (
               <li
                 key={bid.id}
@@ -227,14 +227,14 @@ export default async function AuctionDetailPage({
                       : maskName(bid.bidder.name)}
                   </span>
                   {index === 0 ? (
-                    <span className="rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-400">
+                    <span className="rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700">
                       สูงสุด
                     </span>
                   ) : null}
                   {(bidderStrikes.get(bid.bidderId) ?? 0) > 0 ? (
                     <span
                       title="ผู้ใช้รายนี้เคยชนะประมูลแล้วไม่ชำระเงินตามกำหนด (เห็นเฉพาะคุณในฐานะผู้ขาย)"
-                      className="rounded-full bg-amber-600/15 px-2 py-0.5 text-xs text-amber-800 dark:text-amber-300"
+                      className="rounded-full bg-amber-600/15 px-2 py-0.5 text-xs text-amber-800"
                     >
                       ⚠ เคยไม่ชำระเงิน{" "}
                       {bidderStrikes.get(bid.bidderId)}/{STRIKE_LIMIT}
@@ -243,7 +243,7 @@ export default async function AuctionDetailPage({
                 </span>
                 <span className="flex items-center gap-3">
                   <span className="tabular-nums">{formatBaht(bid.amount)}</span>
-                  <span className="text-xs text-black/50 dark:text-white/50">
+                  <span className="text-xs text-ink/50">
                     {formatThaiDateTime(bid.createdAt)}
                   </span>
                 </span>
@@ -253,9 +253,9 @@ export default async function AuctionDetailPage({
         </section>
       ) : null}
 
-      <section className="flex flex-col gap-2">
+      <section className="flex flex-col gap-2 rounded-xl bg-white p-4 sm:p-6">
         <h2 className="text-sm font-medium">รายละเอียดสินค้า</h2>
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-black/80 dark:text-white/80">
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
           {item.description}
         </p>
       </section>

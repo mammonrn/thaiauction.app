@@ -29,11 +29,11 @@ export function BankAccountForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-black/70 dark:text-white/70">ธนาคาร</span>
+        <span className="text-ink/70">ธนาคาร</span>
         <select
           name="bankCode"
           defaultValue={v.bankCode}
-          className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+          className="rounded-lg border border-black/15 px-3 py-2"
         >
           <option value="">— เลือกธนาคาร —</option>
           {THAI_BANKS.map((bank) => (
@@ -43,36 +43,36 @@ export function BankAccountForm({
           ))}
         </select>
         {err?.bankCode ? (
-          <span className="text-red-600 dark:text-red-400">{err.bankCode}</span>
+          <span className="text-red-600">{err.bankCode}</span>
         ) : null}
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-black/70 dark:text-white/70">เลขที่บัญชี</span>
+        <span className="text-ink/70">เลขที่บัญชี</span>
         <input
           name="accountNumber"
           inputMode="numeric"
           defaultValue={v.accountNumber}
-          className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+          className="rounded-lg border border-black/15 px-3 py-2"
         />
         {err?.accountNumber ? (
-          <span className="text-red-600 dark:text-red-400">
+          <span className="text-red-600">
             {err.accountNumber}
           </span>
         ) : null}
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-black/70 dark:text-white/70">
+        <span className="text-ink/70">
           ชื่อบัญชี (ตามที่ธนาคารระบุ)
         </span>
         <input
           name="accountName"
           defaultValue={v.accountName}
-          className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+          className="rounded-lg border border-black/15 px-3 py-2"
         />
         {err?.accountName ? (
-          <span className="text-red-600 dark:text-red-400">
+          <span className="text-red-600">
             {err.accountName}
           </span>
         ) : null}
@@ -81,7 +81,7 @@ export function BankAccountForm({
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-lg bg-black px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+        className="self-start rounded-lg bg-brand hover:bg-brand-dark transition-colors px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
       >
         {pending ? "กำลังบันทึก…" : "บันทึกบัญชีธนาคาร"}
       </button>
@@ -90,8 +90,8 @@ export function BankAccountForm({
         <p
           className={`text-sm ${
             state.ok
-              ? "text-green-700 dark:text-green-400"
-              : "text-red-600 dark:text-red-400"
+              ? "text-green-700"
+              : "text-red-600"
           }`}
         >
           {state.message}

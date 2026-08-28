@@ -17,25 +17,25 @@ export default async function AdminFraudPage() {
   const signals = await findFraudSignals();
 
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">
           สัญญาณน่าสงสัย (อาจเป็นการปั่นราคา)
         </h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           หลายบัญชีเสนอราคาสินค้าของผู้ขายรายเดียวกันจากที่อยู่ IP
           หรืออุปกรณ์เดียวกัน — <strong>ไม่ใช่ข้อสรุปว่าโกง</strong>{" "}
           คนในบ้านเดียวกันหรือที่ทำงานเดียวกันก็ขึ้นรายการนี้ได้
           ระบบจึงไม่บล็อกอัตโนมัติ กรุณาตรวจสอบด้วยตนเองก่อนดำเนินการ
         </p>
-        <p className="text-xs text-black/50 dark:text-white/50">
+        <p className="text-xs text-ink/50">
           ข้อมูล IP และอุปกรณ์ถูกลบอัตโนมัติหลัง {BID_METADATA_RETENTION_DAYS}{" "}
           วัน รายการนี้จึงครอบคลุมเฉพาะช่วงเวลาดังกล่าว
         </p>
       </header>
 
       {signals.length === 0 ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           ยังไม่พบสัญญาณน่าสงสัย
         </p>
       ) : (
@@ -43,7 +43,7 @@ export default async function AdminFraudPage() {
           {signals.map((signal) => (
             <li
               key={`${signal.signal}:${signal.value}:${signal.sellerId}`}
-              className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-50/50 p-5 text-sm dark:bg-amber-950/20"
+              className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-50/50 p-5 text-sm"
             >
               <div className="flex flex-wrap items-baseline gap-2">
                 <span className="rounded bg-amber-600/15 px-2 py-0.5 text-xs font-medium">
@@ -55,19 +55,19 @@ export default async function AdminFraudPage() {
               </div>
 
               <p>
-                <span className="text-black/60 dark:text-white/60">ผู้ขาย: </span>
+                <span className="text-ink/60">ผู้ขาย: </span>
                 {signal.sellerName} ({signal.sellerEmail})
               </p>
               <p>
-                <span className="text-black/60 dark:text-white/60">
+                <span className="text-ink/60">
                   ผู้เสนอราคา:{" "}
                 </span>
                 {signal.bidderNames.join(", ")}
               </p>
-              <p className="break-all text-xs text-black/60 dark:text-white/60">
+              <p className="break-all text-xs text-ink/60">
                 {signal.signal === "ip" ? "IP" : "User-Agent"}: {signal.value}
               </p>
-              <p className="text-xs text-black/60 dark:text-white/60">
+              <p className="text-xs text-ink/60">
                 เสนอราคาล่าสุด {formatThaiDateTime(signal.lastBidAt)}
               </p>
             </li>

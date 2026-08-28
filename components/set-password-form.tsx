@@ -25,7 +25,7 @@ export function SetPasswordForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5"
+          className="rounded-lg border border-black/15 px-3 py-2"
         />
       </label>
 
@@ -37,7 +37,7 @@ export function SetPasswordForm() {
           required
           minLength={8}
           autoComplete="new-password"
-          className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5"
+          className="rounded-lg border border-black/15 px-3 py-2"
         />
       </label>
 
@@ -54,8 +54,8 @@ export function SetPasswordForm() {
           role="status"
           className={
             state.ok
-              ? "text-sm text-green-700 dark:text-green-400"
-              : "text-sm text-red-600 dark:text-red-400"
+              ? "text-sm text-green-700"
+              : "text-sm text-red-600"
           }
         >
           {state.message}

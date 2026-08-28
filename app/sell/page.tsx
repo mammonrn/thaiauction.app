@@ -32,12 +32,12 @@ export default async function SellPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Link
             href="/"
-            className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+            className="text-sm text-ink/60 underline-offset-4 hover:underline"
           >
             ← กลับหน้าแรก
           </Link>
@@ -54,9 +54,9 @@ export default async function SellPage() {
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-black/20 px-5 py-12 text-center dark:border-white/20">
+        <div className="rounded-xl border border-dashed border-black/20 px-5 py-12 text-center">
           <p className="font-medium">ยังไม่มีสินค้า</p>
-          <p className="mt-1 text-sm text-black/60 dark:text-white/60">
+          <p className="mt-1 text-sm text-ink/60">
             กด “ลงสินค้าใหม่” เพื่อเริ่มลงประมูลชิ้นแรก
           </p>
         </div>
@@ -65,9 +65,9 @@ export default async function SellPage() {
           {items.map((item) => (
             <li
               key={item.id}
-              className="flex items-center gap-4 rounded-xl border border-black/10 p-4 dark:border-white/15"
+              className="flex items-center gap-4 rounded-xl bg-white p-4"
             >
-              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-black/5 dark:bg-white/10">
+              <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-black/5">
                 {item.images[0] ? (
                   <Image
                     src={imageUrl(item.images[0])}
@@ -83,11 +83,11 @@ export default async function SellPage() {
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="truncate font-medium">{item.title}</span>
-                  <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs dark:bg-white/15">
+                  <span className="rounded-full bg-black/10 px-2 py-0.5 text-xs">
                     {STATUS_LABEL[item.status] ?? item.status}
                   </span>
                 </div>
-                <span className="text-sm text-black/60 dark:text-white/60">
+                <span className="text-sm text-ink/60">
                   {item.category.name} · {formatBaht(item.currentPrice)} ·{" "}
                   {item._count.bids} การเสนอราคา
                 </span>
@@ -97,14 +97,14 @@ export default async function SellPage() {
                 {item.status === "active" ? (
                   <Link
                     href={`/auctions/${item.id}`}
-                    className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+                    className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
                   >
                     ดูหน้าสาธารณะ
                   </Link>
                 ) : null}
                 <Link
                   href={`/sell/${item.id}/edit`}
-                  className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+                  className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
                 >
                   จัดการ
                 </Link>

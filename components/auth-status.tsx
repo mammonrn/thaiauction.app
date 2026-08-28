@@ -15,10 +15,10 @@ export async function AuthStatus() {
 
   if (!session) {
     return (
-      <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-black/10 bg-white/60 px-5 py-4 dark:border-white/15 dark:bg-white/5">
+      <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-black/10 bg-white/60 px-5 py-4">
         <div>
           <p className="text-sm font-medium">ยังไม่ได้เข้าสู่ระบบ</p>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             เข้าสู่ระบบเพื่อเสนอราคาและลงสินค้าประมูล
           </p>
         </div>
@@ -35,7 +35,7 @@ export async function AuthStatus() {
   const { user } = session;
 
   return (
-    <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-black/10 bg-white/60 px-5 py-4 dark:border-white/15 dark:bg-white/5">
+    <div className="flex w-full items-center justify-between gap-4 rounded-xl border border-black/10 bg-white/60 px-5 py-4">
       <div className="flex items-center gap-3">
         {user.image ? (
           <Image
@@ -49,7 +49,7 @@ export async function AuthStatus() {
         ) : (
           <div
             aria-hidden="true"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/15"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium"
           >
             {user.name.charAt(0).toUpperCase()}
           </div>
@@ -58,7 +58,7 @@ export async function AuthStatus() {
           <p className="text-sm font-medium">
             เข้าสู่ระบบแล้ว: {user.name}
           </p>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             {user.email}
           </p>
         </div>

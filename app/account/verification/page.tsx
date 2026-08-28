@@ -50,16 +50,16 @@ export default async function VerificationPage() {
   );
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-16">
+    <main className="flex w-full flex-col gap-5">
       <div className="flex flex-col gap-2">
         <Link
           href="/account"
-          className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+          className="text-sm text-ink/60 underline-offset-4 hover:underline sm:hidden"
         >
           ← กลับหน้าบัญชีของฉัน
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">ยืนยันตัวตนผู้ขาย</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           ผู้ขายที่ยืนยันตัวตนแล้วจะมีเครื่องหมายรับรองบนหน้าสินค้า
           ช่วยให้ผู้ซื้อมั่นใจมากขึ้น
         </p>
@@ -67,10 +67,10 @@ export default async function VerificationPage() {
 
       {status === "approved" ? (
         <section className="flex flex-col gap-2 rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4">
-          <p className="font-medium text-green-800 dark:text-green-300">
+          <p className="font-medium text-green-800">
             ยืนยันตัวตนแล้ว
           </p>
-          <p className="text-sm text-green-800/80 dark:text-green-300/80">
+          <p className="text-sm text-green-800/80">
             อนุมัติเมื่อ{" "}
             {latest?.reviewedAt ? formatThaiDateTime(latest.reviewedAt) : "-"} ·
             รูปบัตรถูกลบออกจากระบบแล้ว
@@ -80,10 +80,10 @@ export default async function VerificationPage() {
 
       {status === "pending" ? (
         <section className="flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
-          <p className="font-medium text-amber-800 dark:text-amber-300">
+          <p className="font-medium text-amber-800">
             รอตรวจสอบ
           </p>
-          <p className="text-sm text-amber-800/80 dark:text-amber-300/80">
+          <p className="text-sm text-amber-800/80">
             ส่งเมื่อ{" "}
             {latest ? formatThaiDateTime(latest.submittedAt) : "-"} ·
             ใช้เวลาตรวจสอบประมาณ 2-3 ชั่วโมง
@@ -94,15 +94,15 @@ export default async function VerificationPage() {
 
       {status === "rejected" ? (
         <section className="flex flex-col gap-2 rounded-xl border border-red-600/40 bg-red-600/10 px-5 py-4">
-          <p className="font-medium text-red-800 dark:text-red-300">
+          <p className="font-medium text-red-800">
             คำขอถูกปฏิเสธ
           </p>
           {latest?.rejectionReason ? (
-            <p className="text-sm text-red-800/80 dark:text-red-300/80">
+            <p className="text-sm text-red-800/80">
               เหตุผล: {latest.rejectionReason}
             </p>
           ) : null}
-          <p className="text-sm text-red-800/80 dark:text-red-300/80">
+          <p className="text-sm text-red-800/80">
             แก้ไขตามเหตุผลข้างต้นแล้วส่งใหม่ได้เลย
           </p>
         </section>
@@ -116,7 +116,7 @@ export default async function VerificationPage() {
           <h2 className="text-sm font-medium">
             ขั้นที่ 1 — ข้อมูลตามบัตรประชาชน
           </h2>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-ink/60">
             กรอกให้ตรงกับบัตร เจ้าหน้าที่จะใช้เทียบกับรูปที่คุณอัปโหลด
           </p>
         </div>
@@ -133,22 +133,22 @@ export default async function VerificationPage() {
             }}
           />
         ) : (
-          <div className="flex flex-col gap-2 rounded-xl border border-black/10 px-5 py-4 dark:border-white/15">
+          <div className="flex flex-col gap-2 rounded-xl border border-black/10 px-5 py-4">
             <dl className="flex flex-col gap-1 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-black/60 dark:text-white/60">ชื่อ-นามสกุล</dt>
+                <dt className="text-ink/60">ชื่อ-นามสกุล</dt>
                 <dd className="font-medium">
                   {identity.firstName} {identity.lastName}
                 </dd>
               </div>
               <div className="flex justify-between gap-4">
-                <dt className="text-black/60 dark:text-white/60">วันเกิด</dt>
+                <dt className="text-ink/60">วันเกิด</dt>
                 <dd className="font-medium">
                   {identity.dateOfBirth ? formatThaiDate(identity.dateOfBirth) : "-"}
                 </dd>
               </div>
             </dl>
-            <p className="text-xs text-black/50 dark:text-white/50">
+            <p className="text-xs text-ink/50">
               {status === "approved"
                 ? "ยืนยันแล้วจึงแก้ไขไม่ได้ — หากข้อมูลไม่ถูกต้อง กรุณาติดต่อทีมงาน"
                 : "แก้ไขไม่ได้ระหว่างรอตรวจสอบ"}
@@ -163,19 +163,19 @@ export default async function VerificationPage() {
           <h2 className="text-sm font-medium">ขั้นที่ 2 — อัปโหลดรูปบัตรประชาชน</h2>
 
           {!identityComplete ? (
-            <p className="rounded-xl border border-dashed border-black/20 px-5 py-4 text-sm text-black/60 dark:border-white/20 dark:text-white/60">
+            <p className="rounded-xl border border-dashed border-black/20 px-5 py-4 text-sm text-ink/60">
               กรอกข้อมูลในขั้นที่ 1 ให้ครบก่อน แล้วช่องอัปโหลดจะปรากฏขึ้น
             </p>
           ) : !oldEnough ? (
-            <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800 dark:text-amber-300">
+            <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800">
               ผู้ขายต้องมีอายุ {MIN_SELLER_AGE} ปีบริบูรณ์ขึ้นไปจึงจะยืนยันตัวตนได้
               คุณยังคงซื้อและเสนอราคาได้ตามปกติ
             </p>
           ) : (
             <>
-              <div className="flex flex-col gap-2 rounded-xl border border-black/10 px-5 py-4 text-sm dark:border-white/15">
+              <div className="flex flex-col gap-2 rounded-xl border border-black/10 px-5 py-4 text-sm">
                 <p className="font-medium">ก่อนอัปโหลด</p>
-                <ul className="flex list-disc flex-col gap-1 pl-5 text-black/70 dark:text-white/70">
+                <ul className="flex list-disc flex-col gap-1 pl-5 text-ink/70">
                   <li>ถ่ายให้เห็นตัวอักษรชัดเจน ไม่เบลอ ไม่มีแสงสะท้อนบัง</li>
                   <li>
                     แนะนำให้ปิดทับช่อง <strong>ศาสนา</strong>{" "}

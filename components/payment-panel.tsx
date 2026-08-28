@@ -145,11 +145,11 @@ export function PaymentPanel({
 
   if (payment?.status === "successful") {
     return (
-      <section className="flex flex-col gap-2 rounded-xl border border-green-600/30 bg-green-50 p-5 text-sm dark:bg-green-950/30">
-        <h2 className="font-semibold text-green-800 dark:text-green-300">
+      <section className="flex flex-col gap-2 rounded-xl border border-green-600/30 bg-green-50 p-5 text-sm">
+        <h2 className="font-semibold text-green-800">
           ชำระเงินสำเร็จ
         </h2>
-        <p className="text-green-900/80 dark:text-green-200/80">
+        <p className="text-green-900/80">
           ขอบคุณครับ ทีมงานจะโอนเงินให้ผู้ขายและแจ้งให้จัดส่งสินค้าต่อไป
         </p>
       </section>
@@ -216,8 +216,8 @@ export function PaymentPanel({
             disabled={payment?.status === "pending"}
             className={`rounded-lg border px-4 py-2 text-sm disabled:opacity-50 ${
               method === option
-                ? "border-black bg-black text-white dark:border-white dark:bg-white dark:text-black"
-                : "border-black/15 dark:border-white/20"
+                ? "border-brand bg-brand text-white"
+                : "border-black/15"
             }`}
           >
             {option === "promptpay" ? "PromptPay QR" : "บัตรเครดิต/เดบิต"}
@@ -226,13 +226,13 @@ export function PaymentPanel({
       </div>
 
       {payment?.status === "pending" && !qrLive && method === "promptpay" ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           กำลังสร้าง QR…
         </p>
       ) : null}
 
       {qrLive ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-black/10 p-5 dark:border-white/15">
+        <div className="flex flex-col items-center gap-3 rounded-xl bg-white p-5">
           <p className="text-sm">
             สแกน QR นี้ด้วยแอปธนาคารเพื่อชำระ {formatBaht(amount)}
           </p>
@@ -252,7 +252,7 @@ export function PaymentPanel({
             alt="PromptPay QR สำหรับชำระเงิน"
             className="h-auto w-full max-w-[320px]"
           />
-          <p className="text-center text-xs text-black/50 dark:text-white/50">
+          <p className="text-center text-xs text-ink/50">
             หน้านี้จะอัปเดตเองเมื่อชำระเงินสำเร็จ ไม่ต้องรีเฟรช
             {payment.expiresAt
               ? " — QR นี้มีอายุจำกัด หากหมดอายุให้กดสร้างใหม่"
@@ -262,7 +262,7 @@ export function PaymentPanel({
       ) : null}
 
       {payment?.status === "failed" || payment?.status === "expired" ? (
-        <p className="rounded-lg border border-red-500/40 bg-red-50 px-4 py-3 text-sm text-red-800 dark:bg-red-950/30 dark:text-red-300">
+        <p className="rounded-lg border border-red-500/40 bg-red-50 px-4 py-3 text-sm text-red-800">
           {payment.status === "expired"
             ? "QR หมดอายุแล้ว กรุณาสร้างใหม่"
             : (payment.failureMessage ?? "ชำระเงินไม่สำเร็จ กรุณาลองใหม่")}
@@ -276,12 +276,12 @@ export function PaymentPanel({
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-black px-5 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+              className="rounded-lg bg-brand hover:bg-brand-dark transition-colors px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
             >
               {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
             </button>
             {qrState.message ? (
-              <p className="text-sm text-red-600 dark:text-red-400">
+              <p className="text-sm text-red-600">
                 {qrState.message}
               </p>
             ) : null}
@@ -320,21 +320,21 @@ export function PaymentPanel({
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-black px-5 py-3 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+              className="rounded-lg bg-brand hover:bg-brand-dark transition-colors px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
             >
               {busy ? "กำลังดำเนินการ…" : `ชำระ ${formatBaht(amount)}`}
             </button>
             {cardError ? (
-              <p className="text-sm text-red-600 dark:text-red-400">
+              <p className="text-sm text-red-600">
                 {cardError}
               </p>
             ) : null}
             {cardState.message ? (
-              <p className="text-sm text-red-600 dark:text-red-400">
+              <p className="text-sm text-red-600">
                 {cardState.message}
               </p>
             ) : null}
-            <p className="text-xs text-black/50 dark:text-white/50">
+            <p className="text-xs text-ink/50">
               ข้อมูลบัตรถูกส่งตรงไปยัง Omise ผ่านการเข้ารหัสในเบราว์เซอร์
               ระบบของเราไม่เก็บและไม่เห็นหมายเลขบัตรของคุณ
             </p>
@@ -342,7 +342,7 @@ export function PaymentPanel({
         )
       ) : null}
 
-      <p className="text-xs text-black/50 dark:text-white/50">
+      <p className="text-xs text-ink/50">
         หากไม่ชำระภายใน {windowHours} ชั่วโมงหลังปิดประมูล
         สิทธิ์การซื้อจะถูกส่งต่อให้ผู้เสนอราคารายถัดไป
         และระบบจะบันทึกการไม่ชำระเงินไว้ในบัญชีของคุณ
@@ -362,11 +362,11 @@ function Field({
 }: { id: string; label: string } & React.InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label htmlFor={id} className="flex flex-col gap-1 text-sm">
-      <span className="text-black/70 dark:text-white/70">{label}</span>
+      <span className="text-ink/70">{label}</span>
       <input
         id={id}
         required
-        className="rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-black"
+        className="rounded-lg border border-black/15 px-3 py-2"
         {...rest}
       />
     </label>

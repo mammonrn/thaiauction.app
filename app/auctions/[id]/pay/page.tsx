@@ -68,42 +68,42 @@ export default async function PayPage({
     !paid && item.paymentDueAt !== null && item.paymentDueAt.getTime() <= now;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-16">
+    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <Link
         href={`/auctions/${item.id}`}
-        className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+        className="text-sm text-ink/60 underline-offset-4 hover:underline"
       >
         ← กลับไปหน้ารายการ
       </Link>
 
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">ชำระเงิน</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           {item.title} — ผู้ขาย {item.seller.name}
         </p>
       </header>
 
-      <dl className="flex flex-col gap-2 rounded-xl border border-black/10 p-5 text-sm dark:border-white/15">
+      <dl className="flex flex-col gap-2 rounded-xl bg-white p-5 text-sm">
         <div className="flex items-baseline justify-between">
-          <dt className="text-black/60 dark:text-white/60">ยอดที่ต้องชำระ</dt>
+          <dt className="text-ink/60">ยอดที่ต้องชำระ</dt>
           <dd className="text-xl font-semibold">
             {formatBaht(item.currentPrice)}
           </dd>
         </div>
         {!paid && item.paymentDueAt ? (
           <div className="flex items-baseline justify-between">
-            <dt className="text-black/60 dark:text-white/60">ชำระภายใน</dt>
+            <dt className="text-ink/60">ชำระภายใน</dt>
             <dd>{formatThaiDateTime(item.paymentDueAt)}</dd>
           </div>
         ) : null}
       </dl>
 
       {paid ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-green-600/30 bg-green-50 p-5 text-sm dark:bg-green-950/30">
-          <h2 className="font-semibold text-green-800 dark:text-green-300">
+        <section className="flex flex-col gap-2 rounded-xl border border-green-600/30 bg-green-50 p-5 text-sm">
+          <h2 className="font-semibold text-green-800">
             ชำระเงินเรียบร้อยแล้ว
           </h2>
-          <p className="text-green-900/80 dark:text-green-200/80">
+          <p className="text-green-900/80">
             ขอบคุณครับ ทีมงานจะโอนเงินให้ผู้ขายและแจ้งให้จัดส่งสินค้าต่อไป
             {payment?.paidAt
               ? ` (ชำระเมื่อ ${formatThaiDateTime(payment.paidAt)})`
@@ -111,11 +111,11 @@ export default async function PayPage({
           </p>
         </section>
       ) : overdue ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-red-600/30 bg-red-50 p-5 text-sm dark:bg-red-950/30">
-          <h2 className="font-semibold text-red-800 dark:text-red-300">
+        <section className="flex flex-col gap-2 rounded-xl border border-red-600/30 bg-red-50 p-5 text-sm">
+          <h2 className="font-semibold text-red-800">
             หมดเวลาชำระเงินแล้ว
           </h2>
-          <p className="text-red-900/80 dark:text-red-200/80">
+          <p className="text-red-900/80">
             สิทธิ์การซื้อถูกส่งต่อให้ผู้เสนอราคารายถัดไป
             และระบบได้บันทึกการไม่ชำระเงินไว้ในบัญชีของคุณ
           </p>

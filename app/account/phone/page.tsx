@@ -34,23 +34,23 @@ export default async function PhonePage({
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-6 py-16">
+    <main className="flex w-full flex-col gap-5">
       <div className="flex flex-col gap-2">
         <Link
           href="/account"
-          className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+          className="text-sm text-ink/60 underline-offset-4 hover:underline sm:hidden"
         >
           ← กลับหน้าบัญชีของฉัน
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">
           ยืนยันเบอร์โทรศัพท์
         </h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           ยืนยันเบอร์เพื่อให้ผู้ซื้อ-ผู้ขายติดต่อกันได้จริง
         </p>
 
         {reason === "sell" ? (
-          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800">
             ต้องยืนยันเบอร์โทรก่อนจึงจะลงสินค้าประมูลได้
             เพื่อให้ผู้ซื้อติดต่อผู้ขายได้จริง
             {backTo ? (

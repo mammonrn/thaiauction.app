@@ -34,31 +34,31 @@ export default async function BankAccountPage() {
   const hasKycName = Boolean(identity.firstName && identity.lastName);
 
   return (
-    <main className="mx-auto flex w-full max-w-xl flex-col gap-8 px-6 py-16">
+    <main className="flex w-full flex-col gap-5">
       <Link
         href="/account"
-        className="text-sm text-black/60 underline-offset-4 hover:underline dark:text-white/60"
+        className="text-sm text-ink/60 underline-offset-4 hover:underline sm:hidden"
       >
         ← บัญชีของฉัน
       </Link>
 
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">บัญชีธนาคาร</h1>
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           บัญชีที่ทีมงานจะโอนเงินให้เมื่อสินค้าของคุณขายได้และผู้ซื้อชำระเงินแล้ว
           (หักค่าธรรมเนียมระบบชำระเงินและค่าคอมมิชชั่น 10%)
         </p>
       </header>
 
       {hasKycName ? (
-        <p className="rounded-lg border border-black/10 px-4 py-3 text-sm text-black/70 dark:border-white/15 dark:text-white/70">
+        <p className="rounded-lg border border-black/10 px-4 py-3 text-sm text-ink/70">
           ชื่อบัญชีควรตรงกับชื่อที่ยืนยันตัวตนไว้:{" "}
           <strong>
             {identity.firstName} {identity.lastName}
           </strong>
         </p>
       ) : (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           คุณยังไม่ได้ยืนยันตัวตน — กรอกบัญชีไว้ก่อนได้
           แต่ทีมงานจะโอนเงินให้ก็ต่อเมื่อยืนยันตัวตนผ่านแล้ว{" "}
           <Link href="/account/verification" className="underline">
@@ -68,14 +68,14 @@ export default async function BankAccountPage() {
       )}
 
       {account && !account.nameMatchesKyc && hasKycName ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
           ชื่อบัญชีที่บันทึกไว้ (<strong>{account.accountName}</strong>)
           ไม่ตรงกับชื่อที่ยืนยันตัวตน ทีมงานจะตรวจสอบด้วยตนเองก่อนโอนเงิน
         </p>
       ) : null}
 
       {account ? (
-        <p className="text-sm text-black/60 dark:text-white/60">
+        <p className="text-sm text-ink/60">
           บัญชีปัจจุบัน: {bankName(account.bankCode)} — {account.accountNumber}
         </p>
       ) : null}

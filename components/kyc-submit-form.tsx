@@ -55,7 +55,7 @@ export function KycSubmitForm({ submitLabel }: { submitLabel: string }) {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           required
-          className="text-sm file:mr-3 file:rounded-lg file:border file:border-black/15 file:bg-transparent file:px-3 file:py-1.5 file:text-sm dark:file:border-white/20"
+          className="text-sm file:mr-3 file:rounded-lg file:border file:border-black/15 file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
         />
       </label>
 
@@ -68,7 +68,7 @@ export function KycSubmitForm({ submitLabel }: { submitLabel: string }) {
       </button>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {error}
         </p>
       ) : null}
@@ -88,7 +88,7 @@ export function KycWithdrawButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 disabled:opacity-60"
       >
         {pending ? "กำลังยกเลิก…" : "ยกเลิกคำขอและลบรูป"}
       </button>
@@ -97,8 +97,8 @@ export function KycWithdrawButton() {
           role="status"
           className={
             state.ok
-              ? "text-sm text-green-700 dark:text-green-400"
-              : "text-sm text-red-600 dark:text-red-400"
+              ? "text-sm text-green-700"
+              : "text-sm text-red-600"
           }
         >
           {state.message}

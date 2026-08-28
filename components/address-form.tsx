@@ -45,7 +45,7 @@ type Props = {
 const initialState: AddressActionState = { ok: false, message: null };
 
 const inputClass =
-  "rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5";
+  "rounded-lg border border-black/15 px-3 py-2";
 
 /** Sentinel option that switches a dropdown back to a free-text input. */
 const CUSTOM = "__custom__";
@@ -247,7 +247,7 @@ export function AddressForm({
   return (
     <form
       action={formAction}
-      className="flex flex-col gap-4 rounded-xl border border-black/10 bg-black/[.02] p-5 dark:border-white/15 dark:bg-white/5"
+      className="flex flex-col gap-4 rounded-xl border border-black/10 bg-black/[.02] p-5"
     >
       {initial ? <input type="hidden" name="addressId" value={initial.id} /> : null}
 
@@ -299,7 +299,7 @@ export function AddressForm({
       />
 
       {unknownPostcode ? (
-        <p className="-mt-2 text-xs text-amber-700 dark:text-amber-500">
+        <p className="-mt-2 text-xs text-amber-700">
           ไม่พบรหัสไปรษณีย์นี้ในฐานข้อมูล กรุณากรอกจังหวัด/อำเภอ/ตำบลเอง
         </p>
       ) : null}
@@ -311,7 +311,7 @@ export function AddressForm({
       </div>
 
       {state.message && !state.ok ? (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+        <p role="alert" className="text-sm text-red-600">
           {state.message}
         </p>
       ) : null}
@@ -328,7 +328,7 @@ export function AddressForm({
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="rounded-lg border border-black/15 px-4 py-2.5 text-sm font-medium transition hover:bg-black/5 disabled:opacity-60 dark:border-white/20 dark:hover:bg-white/10"
+          className="rounded-lg border border-black/15 px-4 py-2.5 text-sm font-medium transition hover:bg-black/5 disabled:opacity-60"
         >
           ยกเลิก
         </button>
@@ -382,7 +382,7 @@ function SelectField({
         <option value={CUSTOM}>อื่นๆ (กรอกเอง)</option>
       </select>
       {error ? (
-        <span id={errorId} className="text-xs text-red-600 dark:text-red-400">
+        <span id={errorId} className="text-xs text-red-600">
           {error}
         </span>
       ) : null}
@@ -419,10 +419,10 @@ function Field({
         {...rest}
       />
       {hint && !error ? (
-        <span className="text-xs text-black/50 dark:text-white/50">{hint}</span>
+        <span className="text-xs text-ink/50">{hint}</span>
       ) : null}
       {error ? (
-        <span id={errorId} className="text-xs text-red-600 dark:text-red-400">
+        <span id={errorId} className="text-xs text-red-600">
           {error}
         </span>
       ) : null}

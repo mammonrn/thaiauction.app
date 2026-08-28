@@ -10,7 +10,7 @@ import { MAX_DESCRIPTION, MAX_TITLE } from "@/lib/auction-rules";
 const initialState: SellActionState = { ok: false, message: null };
 
 const inputClass =
-  "rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5";
+  "rounded-lg border border-black/15 px-3 py-2";
 
 export type AuctionFormValues = {
   itemId?: string;
@@ -180,8 +180,8 @@ export function AuctionForm({
           role={state.ok ? "status" : "alert"}
           className={
             state.ok
-              ? "text-sm text-green-700 dark:text-green-400"
-              : "text-sm text-red-600 dark:text-red-400"
+              ? "text-sm text-green-700"
+              : "text-sm text-red-600"
           }
         >
           {state.message}
@@ -217,10 +217,10 @@ function Row({
       <span className="text-sm font-medium">{label}</span>
       {children}
       {hint && !error ? (
-        <span className="text-xs text-black/50 dark:text-white/50">{hint}</span>
+        <span className="text-xs text-ink/50">{hint}</span>
       ) : null}
       {error ? (
-        <span className="text-xs text-red-600 dark:text-red-400">{error}</span>
+        <span className="text-xs text-red-600">{error}</span>
       ) : null}
     </label>
   );

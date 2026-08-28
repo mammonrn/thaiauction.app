@@ -10,7 +10,7 @@ import {
 } from "@/lib/thai-datetime";
 
 const selectClass =
-  "rounded-lg border border-black/15 px-2 py-2 dark:border-white/20 dark:bg-white/5";
+  "rounded-lg border border-black/15 px-2 py-2";
 
 /** How many years ahead a seller may schedule a close. */
 const YEARS_AHEAD = 3;
@@ -150,7 +150,7 @@ export function ThaiDateTimePicker({
           ))}
         </select>
 
-        <span className="px-1 text-sm text-black/60 dark:text-white/60">เวลา</span>
+        <span className="px-1 text-sm text-ink/60">เวลา</span>
 
         <select
           aria-label="ชั่วโมง"
@@ -180,15 +180,15 @@ export function ThaiDateTimePicker({
           ))}
         </select>
 
-        <span className="text-sm text-black/60 dark:text-white/60">น.</span>
+        <span className="text-sm text-ink/60">น.</span>
       </div>
 
-      <p className="text-xs text-black/60 dark:text-white/60">
+      <p className="text-xs text-ink/60">
         จบการประมูล: {formatThaiDateTime(selected)}
       </p>
 
       {tooSoon ? (
-        <p className="text-xs text-amber-700 dark:text-amber-500">
+        <p className="text-xs text-amber-700">
           เวลาจบต้องห่างจากตอนนี้อย่างน้อย 1 ชั่วโมง
         </p>
       ) : null}

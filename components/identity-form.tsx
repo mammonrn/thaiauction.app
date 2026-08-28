@@ -11,7 +11,7 @@ import { MAX_NAME_LENGTH } from "@/lib/identity";
 const initialState: IdentityActionState = { ok: false, message: null };
 
 const inputClass =
-  "rounded-lg border border-black/15 px-3 py-2 dark:border-white/20 dark:bg-white/5";
+  "rounded-lg border border-black/15 px-3 py-2";
 
 export type IdentityValues = {
   firstName: string;
@@ -76,8 +76,8 @@ export function IdentityForm({
             role={state.ok ? "status" : "alert"}
             className={
               state.ok
-                ? "text-sm text-green-700 dark:text-green-400"
-                : "text-sm text-red-600 dark:text-red-400"
+                ? "text-sm text-green-700"
+                : "text-sm text-red-600"
             }
           >
             {state.message}
@@ -113,7 +113,7 @@ function Field({
         {...rest}
       />
       {error ? (
-        <span id={errorId} className="text-xs text-red-600 dark:text-red-400">
+        <span id={errorId} className="text-xs text-red-600">
           {error}
         </span>
       ) : null}
