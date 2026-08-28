@@ -100,3 +100,87 @@ does not use a shadow database, so the production role does not need `CREATEDB`.
   it is rebuilt by the `postinstall` hook.
 - **`DATABASE_URL` is read only from the environment.** It is deliberately absent
   from `prisma/schema.prisma`; `prisma.config.ts` supplies it.
+
+## Authentication (Better Auth)
+
+Sign-in is handled by [Better Auth](https://better-auth.com) 1.7.2, backed by
+the same PostgreSQL database via the Prisma adapter.
+
+### Setup
+
+1. Add the auth variables to `.env` (see `.env.example`):
+
+   ```
+   BETTER_AUTH_SECRET=...   # openssl rand -base64 32
+   BETTER_AUTH_URL=...      # public origin, no trailing slash
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ```
+
+2. In the Google Cloud Console, add this **authorised redirect URI** exactly:
+
+   ```
+   <BETTER_AUTH_URL>/api/auth/callback/google
+   ```
+
+3. Apply the migration:
+
+   ```bash
+   npm run prisma:deploy   # production
+   npm run prisma:migrate  # development
+   ```
+
+### How it works
+
+| Piece | Responsibility |
+| --- | --- |
+| `lib/auth.ts` | Server config. Reads every secret from the environment. |
+| `lib/auth-client.ts` | Browser client. Uses the current origin, so `BETTER_AUTH_URL` is never exposed to the client. |
+| `app/api/auth/[...all]` | Mounts all Better Auth endpoints. |
+| `lib/session.ts` | `getSession()` / `requireSession()` — the real, database-backed check. |
+| `proxy.ts` | Optimistic cookie check only. **Not** a security boundary. |
+
+### Protecting a route
+
+Add the path to `PROTECTED_ROUTES` in `proxy.ts` for the fast redirect, then do
+the authoritative check inside the page:
+
+```ts
+const { user } = await requireSession("/sell");
+```
+
+The proxy check exists only to avoid rendering a page for an obviously
+signed-out visitor. Next.js documents that layer as unsuitable for
+authorization on its own, so `requireSession()` is what actually protects data.
+
+### Sessions
+
+Sessions live in the `sessions` table, with no cookie cache. Every request
+re-validates against the database, so signing out or revoking a session takes
+effect immediately.
+
+### Adding a password to a Google account
+
+Password **sign-up** is disabled (`emailAndPassword.disableSignUp`). The only
+way a password enters the system is a signed-in user visiting
+`/account/security`, which calls `setPassword`. That endpoint is declared
+`serverOnly` in Better Auth, so it is invoked from a Server Action rather than
+the browser client. It adds a second `accounts` row with providerId
+`credential`; the Google row is left untouched, and the user can then sign in
+either way.
+
+### Account linking
+
+`accountLinking.trustedProviders` is `["google"]`, and
+`requireLocalEmailVerified` is left at its default (`true`). Google sign-in
+links to an existing user only when both Google and the local record consider
+the email verified, so a pre-registered unverified account cannot capture
+someone else's Google identity.
+
+### Version note
+
+`@better-auth/cli` (used to generate the auth models) is published only up to
+1.4.21 and is marked deprecated, while the library is 1.7.2. Its output was
+missing `accounts.issuer` and the `(issuer, accountId)` unique index, which
+breaks sign-in at runtime. If you regenerate the schema with that CLI, re-check
+those against the library's own `getAuthTables()` before migrating.
