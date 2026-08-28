@@ -7,6 +7,7 @@ import {
   storeKycDocument,
 } from "@/lib/kyc-storage";
 import { getSession } from "@/lib/session";
+import { ageOn, MIN_SELLER_AGE } from "@/lib/identity";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,32 @@ export async function POST(request: Request) {
   });
   if (approved) {
     return Response.json({ error: "บัญชีนี้ยืนยันตัวตนแล้ว" }, { status: 409 });
+  }
+
+  // The document is only useful next to the details a reviewer compares it
+  // against, so the identity has to be on file first. Enforced here and not
+  // only by hiding the form, since this endpoint is callable directly.
+  const identity = await prisma.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { firstName: true, lastName: true, dateOfBirth: true },
+  });
+
+  if (!identity.firstName || !identity.lastName || !identity.dateOfBirth) {
+    return Response.json(
+      { error: "กรุณากรอกชื่อ-นามสกุลและวันเกิดให้ครบก่อนส่งเอกสาร" },
+      { status: 400 },
+    );
+  }
+
+  // Age is judged at submission, so a birthday that passes later does not
+  // retroactively validate an earlier request.
+  if (ageOn(identity.dateOfBirth, new Date()) < MIN_SELLER_AGE) {
+    return Response.json(
+      {
+        error: `ผู้ขายต้องมีอายุ ${MIN_SELLER_AGE} ปีบริบูรณ์ขึ้นไป — การซื้อและเสนอราคายังใช้งานได้ตามปกติ`,
+      },
+      { status: 403 },
+    );
   }
 
   let file: File | null = null;

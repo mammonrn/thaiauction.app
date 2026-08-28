@@ -58,15 +58,30 @@ enum AuctionStatus {
 /// emailVerified (NOT a nullable DateTime like Auth.js uses), and updatedAt.
 
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
+  id            String  @id @default(cuid())
+  email         String  @unique
   /// Required (not String?) to match Better Auth's user table contract, which
   /// declares name as a required string and always supplies one on sign-up.
   name          String
   image         String?
-  emailVerified Boolean  @default(false)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  emailVerified Boolean @default(false)
+
+  /// Legal identity, supplied by sellers before submitting an ID document so a
+  /// reviewer has something to compare the card against. Separate from `name`,
+  /// which is the display name Better Auth takes from the OAuth profile — a
+  /// nickname there is fine, but it is not what is printed on the card.
+  ///
+  /// Nullable because buyers never provide it: only sellers go through KYC.
+  /// Kept permanently, unlike the ID image: this is ordinary personal data and
+  /// it is what the approval actually attests to.
+  firstName   String?
+  lastName    String?
+  /// Date only. Stored at UTC midnight so the calendar date cannot shift when
+  /// rendered in another timezone.
+  dateOfBirth DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   shippingAddresses     ShippingAddress[]
   verifiedPhones        VerifiedPhone[]

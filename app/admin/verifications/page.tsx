@@ -2,8 +2,9 @@ import Link from "next/link";
 
 import { VerificationReview } from "@/components/verification-review";
 import { requireAdmin } from "@/lib/admin";
+import { ageOn } from "@/lib/identity";
 import { prisma } from "@/lib/prisma";
-import { formatThaiDateTime } from "@/lib/thai-datetime";
+import { formatThaiDate, formatThaiDateTime } from "@/lib/thai-datetime";
 
 export default async function AdminVerificationsPage({
   searchParams,
@@ -21,7 +22,15 @@ export default async function AdminVerificationsPage({
         id: true,
         submittedAt: true,
         documentKey: true,
-        user: { select: { name: true, email: true } },
+        user: {
+          select: {
+            name: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            dateOfBirth: true,
+          },
+        },
       },
     }),
     // The audit trail: what was decided, by whom, when.
@@ -54,7 +63,8 @@ export default async function AdminVerificationsPage({
           ตรวจสอบการยืนยันตัวตน
         </h1>
         <p className="text-sm text-black/60 dark:text-white/60">
-          รูปบัตรจะถูกลบทันทีที่กดอนุมัติหรือปฏิเสธ
+          เทียบชื่อ-นามสกุลและวันเกิดที่ผู้ขายแจ้ง กับที่ปรากฏบนบัตร
+          · รูปบัตรจะถูกลบทันทีที่กดอนุมัติหรือปฏิเสธ
         </p>
       </div>
 
@@ -83,14 +93,37 @@ export default async function AdminVerificationsPage({
                 className="flex flex-col gap-4 rounded-xl border border-black/10 p-5 dark:border-white/15"
               >
                 <div className="flex flex-col gap-0.5">
-                  <span className="font-medium">{row.user.name}</span>
                   <span className="text-sm text-black/60 dark:text-white/60">
-                    {row.user.email}
+                    บัญชี: {row.user.name} · {row.user.email}
                   </span>
                   <span className="text-xs text-black/50 dark:text-white/50">
                     ส่งเมื่อ {formatThaiDateTime(row.submittedAt)}
                   </span>
                 </div>
+
+                {/* The reference data, stated before the image so the reviewer
+                    reads what to expect and then checks the card against it,
+                    rather than reading the card and rationalising a match. */}
+                <dl className="flex flex-col gap-1 rounded-lg border border-black/10 bg-black/[.02] p-4 text-sm dark:border-white/15 dark:bg-white/5">
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <dt className="text-black/60 dark:text-white/60">
+                      ชื่อ-นามสกุลที่แจ้ง
+                    </dt>
+                    <dd className="text-base font-semibold">
+                      {row.user.firstName} {row.user.lastName}
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap justify-between gap-2">
+                    <dt className="text-black/60 dark:text-white/60">
+                      วันเกิดที่แจ้ง
+                    </dt>
+                    <dd className="text-base font-semibold">
+                      {row.user.dateOfBirth
+                        ? `${formatThaiDate(row.user.dateOfBirth)} (อายุ ${ageOn(row.user.dateOfBirth, new Date())} ปี)`
+                        : "-"}
+                    </dd>
+                  </div>
+                </dl>
 
                 {row.documentKey ? (
                   <VerificationReview
