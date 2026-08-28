@@ -51,12 +51,16 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 
       <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6">
         <div className="flex flex-col gap-5">
-          <ListingControls
-            basePath="/"
-            categories={categories}
-            activeCategory={categorySlug}
-            sort={sort}
-          />
+          {/* Nothing to sort and nothing to filter: an empty marketplace should
+              offer the one action that fixes it, not a row of dead controls. */}
+          {items.length > 0 || categorySlug ? (
+            <ListingControls
+              basePath="/"
+              categories={categories}
+              activeCategory={categorySlug}
+              sort={sort}
+            />
+          ) : null}
 
           {items.length === 0 ? (
             <EmptyState filtered={Boolean(categorySlug)} />
@@ -162,10 +166,15 @@ function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
 function EmptyState({ filtered }: { filtered: boolean }) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-lg bg-white px-6 py-16 text-center">
-      <p className="text-sm text-ink/70">
+      <p className="text-base font-medium">
         {filtered
           ? "หมวดนี้ยังไม่มีสินค้าที่กำลังประมูล"
           : "ยังไม่มีสินค้าที่กำลังประมูลตอนนี้"}
+      </p>
+      <p className="max-w-sm text-sm text-ink/60">
+        {filtered
+          ? "ลองดูหมวดอื่น หรือลงขายสินค้าในหมวดนี้เป็นคนแรก"
+          : "เป็นคนแรกที่ลงขาย แล้วสินค้าของคุณจะได้อยู่หน้าแรกคนเดียว"}
       </p>
       <div className="flex flex-wrap justify-center gap-2">
         {filtered ? (

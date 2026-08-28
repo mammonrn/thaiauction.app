@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { InstallApp } from "@/components/install-app";
+
 /**
  * Site footer.
  *
@@ -20,6 +22,9 @@ export function SiteFooter() {
         <Link href="/sell/new" className="underline-offset-4 hover:underline">
           ลงขายสินค้า
         </Link>
+        {/* Renders nothing on desktop browsers that cannot install, and
+            nothing inside an already-installed copy. */}
+        <InstallApp />
       </div>
     </footer>
   );

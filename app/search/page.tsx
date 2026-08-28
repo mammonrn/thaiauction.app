@@ -65,7 +65,7 @@ export default async function SearchPage({
           )}
         </header>
 
-        {q ? (
+        {q && (items.length > 0 || categorySlug) ? (
           <ListingControls
             basePath="/search"
             categories={categories}
