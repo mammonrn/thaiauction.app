@@ -34,6 +34,15 @@ enum AuctionEndReason {
   @@map("auction_end_reason")
 }
 
+/// Where a seller's identity check stands.
+enum SellerVerificationStatus {
+  pending
+  approved
+  rejected
+
+  @@map("seller_verification_status")
+}
+
 enum AuctionStatus {
   draft
   active
@@ -59,12 +68,14 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  shippingAddresses ShippingAddress[]
-  verifiedPhones    VerifiedPhone[]
-  phoneOtpRequests  PhoneOtpRequest[]
-  auctionItems      AuctionItem[]     @relation("SellerAuctionItems")
-  wonAuctionItems   AuctionItem[]     @relation("WonAuctionItems")
-  bids              Bid[]
+  shippingAddresses     ShippingAddress[]
+  verifiedPhones        VerifiedPhone[]
+  sellerVerifications   SellerVerification[] @relation("SubmittedVerifications")
+  reviewedVerifications SellerVerification[] @relation("ReviewedVerifications")
+  phoneOtpRequests      PhoneOtpRequest[]
+  auctionItems          AuctionItem[]        @relation("SellerAuctionItems")
+  wonAuctionItems       AuctionItem[]        @relation("WonAuctionItems")
+  bids                  Bid[]
 
   sessions Session[]
   accounts Account[]
@@ -324,4 +335,42 @@ model PhoneOtpRequest {
   @@index([userId, phone, createdAt])
   @@index([phone, createdAt])
   @@map("phone_otp_requests")
+}
+
+/// A seller's identity check: one row per submission, kept as the audit trail.
+///
+/// The uploaded ID image is DELETED the moment a decision is made — see
+/// documentKey/documentDeletedAt. What survives is the decision itself: who
+/// decided, when, and why if refused. A Thai national ID card can show
+/// ศาสนา (religion), which is sensitive personal data under PDPA s.26, so the
+/// image is held only for as long as a human needs it to make the call.
+model SellerVerification {
+  id     String                   @id @default(cuid())
+  userId String
+  status SellerVerificationStatus @default(pending)
+
+  /// Storage key for the ID image while the request is pending.
+  /// Null once decided or withdrawn, because the file has been erased.
+  documentKey       String?
+  /// When the image was erased, kept as evidence the retention rule ran.
+  documentDeletedAt DateTime?
+
+  submittedAt DateTime @default(now())
+
+  // --- audit trail -------------------------------------------------------
+  reviewedAt      DateTime?
+  reviewedById    String?
+  /// Shown to the seller so a refusal is actionable.
+  rejectionReason String?
+
+  user       User  @relation("SubmittedVerifications", fields: [userId], references: [id], onDelete: Cascade)
+  // Restrict: an admin who made decisions cannot be deleted out from under the
+  // audit trail.
+  reviewedBy User? @relation("ReviewedVerifications", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  // The admin queue, oldest first.
+  @@index([status, submittedAt])
+  // A seller's own history, newest first.
+  @@index([userId, submittedAt])
+  @@map("seller_verifications")
 }

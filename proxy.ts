@@ -18,6 +18,9 @@ const PROTECTED_ROUTES = [
   // Reserved for the "list an item for auction" flow in the next phase.
   "/sell",
   "/account",
+  // Admin pages call requireAdmin() themselves; this only avoids rendering
+  // them for a visitor with no session at all.
+  "/admin",
 ];
 
 export function proxy(request: NextRequest) {

@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EndAuctionButton } from "@/components/end-auction-button";
+import { SellerBadges } from "@/components/seller-badges";
+import { isSellerVerified } from "@/lib/seller-verification";
 import { LiveAuction } from "@/components/live-auction";
 import { minimumBid } from "@/lib/auction-rules";
 import { settleIfExpired } from "@/lib/bidding";
@@ -53,6 +55,10 @@ export default async function AuctionDetailPage({
 
   const viewerId = session?.user.id ?? null;
   const isSeller = viewerId === item.seller.id;
+
+  const sellerIdentityVerified = await isSellerVerified(item.seller.id);
+  const sellerPhoneVerified =
+    (await prisma.verifiedPhone.count({ where: { userId: item.seller.id } })) > 0;
 
   const verifiedPhones = viewerId
     ? await prisma.verifiedPhone.count({ where: { userId: viewerId } })
@@ -153,6 +159,36 @@ export default async function AuctionDetailPage({
             เปิดที่ {formatBaht(item.startPrice)} · เพิ่มขั้นต่ำครั้งละ{" "}
             {formatBaht(item.bidIncrement)}
           </p>
+
+          {/* Seller identity, with the trust badges. This block was lost in an
+              earlier refactor of the price panel; restored here because the
+              badges belong beside the person, not the price. */}
+          <div className="flex items-center gap-3 border-t border-black/10 pt-5 dark:border-white/15">
+            {item.seller.image ? (
+              <Image
+                src={item.seller.image}
+                alt=""
+                width={40}
+                height={40}
+                className="rounded-full"
+                unoptimized
+              />
+            ) : (
+              <div
+                aria-hidden="true"
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/15"
+              >
+                {item.seller.name.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex flex-col gap-1">
+              <span className="text-sm font-medium">{item.seller.name}</span>
+              <SellerBadges
+                phoneVerified={sellerPhoneVerified}
+                identityVerified={sellerIdentityVerified}
+              />
+            </div>
+          </div>
 
           {isSeller && item.status === "active" ? (
             <EndAuctionButton itemId={item.id} bidCount={item._count.bids} />

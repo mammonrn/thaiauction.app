@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { SellerBadges } from "@/components/seller-badges";
 import { SignOutButton } from "@/components/sign-out-button";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -9,13 +10,19 @@ export default async function AccountPage() {
   const { user } = await requireSession("/account");
 
   // Small counts to give each link a sense of state, rather than a bare list.
-  const [addressCount, credentialAccount, verifiedPhoneCount] = await Promise.all([
+  const [addressCount, credentialAccount, verifiedPhoneCount, verification] =
+    await Promise.all([
     prisma.shippingAddress.count({ where: { userId: user.id } }),
     prisma.account.findFirst({
       where: { userId: user.id, providerId: "credential" },
       select: { password: true },
     }),
     prisma.verifiedPhone.count({ where: { userId: user.id } }),
+    prisma.sellerVerification.findFirst({
+      where: { userId: user.id },
+      orderBy: { submittedAt: "desc" },
+      select: { status: true },
+    }),
   ]);
 
   const hasPassword = Boolean(credentialAccount?.password);
@@ -58,6 +65,10 @@ export default async function AccountPage() {
           <p className="text-sm text-black/60 dark:text-white/60">
             {user.email}
           </p>
+          <SellerBadges
+            phoneVerified={verifiedPhoneCount > 0}
+            identityVerified={verification?.status === "approved"}
+          />
           {user.emailVerified ? (
             <p className="text-xs text-green-700 dark:text-green-400">
               ยืนยันอีเมลแล้ว
@@ -83,6 +94,19 @@ export default async function AccountPage() {
             verifiedPhoneCount === 0
               ? "ยังไม่ได้ยืนยันเบอร์ — ยืนยันเพื่อให้ติดต่อได้จริง"
               : `ยืนยันแล้ว ${verifiedPhoneCount} เบอร์`
+          }
+        />
+        <AccountLink
+          href="/account/verification"
+          title="ยืนยันตัวตนผู้ขาย"
+          detail={
+            verification?.status === "approved"
+              ? "ยืนยันตัวตนแล้ว"
+              : verification?.status === "pending"
+                ? "รอทีมงานตรวจสอบ"
+                : verification?.status === "rejected"
+                  ? "ถูกปฏิเสธ — ส่งใหม่ได้"
+                  : "ส่งบัตรประชาชนเพื่อรับเครื่องหมายรับรอง"
           }
         />
         <AccountLink
