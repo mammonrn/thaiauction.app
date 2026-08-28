@@ -7,6 +7,7 @@ import {
   type IdentityActionState,
 } from "@/app/account/verification/actions";
 import { MAX_NAME_LENGTH } from "@/lib/identity";
+import { btnPrimary } from "@/lib/button";
 
 const initialState: IdentityActionState = { ok: false, message: null };
 
@@ -67,7 +68,7 @@ export function IdentityForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+          className={btnPrimary}
         >
           {pending ? "กำลังบันทึก…" : "บันทึกข้อมูล"}
         </button>

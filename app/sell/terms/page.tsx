@@ -6,6 +6,7 @@ import { COMMISSION_PERCENT } from "@/lib/payment-math";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
+import { btnPrimary } from "@/lib/button";
 
 export const metadata = { title: "เงื่อนไขการขาย" };
 
@@ -112,7 +113,7 @@ export default async function SellerTermsPage({
           </p>
           <Link
             href={next}
-            className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+            className={btnPrimary}
           >
             ไปลงขายสินค้า
           </Link>
@@ -128,7 +129,7 @@ export default async function SellerTermsPage({
           </p>
           <button
             type="submit"
-            className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+            className={btnPrimary}
           >
             ยอมรับเงื่อนไขและลงขาย
           </button>

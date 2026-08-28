@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useActionState, useRef, useState } from "react";
+import { btnDangerSm, btnPrimarySm, btnSecondarySm } from "@/lib/button";
 
 import {
   deleteDraftAction,
@@ -61,7 +62,7 @@ export function PublishControls({
         <button
           type="button"
           onClick={() => dialogRef.current?.showModal()}
-          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+          className={btnPrimarySm}
         >
           เผยแพร่
         </button>
@@ -73,14 +74,14 @@ export function PublishControls({
             <button
               type="submit"
               disabled={removing}
-              className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
+              className={btnDangerSm}
             >
               {removing ? "กำลังลบ…" : "ลบเลย"}
             </button>
             <button
               type="button"
               onClick={() => setConfirming(false)}
-              className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
+              className={btnSecondarySm}
             >
               ยกเลิก
             </button>
@@ -89,7 +90,7 @@ export function PublishControls({
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10"
+            className={btnDangerSm}
           >
             ลบฉบับร่าง
           </button>
@@ -149,7 +150,7 @@ export function PublishControls({
               <button
                 type="submit"
                 disabled={publishing}
-                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+                className={btnPrimarySm}
               >
                 {publishing ? "กำลังเผยแพร่…" : "ยืนยันเผยแพร่"}
               </button>
@@ -157,7 +158,7 @@ export function PublishControls({
             <button
               type="button"
               onClick={() => dialogRef.current?.close()}
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm transition hover:bg-black/5"
+              className={btnSecondarySm}
             >
               กลับไปแก้ไข
             </button>

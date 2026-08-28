@@ -10,6 +10,7 @@ import {
 
 import type { AddressActionState } from "@/app/account/addresses/actions";
 import { ADDRESS_FIELD_MAX } from "@/lib/address-validation";
+import { btnPrimary, btnSecondary } from "@/lib/button";
 import {
   ensureIndexLoaded,
   getIndexSnapshot,
@@ -320,7 +321,7 @@ export function AddressForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+          className={btnPrimary}
         >
           {pending ? "กำลังบันทึก…" : submitLabel}
         </button>
@@ -328,7 +329,7 @@ export function AddressForm({
           type="button"
           onClick={onCancel}
           disabled={pending}
-          className="rounded-lg border border-black/15 px-4 py-2.5 text-sm font-medium transition hover:bg-black/5 disabled:opacity-60"
+          className={btnSecondary}
         >
           ยกเลิก
         </button>

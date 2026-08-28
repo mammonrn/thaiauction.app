@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useRef } from "react";
 
 import { PhoneOtp } from "@/components/phone-otp";
+import { btnPrimary } from "@/lib/button";
 
 /**
  * Verify a number without leaving the auction.
@@ -33,7 +34,7 @@ export function VerifyPhoneDialog({ stubMode }: { stubMode: boolean }) {
       <button
         type="button"
         onClick={() => dialog.current?.showModal()}
-        className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+        className={btnPrimary}
       >
         ยืนยันเบอร์โทรเพื่อเสนอราคา
       </button>

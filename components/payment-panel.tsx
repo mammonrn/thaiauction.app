@@ -9,6 +9,7 @@ import {
   type PayActionState,
 } from "@/app/auctions/[id]/pay/actions";
 import { formatBaht } from "@/lib/money";
+import { btnPrimary } from "@/lib/button";
 
 /**
  * Card details are typed into THIS component and never leave the browser
@@ -276,7 +277,7 @@ export function PaymentPanel({
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-brand hover:bg-brand-dark transition-colors px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
+              className={btnPrimary}
             >
               {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
             </button>
@@ -320,7 +321,7 @@ export function PaymentPanel({
             <button
               type="submit"
               disabled={busy}
-              className="rounded-lg bg-brand hover:bg-brand-dark transition-colors px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
+              className={btnPrimary}
             >
               {busy ? "กำลังดำเนินการ…" : `ชำระ ${formatBaht(amount)}`}
             </button>

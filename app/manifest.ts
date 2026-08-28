@@ -14,8 +14,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "thaiauction — ประมูลออนไลน์",
-    short_name: "thaiauction",
+    name: "ThaiAuction — ประมูลออนไลน์",
+    short_name: "ThaiAuction",
     description:
       "ประมูลพระเครื่อง ของสะสม และสินค้ามือสองจากผู้ขายที่ยืนยันตัวตนแล้ว",
     start_url: "/",

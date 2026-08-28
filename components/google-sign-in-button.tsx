@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { signIn } from "@/lib/auth-client";
+import { btnGoogle } from "@/lib/button";
 
 export function GoogleSignInButton({ redirectTo }: { redirectTo: string }) {
   const [pending, setPending] = useState(false);
@@ -31,7 +32,7 @@ export function GoogleSignInButton({ redirectTo }: { redirectTo: string }) {
         type="button"
         onClick={handleClick}
         disabled={pending}
-        className="flex w-full items-center justify-center gap-3 rounded-lg border border-black/15 bg-white px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+        className={btnGoogle}
       >
         <GoogleLogo />
         {pending ? "กำลังพาไปที่ Google…" : "เข้าสู่ระบบด้วย Google"}

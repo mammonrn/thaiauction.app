@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { btnPrimarySm } from "@/lib/button";
 
 import {
   LEVELS,
@@ -58,7 +59,7 @@ export function VerificationLevel({
           <span className="text-sm text-ink/70">ขั้นถัดไป: {info.next}</span>
           <Link
             href={info.nextHref}
-            className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+            className={`${btnPrimarySm} shrink-0`}
           >
             {info.nextLabel}
           </Link>

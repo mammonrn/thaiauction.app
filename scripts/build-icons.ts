@@ -18,7 +18,16 @@
 import path from "node:path";
 import sharp from "sharp";
 
-const MASTER = path.join(process.cwd(), "public", "brand", "logo.png");
+/**
+ * The transparent master: white artwork, no background of its own. Compositing
+ * it onto the brand token means the icon's red is the SAME red as the header
+ * and the buttons — the earlier flattened export was #C21E1E against a token of
+ * #C41E2A, close enough to look like a mistake rather than a choice.
+ */
+const MASTER = path.join(process.cwd(), "public", "brand", "logo-transparent.png");
+
+/** --color-brand from app/globals.css. */
+const BRAND = { r: 0xc4, g: 0x1e, b: 0x2a, alpha: 1 };
 
 /** Android's maskable safe zone: artwork must fit the central 80%. */
 const MASKABLE_SAFE_FRACTION = 0.8;
@@ -34,28 +43,19 @@ const TARGETS: Target[] = [
 ];
 
 /**
- * The colour to pad with, sampled from the master's own corner.
+ * The header mark: the same artwork, white on transparency, no red plate.
  *
- * Taken from the artwork rather than hard-coded to the brand token: the two
- * differ slightly (the export is #C21E1E, the token #C41E2A), and padding with
- * the token would draw a visible seam around the logo.
+ * The header band is already brand-dark, so a red tile there would read as a
+ * smudge; white-on-red is the version that holds. Emitted at 4x its 32px
+ * display size because the logo is drawn in outline and the hairlines go to
+ * mush if the browser has to upscale them on a 3x phone screen.
  */
-async function padColour(): Promise<{ r: number; g: number; b: number; alpha: number }> {
-  const { data, info } = await sharp(MASTER)
-    .extract({ left: 0, top: 0, width: 1, height: 1 })
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-
-  return {
-    r: data[0],
-    g: data[1],
-    b: data[info.channels >= 3 ? 2 : 0],
-    alpha: 1,
-  };
-}
+const MARK = { file: "public/brand/logo-mark.png", size: 128 };
 
 async function main() {
-  const background = await padColour();
+  // The token red, not a colour sampled from the file: the artwork is
+  // transparent, so the brand decides the background rather than an export.
+  const background = BRAND;
   const trimmed = await sharp(MASTER).trim().toBuffer();
 
   const before = await sharp(MASTER).metadata();
@@ -106,6 +106,16 @@ async function main() {
         (target.maskable ? ` (artwork ${artwork}px, safe zone respected)` : ""),
     );
   }
+
+  await sharp(trimmed)
+    .resize(MARK.size, MARK.size, {
+      fit: "contain",
+      background: { r: 0, g: 0, b: 0, alpha: 0 },
+    })
+    .png()
+    .toFile(path.join(process.cwd(), MARK.file));
+
+  console.log(`  ${MARK.file.padEnd(30)} ${MARK.size}px (transparent, for the header)`);
 }
 
 main()

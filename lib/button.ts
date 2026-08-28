@@ -26,16 +26,42 @@ export const BUTTON_SIZE = {
 /** The one action a screen most wants you to take. At most one per view. */
 export const btnPrimary = `${BASE} ${BUTTON_SIZE.md} bg-brand text-white hover:bg-brand-dark`;
 
-/** Everything else that is still a real action. */
-export const btnSecondary = `${BASE} ${BUTTON_SIZE.md} border border-black/15 bg-white text-ink hover:border-brand/50 hover:text-brand`;
+/**
+ * Everything else that is still a real action.
+ *
+ * Red outline, not a neutral grey one. A bare white box with a black hairline
+ * belongs to no theme in particular, which is how "ออกจากระบบ" and "ติดตั้งแอป"
+ * came to look like they had been pasted in from another site. Tying the
+ * secondary to the brand means the whole app reads as one palette, and it is
+ * the pattern Thai shoppers already know from Shopee's outlined controls.
+ */
+export const btnSecondary = `${BASE} ${BUTTON_SIZE.md} border border-brand/35 bg-white text-brand hover:bg-brand hover:text-white`;
 
 /** Low-emphasis, sits inside dense rows. */
 export const btnGhost = `${BASE} ${BUTTON_SIZE.sm} text-ink/70 hover:bg-black/[.05] hover:text-ink`;
 
-/** Removes something. Red type on a light ground, not a solid red slab: a
- *  destructive control should be findable, not the loudest thing on screen. */
-export const btnDanger = `${BASE} ${BUTTON_SIZE.md} border border-red-600/30 bg-white text-red-700 hover:bg-red-50`;
+/**
+ * Removes something, or ends it.
+ *
+ * The palette has one hue, so danger cannot be a different colour from the
+ * brand — it has to be a different weight. Solid brand-dark is the heaviest
+ * control in the app and nothing else uses it, so "ลบ" and "ยกเลิกประกาศ" can
+ * never be mistaken for the ordinary action next to them. The raw red-600 this
+ * replaces was a fourth red on a three-red palette.
+ */
+export const btnDanger = `${BASE} ${BUTTON_SIZE.md} bg-brand-dark text-white hover:bg-ink`;
 
 /** Small variants, for controls that sit inside cards and list rows. */
 export const btnPrimarySm = `${BASE} ${BUTTON_SIZE.sm} bg-brand text-white hover:bg-brand-dark`;
-export const btnSecondarySm = `${BASE} ${BUTTON_SIZE.sm} border border-black/15 bg-white text-ink hover:border-brand/50 hover:text-brand`;
+export const btnSecondarySm = `${BASE} ${BUTTON_SIZE.sm} border border-brand/35 bg-white text-brand hover:bg-brand hover:text-white`;
+export const btnDangerSm = `${BASE} ${BUTTON_SIZE.sm} bg-brand-dark text-white hover:bg-ink`;
+
+/**
+ * The one control that is allowed to be white.
+ *
+ * Google's sign-in branding requires their own colours and their own mark, so
+ * this is an exception granted by someone else's rules rather than a gap in
+ * ours. It lives here so it is visible as a decision, not discovered later as
+ * another stray white box.
+ */
+export const btnGoogle = `${BASE} w-full px-4 py-3 border border-black/15 bg-white text-ink hover:bg-black/[.04]`;

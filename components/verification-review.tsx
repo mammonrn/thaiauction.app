@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useActionState, useState } from "react";
+import { btnDangerSm, btnPrimarySm, btnSecondarySm } from "@/lib/button";
 
 import {
   approveVerificationAction,
@@ -58,7 +59,7 @@ export function VerificationReview({
           <button
             type="submit"
             disabled={approving || rejectPending}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+            className={btnPrimarySm}
           >
             {approving ? "กำลังอนุมัติ…" : "อนุมัติ"}
           </button>
@@ -68,7 +69,7 @@ export function VerificationReview({
           <button
             type="button"
             onClick={() => setRejecting(true)}
-            className="rounded-lg border border-red-600/40 px-4 py-2 text-sm text-red-600 transition hover:bg-red-600/10"
+            className={btnDangerSm}
           >
             ปฏิเสธ
           </button>
@@ -96,14 +97,14 @@ export function VerificationReview({
             <button
               type="submit"
               disabled={rejectPending}
-              className="rounded-lg border border-red-600/40 px-4 py-2 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
+              className={btnDangerSm}
             >
               {rejectPending ? "กำลังบันทึก…" : "ยืนยันการปฏิเสธ"}
             </button>
             <button
               type="button"
               onClick={() => setRejecting(false)}
-              className="rounded-lg border border-black/15 px-4 py-2 text-sm transition hover:bg-black/5"
+              className={btnSecondarySm}
             >
               ยกเลิก
             </button>

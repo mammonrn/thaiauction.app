@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { btnPrimary } from "@/lib/button";
 
 import {
   sendOtpAction,
@@ -67,7 +68,7 @@ export function PhoneOtp({
         <button
           type="submit"
           disabled={sending}
-          className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+          className={btnPrimary}
         >
           {sending ? "กำลังส่ง…" : "ขอรหัส OTP"}
         </button>
@@ -136,7 +137,7 @@ function VerifyStep({
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+        className={`${btnPrimary} self-start`}
       >
         {pending ? "กำลังตรวจสอบ…" : "ยืนยันรหัส"}
       </button>

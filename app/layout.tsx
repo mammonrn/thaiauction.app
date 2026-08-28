@@ -28,8 +28,8 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "thaiauction — ประมูลออนไลน์",
-    template: "%s · thaiauction",
+    default: "ThaiAuction — ประมูลออนไลน์",
+    template: "%s · ThaiAuction",
   },
   description:
     "ประมูลพระเครื่อง ของสะสม และสินค้ามือสองจากผู้ขายที่ยืนยันตัวตนแล้ว",

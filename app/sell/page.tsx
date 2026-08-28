@@ -5,6 +5,7 @@ import { formatBaht } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { imageUrl } from "@/lib/uploads";
+import { btnPrimary, btnSecondarySm } from "@/lib/button";
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "ฉบับร่าง",
@@ -47,7 +48,7 @@ export default async function SellPage() {
         </div>
         <Link
           href="/sell/new"
-          className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+          className={btnPrimary}
         >
           ลงสินค้าใหม่
         </Link>
@@ -97,14 +98,14 @@ export default async function SellPage() {
                 {item.status === "active" ? (
                   <Link
                     href={`/auctions/${item.id}`}
-                    className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
+                    className={btnSecondarySm}
                   >
                     ดูหน้าสาธารณะ
                   </Link>
                 ) : null}
                 <Link
                   href={`/sell/${item.id}/edit`}
-                  className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
+                  className={btnSecondarySm}
                 >
                   จัดการ
                 </Link>

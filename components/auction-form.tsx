@@ -6,6 +6,7 @@ import type { SellActionState } from "@/app/sell/actions";
 import { ImageUploader, type UploadedImage } from "@/components/image-uploader";
 import { ThaiDateTimePicker } from "@/components/thai-datetime-picker";
 import { MAX_DESCRIPTION, MAX_TITLE } from "@/lib/auction-rules";
+import { btnPrimary } from "@/lib/button";
 
 const initialState: SellActionState = { ok: false, message: null };
 
@@ -192,7 +193,7 @@ export function AuctionForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+          className={btnPrimary}
         >
           {pending ? "กำลังบันทึก…" : submitLabel}
         </button>

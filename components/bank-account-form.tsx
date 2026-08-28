@@ -7,6 +7,7 @@ import {
   type BankActionState,
 } from "@/app/account/bank/actions";
 import { THAI_BANKS } from "@/lib/thai-banks";
+import { btnPrimary } from "@/lib/button";
 
 const EMPTY: BankActionState = { ok: false, message: null };
 
@@ -81,7 +82,7 @@ export function BankAccountForm({
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-lg bg-brand hover:bg-brand-dark transition-colors px-5 py-2.5 text-sm font-medium text-white disabled:opacity-50"
+        className={`${btnPrimary} self-start`}
       >
         {pending ? "กำลังบันทึก…" : "บันทึกบัญชีธนาคาร"}
       </button>

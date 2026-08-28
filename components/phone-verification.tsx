@@ -8,6 +8,7 @@ import {
 } from "@/app/account/phone/actions";
 
 import { PhoneOtp } from "@/components/phone-otp";
+import { btnDangerSm, btnSecondarySm } from "@/lib/button";
 
 const initialState: OtpActionState = { ok: false, message: null };
 
@@ -73,7 +74,7 @@ function RemoveButton({ phone }: { phone: string }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10"
+        className={btnDangerSm}
       >
         ลบ
       </button>
@@ -86,14 +87,14 @@ function RemoveButton({ phone }: { phone: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10 disabled:opacity-60"
+        className={btnDangerSm}
       >
         {pending ? "กำลังลบ…" : "ลบเลย"}
       </button>
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
+        className={btnSecondarySm}
       >
         ยกเลิก
       </button>

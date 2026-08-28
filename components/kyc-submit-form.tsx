@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useActionState, useRef, useState } from "react";
+import { btnPrimary, btnSecondarySm } from "@/lib/button";
 
 import {
   withdrawVerificationAction,
@@ -55,14 +56,14 @@ export function KycSubmitForm({ submitLabel }: { submitLabel: string }) {
           type="file"
           accept="image/jpeg,image/png,image/webp"
           required
-          className="text-sm file:mr-3 file:rounded-lg file:border file:border-black/15 file:bg-transparent file:px-3 file:py-1.5 file:text-sm"
+          className="text-sm text-ink/70 file:mr-3 file:cursor-pointer file:rounded-lg file:border file:border-brand/35 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-brand"
         />
       </label>
 
       <button
         type="submit"
         disabled={busy}
-        className="self-start rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+        className={`${btnPrimary} self-start`}
       >
         {busy ? "กำลังส่ง…" : submitLabel}
       </button>
@@ -88,7 +89,7 @@ export function KycWithdrawButton() {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 disabled:opacity-60"
+        className={btnSecondarySm}
       >
         {pending ? "กำลังยกเลิก…" : "ยกเลิกคำขอและลบรูป"}
       </button>

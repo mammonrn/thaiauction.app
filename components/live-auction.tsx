@@ -5,6 +5,7 @@ import { useActionState, useEffect, useState } from "react";
 import { placeBidAction, type BidActionState } from "@/app/auctions/[id]/actions";
 import { PriceWindow } from "@/components/price-window";
 import { formatBaht, satangToBaht } from "@/lib/money";
+import { btnPrimary } from "@/lib/button";
 
 export type AuctionLiveState = {
   currentPrice: number;
@@ -219,7 +220,7 @@ export function LiveAuction({
             <button
               type="submit"
               disabled={bidding}
-              className="self-start rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
+              className={`${btnPrimary} self-start`}
             >
               {bidding ? "กำลังเสนอราคา…" : "เสนอราคา"}
             </button>

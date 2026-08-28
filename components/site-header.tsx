@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 
@@ -24,11 +25,21 @@ export async function SiteHeader() {
         <Link
           href="/"
           className="flex shrink-0 items-center gap-2"
-          aria-label="thaiauction หน้าแรก"
+          aria-label="ThaiAuction หน้าแรก"
         >
-          <GavelMark />
+          {/* The master logo itself, not a redrawn approximation: white
+              artwork on transparency, so it sits on the brand-dark band
+              without a plate of its own. Served at 4x for hairline outlines. */}
+          <Image
+            src="/brand/logo-mark.png"
+            alt=""
+            width={128}
+            height={128}
+            priority
+            className="h-8 w-8 shrink-0"
+          />
           <span className="hidden text-lg font-bold tracking-tight sm:inline">
-            thai<span className="text-gold">auction</span>
+            Thai<span className="text-gold">Auction</span>
           </span>
         </Link>
 
@@ -79,36 +90,6 @@ export async function SiteHeader() {
         </nav>
       </div>
     </header>
-  );
-}
-
-/**
- * The gavel from the master logo, reduced for 28px.
- *
- * Drawn inline rather than loading public/brand/logo.png, for two reasons. The
- * master is a red tile, and a second red on the dark-red header reads as a
- * smudge rather than a mark; white-on-red is the only version that holds. And
- * the master is drawn in outline — hairlines that turn to mush at header size —
- * so the reduction is solid shapes: head, handle, block. The arc is dropped
- * because at 28px it is a grey smear rather than a circle.
- *
- * Same silhouette as the app icon, so the two read as one mark.
- */
-function GavelMark() {
-  return (
-    <svg
-      viewBox="0 0 32 32"
-      className="h-7 w-7 shrink-0"
-      fill="currentColor"
-      aria-hidden="true"
-      focusable="false"
-    >
-      <g transform="rotate(-20 16 13)">
-        <rect x="4" y="7" width="21" height="9" rx="4.5" />
-        <rect x="12.5" y="15" width="4" height="10" rx="2" />
-      </g>
-      <rect x="3" y="26" width="26" height="4.5" rx="2.25" />
-    </svg>
   );
 }
 

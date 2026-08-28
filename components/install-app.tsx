@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { btnSecondarySm } from "@/lib/button";
+import { btnPrimarySm } from "@/lib/button";
 
 /**
  * "Install app", handling the fact that the two platforms disagree completely.
@@ -90,7 +90,7 @@ export function InstallApp() {
         // The event is single-use; drop it either way.
         setPrompt(null);
       }}
-      className={btnSecondarySm}
+      className={btnPrimarySm}
     >
       ติดตั้งแอป
     </button>

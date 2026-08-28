@@ -10,6 +10,7 @@ import {
   type AddressActionState,
 } from "@/app/account/addresses/actions";
 import { AddressForm, type AddressFormValues } from "@/components/address-form";
+import { btnDangerSm, btnPrimary, btnSecondarySm } from "@/lib/button";
 
 type Mode = { type: "none" } | { type: "new" } | { type: "edit"; id: string };
 
@@ -76,7 +77,7 @@ export function AddressManager({
         <button
           type="button"
           onClick={() => setMode({ type: "new" })}
-          className="self-start rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
+          className={`${btnPrimary} self-start`}
         >
           เพิ่มที่อยู่ใหม่
         </button>
@@ -117,7 +118,7 @@ function AddressCard({
         <button
           type="button"
           onClick={onEdit}
-          className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
+          className={btnSecondarySm}
         >
           แก้ไข
         </button>
@@ -191,7 +192,7 @@ function DeleteButton({ addressId }: { addressId: string }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-lg border border-red-600/40 px-3 py-1.5 text-sm text-red-600 transition hover:bg-red-600/10"
+        className={btnDangerSm}
       >
         ลบ
       </button>
@@ -211,7 +212,7 @@ function DeleteButton({ addressId }: { addressId: string }) {
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5"
+        className={btnSecondarySm}
       >
         ยกเลิก
       </button>
