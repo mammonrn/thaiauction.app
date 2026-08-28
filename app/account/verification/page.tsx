@@ -8,6 +8,7 @@ import {
   ageOn,
   dateOfBirthInputValue,
 } from "@/lib/identity";
+import { needsIdentityResubmission } from "@/lib/seller-verification";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { formatThaiDate, formatThaiDateTime } from "@/lib/thai-datetime";
@@ -38,6 +39,10 @@ export default async function VerificationPage() {
     identity.firstName && identity.lastName && identity.dateOfBirth,
   );
   const identityEditable = await canEditIdentity(user.id);
+  // An approval granted before this data existed. See lib/seller-verification.
+  const mustResubmit = await needsIdentityResubmission(user.id);
+  // A re-submission in progress: approved standing plus a live pending request.
+  const resubmitPending = mustResubmit && status === "pending";
   const oldEnough =
     identity.dateOfBirth !== null &&
     ageOn(identity.dateOfBirth, new Date()) >= MIN_SELLER_AGE;
@@ -74,6 +79,39 @@ export default async function VerificationPage() {
             อนุมัติเมื่อ{" "}
             {latest?.reviewedAt ? formatThaiDateTime(latest.reviewedAt) : "-"} ·
             รูปบัตรถูกลบออกจากระบบแล้ว
+          </p>
+        </section>
+      ) : null}
+
+      {/* The legacy case: approved, but the reviewer never recorded a name or
+          date of birth because the marketplace did not ask for them yet. The
+          card was erased on approval, so there is nothing to check against
+          after the fact — submitting again is the only way to close the gap. */}
+      {mustResubmit && !resubmitPending ? (
+        <section className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
+          <p className="font-medium text-amber-800">
+            ต้องยืนยันตัวตนอีกครั้ง
+          </p>
+          <p className="text-sm text-amber-800/80">
+            บัญชีของคุณผ่านการยืนยันก่อนที่ระบบจะเริ่มเก็บชื่อ-นามสกุลและวันเกิด
+            และรูปบัตรเดิมถูกลบไปตามนโยบายแล้ว จึงตรวจสอบย้อนหลังไม่ได้
+            กรุณากรอกข้อมูลและส่งรูปบัตรใหม่อีกครั้ง
+          </p>
+          <p className="text-sm font-medium text-amber-900">
+            สถานะผู้ขายเดิมของคุณยังใช้งานได้ตามปกติระหว่างรอตรวจสอบ
+            — ลงขายและรับเงินได้เหมือนเดิม
+          </p>
+        </section>
+      ) : null}
+
+      {resubmitPending ? (
+        <section className="flex flex-col gap-2 rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4">
+          <p className="font-medium text-green-800">
+            ส่งคำขอใหม่แล้ว — สถานะผู้ขายเดิมยังใช้งานได้
+          </p>
+          <p className="text-sm text-green-800/80">
+            ระบบจะสลับไปใช้ข้อมูลชุดใหม่เมื่อทีมงานอนุมัติ
+            คุณลงขายและรับเงินได้ตามปกติระหว่างนี้
           </p>
         </section>
       ) : null}
@@ -158,7 +196,8 @@ export default async function VerificationPage() {
       </section>
 
       {/* Step 2. Only offered once step 1 is done and the seller is eligible. */}
-      {status !== "approved" && status !== "pending" ? (
+      {(status !== "approved" && status !== "pending") ||
+      (mustResubmit && status !== "pending") ? (
         <section className="flex flex-col gap-4">
           <h2 className="text-sm font-medium">ขั้นที่ 2 — อัปโหลดรูปบัตรประชาชน</h2>
 
@@ -192,7 +231,11 @@ export default async function VerificationPage() {
 
               <KycSubmitForm
                 submitLabel={
-                  status === "rejected" ? "ส่งคำขอใหม่" : "ส่งคำขอยืนยันตัวตน"
+                  mustResubmit
+                    ? "ยืนยันตัวตนอีกครั้ง"
+                    : status === "rejected"
+                      ? "ส่งคำขอใหม่"
+                      : "ส่งคำขอยืนยันตัวตน"
                 }
               />
             </>

@@ -8,6 +8,7 @@ import {
 } from "@/lib/kyc-storage";
 import { getSession } from "@/lib/session";
 import { ageOn, MIN_SELLER_AGE } from "@/lib/identity";
+import { needsIdentityResubmission } from "@/lib/seller-verification";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -33,11 +34,17 @@ export async function POST(request: Request) {
   }
 
   // Already approved: nothing to review, and no reason to hold another copy.
+  //
+  // Unless the approval predates the identity fields. Those accounts have to
+  // submit again — their card was erased on approval, so there is no way to
+  // fill the gap retrospectively. The EXISTING approval is left untouched
+  // while the new request is reviewed, so re-verifying never costs a seller
+  // their standing mid-review.
   const approved = await prisma.sellerVerification.findFirst({
     where: { userId, status: "approved" },
     select: { id: true },
   });
-  if (approved) {
+  if (approved && !(await needsIdentityResubmission(userId))) {
     return Response.json({ error: "บัญชีนี้ยืนยันตัวตนแล้ว" }, { status: 409 });
   }
 

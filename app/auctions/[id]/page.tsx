@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EndAuctionButton } from "@/components/end-auction-button";
-import { SellerBadges } from "@/components/seller-badges";
+import { VerificationLevel } from "@/components/verification-level";
 import { isSellerVerified } from "@/lib/seller-verification";
 import { LiveAuction } from "@/components/live-auction";
 import { minimumBid } from "@/lib/auction-rules";
@@ -193,9 +193,11 @@ export default async function AuctionDetailPage({
             )}
             <div className="flex flex-col gap-1">
               <span className="text-sm font-medium">{item.seller.name}</span>
-              <SellerBadges
-                phoneVerified={sellerPhoneVerified}
-                identityVerified={sellerIdentityVerified}
+              <VerificationLevel
+                facts={{
+                  phoneVerified: sellerPhoneVerified,
+                  identityVerified: sellerIdentityVerified,
+                }}
               />
             </div>
           </div>

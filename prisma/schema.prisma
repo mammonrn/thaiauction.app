@@ -128,6 +128,15 @@ model User {
   /// rendered in another timezone.
   dateOfBirth DateTime?
 
+  /// When this seller accepted the selling terms — including the platform's
+  /// commission. Recorded rather than assumed: the commission is the one term
+  /// a seller is entitled to have seen before listing, so there has to be a
+  /// timestamp proving they were shown it.
+  ///
+  /// Null means they have never listed anything, or listed before the terms
+  /// step existed; either way they are asked once before their next listing.
+  sellerTermsAcceptedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

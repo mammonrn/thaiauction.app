@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 
-import { SellerBadges } from "@/components/seller-badges";
+import { VerificationLevel } from "@/components/verification-level";
 import { SignOutButton } from "@/components/sign-out-button";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -79,16 +79,18 @@ export default async function AccountPage() {
           <p className="text-sm text-ink/60">
             {user.email}
           </p>
-          <SellerBadges
-            phoneVerified={verifiedPhoneCount > 0}
-            identityVerified={verification?.status === "approved"}
-          />
-          {user.emailVerified ? (
-            <p className="text-xs text-green-700">
-              ยืนยันอีเมลแล้ว
-            </p>
-          ) : null}
+
         </div>
+      </section>
+
+      <section className="rounded-xl bg-white p-5">
+        <VerificationLevel
+          variant="own"
+          facts={{
+            phoneVerified: verifiedPhoneCount > 0,
+            identityVerified: verification?.status === "approved",
+          }}
+        />
       </section>
 
       {/* Two columns on desktop, where the sidebar already handles navigation:

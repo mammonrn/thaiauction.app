@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { validateIdentity, type IdentityErrors } from "@/lib/identity";
 import { deleteKycDocument } from "@/lib/kyc-storage";
+import { needsIdentityResubmission } from "@/lib/seller-verification";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
@@ -62,7 +63,13 @@ export async function canEditIdentity(userId: string): Promise<boolean> {
   const blocking = await prisma.sellerVerification.count({
     where: { userId, status: { in: ["pending", "approved"] } },
   });
-  return blocking === 0;
+  if (blocking === 0) return true;
+
+  // One exception: an account approved before this data was collected has an
+  // empty identity, and locking a form over values that were never captured
+  // leaves the seller no way forward. Their reviewer never saw these fields,
+  // so nothing is being edited out from under a decision.
+  return needsIdentityResubmission(userId);
 }
 
 /**
