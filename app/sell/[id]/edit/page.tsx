@@ -62,6 +62,21 @@ export default async function EditAuctionPage({
         ) : null}
       </div>
 
+      {/* PublishControls unmounts the moment the item leaves draft, taking its
+          success message with it. This banner is the durable confirmation that
+          publishing worked, and the way to the live listing. */}
+      {item.status === "active" ? (
+        <p className="flex flex-wrap items-center gap-2 rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4 text-sm text-green-800 dark:text-green-300">
+          เผยแพร่แล้ว — กำลังประมูลอยู่
+          <Link
+            href={`/auctions/${item.id}`}
+            className="underline underline-offset-4"
+          >
+            ดูหน้าสาธารณะ
+          </Link>
+        </p>
+      ) : null}
+
       <PublishControls itemId={item.id} status={item.status} />
 
       {editable ? (
