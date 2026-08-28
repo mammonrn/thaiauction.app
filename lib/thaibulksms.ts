@@ -59,24 +59,34 @@ export class ThaibulksmsError extends Error {
  *
  * Every OTP send costs real SMS credit, and Thaibulksms — not this app —
  * generates the PIN, so there is no way to log the real code during testing.
- * With OTP_STUB_MODE=1 the provider is not called at all and STUB_PIN is
- * accepted instead.
+ * In stub mode the provider is never called and STUB_PIN is accepted instead.
  *
- * Hard-refused in production even if the variable is set, so a stray value in a
- * production .env cannot turn the whole verification into a formality.
+ * The switch is not a boolean and is deliberately not tied to NODE_ENV:
+ * `next start` runs with NODE_ENV=production by definition, so a NODE_ENV gate
+ * would make stub mode unusable on exactly the staging build where it is
+ * wanted, while doing nothing that this gate does not already do. Instead the
+ * variable must spell out the consequence, so no plausible typo, leftover "1"
+ * or copied boolean can silently disable SMS verification. Every stubbed call
+ * also logs a warning, so a host running like this is obvious in the logs.
  */
 const STUB_PIN = "000000";
+const STUB_ACKNOWLEDGEMENT = "stub-sms-no-real-otp";
 
 function stubModeEnabled(): boolean {
-  if (process.env.OTP_STUB_MODE !== "1") return false;
+  const value = process.env.OTP_STUB_MODE;
+  if (!value) return false;
 
-  if (process.env.NODE_ENV === "production") {
+  if (value !== STUB_ACKNOWLEDGEMENT) {
     throw new ThaibulksmsError(
-      "OTP_STUB_MODE must never be enabled in production",
+      `OTP_STUB_MODE must be exactly "${STUB_ACKNOWLEDGEMENT}" to take effect`,
       "misconfigured",
     );
   }
 
+  console.warn(
+    "[thaibulksms] STUB MODE ACTIVE — no SMS is being sent and any OTP check " +
+      "accepts a fixed code. This must never be set on production.",
+  );
   return true;
 }
 
