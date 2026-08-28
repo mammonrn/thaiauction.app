@@ -7,6 +7,16 @@
  * build). Anything both sides need lives here instead.
  */
 
+/**
+ * Largest accepted upload, before processing.
+ *
+ * Here rather than in lib/uploads so a client component can refuse an
+ * oversized file before spending the user's mobile data on it — and so the
+ * message it shows quotes the same number the server enforces.
+ */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
+export const MAX_UPLOAD_MB = Math.round(MAX_UPLOAD_BYTES / 1024 / 1024);
+
 export const MAX_IMAGES_PER_ITEM = 8;
 export const MIN_IMAGES_PER_ITEM = 1;
 

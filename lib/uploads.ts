@@ -6,10 +6,17 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-import { isAvatarKey, isItemKey, isStagingKey, thumbKey } from "@/lib/image-keys";
+import {
+  MAX_UPLOAD_BYTES,
+  isAvatarKey,
+  isItemKey,
+  isStagingKey,
+  thumbKey,
+} from "@/lib/image-keys";
 
 export {
   imageUrl,
+  MAX_UPLOAD_BYTES,
   isAvatarKey,
   isItemKey,
   isStagingKey,
@@ -33,9 +40,6 @@ const DEFAULT_UPLOAD_DIR = path.join(process.cwd(), "storage", "uploads");
 export function uploadRoot(): string {
   return process.env.UPLOAD_DIR || DEFAULT_UPLOAD_DIR;
 }
-
-/** Largest accepted upload, before processing. */
-export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /** Longest edge kept; portrait phone shots stay portrait. */
 const MAX_EDGE_PX = 1600;
