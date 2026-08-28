@@ -4,15 +4,12 @@ import { useActionState, useState } from "react";
 
 import {
   removeVerifiedPhoneAction,
-  sendOtpAction,
-  verifyOtpAction,
   type OtpActionState,
 } from "@/app/account/phone/actions";
 
-const initialState: OtpActionState = { ok: false, message: null };
+import { PhoneOtp } from "@/components/phone-otp";
 
-const inputClass =
-  "rounded-lg border border-black/15 px-3 py-2";
+const initialState: OtpActionState = { ok: false, message: null };
 
 export function PhoneVerification({
   verified,
@@ -21,24 +18,8 @@ export function PhoneVerification({
   verified: { phone: string; verifiedAt: string }[];
   stubMode: boolean;
 }) {
-  const [sendState, sendAction, sending] = useActionState(
-    sendOtpAction,
-    initialState,
-  );
-
-  // The send step reports which number the code went to; the verify step then
-  // works against that number rather than whatever is currently typed.
-  const pendingPhone = sendState.ok ? sendState.phone : undefined;
-
   return (
     <div className="flex flex-col gap-8">
-      {stubMode ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800">
-          โหมดทดสอบ (OTP_STUB_MODE) — ไม่ส่ง SMS จริง ใช้รหัส{" "}
-          <code className="font-mono font-semibold">000000</code>
-        </p>
-      ) : null}
-
       <section className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
           <h2 className="text-sm font-medium">เพิ่มเบอร์ใหม่</h2>
@@ -47,45 +28,8 @@ export function PhoneVerification({
           </p>
         </div>
 
-        <form action={sendAction} className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-1 flex-col gap-1.5">
-            <span className="text-sm font-medium">เบอร์มือถือ</span>
-            <input
-              name="phone"
-              required
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="08x-xxx-xxxx"
-              defaultValue={pendingPhone}
-              className={inputClass}
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={sending}
-            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
-          >
-            {sending ? "กำลังส่ง…" : "ขอรหัส OTP"}
-          </button>
-        </form>
-
-        {sendState.message ? (
-          <p
-            role="status"
-            className={
-              sendState.ok
-                ? "text-sm text-green-700"
-                : "text-sm text-red-600"
-            }
-          >
-            {sendState.message}
-            {sendState.ok && sendState.refno
-              ? ` (Ref: ${sendState.refno})`
-              : null}
-          </p>
-        ) : null}
-
-        {pendingPhone ? <VerifyStep phone={pendingPhone} /> : null}
+        {/* The same component the bid dialog uses, so the two can never drift. */}
+        <PhoneOtp stubMode={stubMode} />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -114,54 +58,6 @@ export function PhoneVerification({
         )}
       </section>
     </div>
-  );
-}
-
-function VerifyStep({ phone }: { phone: string }) {
-  const [state, action, pending] = useActionState(verifyOtpAction, initialState);
-
-  if (state.ok) {
-    return (
-      <p role="status" className="text-sm text-green-700">
-        {state.message}
-      </p>
-    );
-  }
-
-  return (
-    <form
-      action={action}
-      className="flex flex-col gap-3 rounded-xl border border-black/10 bg-black/[.02] p-4"
-    >
-      <input type="hidden" name="phone" value={phone} />
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">รหัส OTP ที่ได้รับ</span>
-        <input
-          name="pin"
-          required
-          inputMode="numeric"
-          pattern="[0-9]{6}"
-          maxLength={6}
-          autoComplete="one-time-code"
-          placeholder="######"
-          className={`${inputClass} max-w-40 font-mono tracking-[0.3em]`}
-        />
-      </label>
-      <div className="flex items-center gap-3">
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
-        >
-          {pending ? "กำลังตรวจสอบ…" : "ยืนยันรหัส"}
-        </button>
-        {state.message ? (
-          <span role="alert" className="text-sm text-red-600">
-            {state.message}
-          </span>
-        ) : null}
-      </div>
-    </form>
   );
 }
 

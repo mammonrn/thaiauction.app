@@ -52,11 +52,16 @@ export function LiveAuction({
   initial,
   canBid,
   reasonCannotBid,
+  bidBlockedAction,
 }: {
   itemId: string;
   initial: AuctionLiveState;
   canBid: boolean;
   reasonCannotBid: string | null;
+  /// Rendered under the reason when the block is something the visitor can
+  /// clear on the spot — verifying a phone number, for instance. Passed in as
+  /// a node so this component needs to know nothing about what unblocks it.
+  bidBlockedAction?: React.ReactNode;
 }) {
   const [state, setState] = useState(initial);
   const [nowMs, setNowMs] = useState(() => new Date(initial.serverNow).getTime());
@@ -220,9 +225,10 @@ export function LiveAuction({
             </button>
           </form>
         ) : (
-          <p className="rounded-lg border border-dashed border-black/20 px-4 py-3 text-sm text-ink/60">
-            {reasonCannotBid}
-          </p>
+          <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-black/20 px-4 py-3">
+            <p className="text-sm text-ink/60">{reasonCannotBid}</p>
+            {bidBlockedAction}
+          </div>
         )
       ) : null}
     </div>

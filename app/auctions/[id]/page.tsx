@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 
 import { EndAuctionButton } from "@/components/end-auction-button";
 import { VerificationLevel } from "@/components/verification-level";
+import { VerifyPhoneDialog } from "@/components/verify-phone-dialog";
+import { isStubMode } from "@/lib/thaibulksms";
 import { isSellerVerified } from "@/lib/seller-verification";
 import { LiveAuction } from "@/components/live-auction";
 import { minimumBid } from "@/lib/auction-rules";
@@ -79,8 +81,20 @@ export default async function AuctionDetailPage({
     : isSeller
       ? "คุณเป็นผู้ขายรายการนี้ จึงเสนอราคาไม่ได้"
       : verifiedPhones === 0
-        ? "กรุณายืนยันเบอร์โทรศัพท์ก่อนเสนอราคา (บัญชีของฉัน > เบอร์โทรศัพท์)"
+        ? "เสนอราคาได้หลังยืนยันเบอร์โทรศัพท์"
         : null;
+
+  // The one blocker a visitor can clear without leaving the page.
+  const needsPhone = viewerId !== null && !isSeller && verifiedPhones === 0;
+
+  // isStubMode() throws if the flag is set in production; treat that as "off"
+  // so the page still renders and the action reports the real error.
+  let stubMode = false;
+  try {
+    stubMode = isStubMode();
+  } catch {
+    stubMode = false;
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-6 sm:px-6 sm:py-8">
@@ -146,6 +160,11 @@ export default async function AuctionDetailPage({
             itemId={item.id}
             canBid={cannotBid === null}
             reasonCannotBid={cannotBid}
+            bidBlockedAction={
+              needsPhone ? (
+                <VerifyPhoneDialog stubMode={stubMode} />
+              ) : null
+            }
             initial={{
               currentPrice: item.currentPrice,
               minimumBid: minimumBid({
