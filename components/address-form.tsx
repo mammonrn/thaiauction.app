@@ -121,27 +121,21 @@ export function AddressForm({
   );
   const province = resolve(chosen.province, provinceOptions);
 
-  const districtOptions = useMemo(
-    () =>
-      unique(
-        areas
-          .filter((a) => !province || a.province === province)
-          .map((a) => a.district),
-      ),
-    [areas, province],
-  );
+  const districtOptions = useMemo(() => {
+    // If the user typed a province the dataset doesn't know, scoping by it
+    // would match nothing and blank the district. Fall back to the whole
+    // postcode instead: those districts are still the best candidates.
+    const scoped = areas.filter((a) => a.province === province);
+    return unique((scoped.length > 0 ? scoped : areas).map((a) => a.district));
+  }, [areas, province]);
   const district = resolve(chosen.district, districtOptions);
 
-  const subDistrictOptions = useMemo(
-    () =>
-      unique(
-        areas
-          .filter((a) => !province || a.province === province)
-          .filter((a) => !district || a.district === district)
-          .map((a) => a.subDistrict),
-      ),
-    [areas, province, district],
-  );
+  const subDistrictOptions = useMemo(() => {
+    const inProvince = areas.filter((a) => a.province === province);
+    const pool = inProvince.length > 0 ? inProvince : areas;
+    const inDistrict = pool.filter((a) => a.district === district);
+    return unique((inDistrict.length > 0 ? inDistrict : pool).map((a) => a.subDistrict));
+  }, [areas, province, district]);
   const subDistrict = resolve(chosen.subDistrict, subDistrictOptions);
 
   function handlePostalCodeChange(next: string) {
@@ -160,7 +154,40 @@ export function AddressForm({
   }
 
   function setField(field: GeoField, value: string) {
-    setChosen((c) => ({ ...c, [field]: value }));
+    setChosen((c) => {
+      const next: Partial<Record<GeoField, string>> = { ...c, [field]: value };
+
+      // Picking a real area invalidates any narrower pick that cannot sit
+      // inside it. Guarded by pool.length, so typing a value the dataset does
+      // not know prunes nothing and never discards what the user entered.
+      if (field === "province") {
+        const pool = areas.filter((a) => a.province === value);
+        if (pool.length > 0) {
+          if (next.district && !pool.some((a) => a.district === next.district)) {
+            delete next.district;
+          }
+          if (
+            next.subDistrict &&
+            !pool.some((a) => a.subDistrict === next.subDistrict)
+          ) {
+            delete next.subDistrict;
+          }
+        }
+      }
+
+      if (field === "district") {
+        const pool = areas.filter((a) => a.district === value);
+        if (
+          pool.length > 0 &&
+          next.subDistrict &&
+          !pool.some((a) => a.subDistrict === next.subDistrict)
+        ) {
+          delete next.subDistrict;
+        }
+      }
+
+      return next;
+    });
   }
 
   const geo = {
