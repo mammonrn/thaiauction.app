@@ -35,3 +35,24 @@ export function banMessage(strikes: number): string {
     `หากคิดว่าเป็นความผิดพลาด กรุณาติดต่อทีมงาน`
   );
 }
+
+/**
+ * Strike counts for several people at once.
+ *
+ * Used where a list is being rendered — the seller looking at who has bid on
+ * their item, or an admin reviewing a ring — so the page does not fire one
+ * query per row.
+ */
+export async function countStrikesFor(
+  userIds: string[],
+): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+
+  const grouped = await prisma.paymentStrike.groupBy({
+    by: ["userId"],
+    where: { userId: { in: userIds } },
+    _count: { userId: true },
+  });
+
+  return new Map(grouped.map((row) => [row.userId, row._count.userId]));
+}

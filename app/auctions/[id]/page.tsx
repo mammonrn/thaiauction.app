@@ -9,6 +9,7 @@ import { LiveAuction } from "@/components/live-auction";
 import { minimumBid } from "@/lib/auction-rules";
 import { settleIfExpired } from "@/lib/bidding";
 import { maskName } from "@/lib/mask-name";
+import { countStrikesFor, STRIKE_LIMIT } from "@/lib/strikes";
 import { formatBaht } from "@/lib/money";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
@@ -55,6 +56,15 @@ export default async function AuctionDetailPage({
 
   const viewerId = session?.user.id ?? null;
   const isSeller = viewerId === item.seller.id;
+
+  // Payment-history badges are shown ONLY to the seller of this item, on their
+  // own listing. A seller deciding whether to let an auction run to the wire
+  // has a real interest in knowing a bidder has walked away from a win before;
+  // everyone else does not, so this is never rendered publicly and never
+  // exposed by the live-state API.
+  const bidderStrikes = isSeller
+    ? await countStrikesFor(item.bids.map((bid) => bid.bidderId))
+    : new Map<string, number>();
 
   const sellerIdentityVerified = await isSellerVerified(item.seller.id);
   const sellerPhoneVerified =
@@ -219,6 +229,15 @@ export default async function AuctionDetailPage({
                   {index === 0 ? (
                     <span className="rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-400">
                       สูงสุด
+                    </span>
+                  ) : null}
+                  {(bidderStrikes.get(bid.bidderId) ?? 0) > 0 ? (
+                    <span
+                      title="ผู้ใช้รายนี้เคยชนะประมูลแล้วไม่ชำระเงินตามกำหนด (เห็นเฉพาะคุณในฐานะผู้ขาย)"
+                      className="rounded-full bg-amber-600/15 px-2 py-0.5 text-xs text-amber-800 dark:text-amber-300"
+                    >
+                      ⚠ เคยไม่ชำระเงิน{" "}
+                      {bidderStrikes.get(bid.bidderId)}/{STRIKE_LIMIT}
                     </span>
                   ) : null}
                 </span>

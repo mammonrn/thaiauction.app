@@ -5,13 +5,20 @@ import { SellerBadges } from "@/components/seller-badges";
 import { SignOutButton } from "@/components/sign-out-button";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
+import { countStrikes, STRIKE_LIMIT } from "@/lib/strikes";
 
 export default async function AccountPage() {
   const { user } = await requireSession("/account");
 
   // Small counts to give each link a sense of state, rather than a bare list.
-  const [addressCount, credentialAccount, verifiedPhoneCount, verification] =
-    await Promise.all([
+  const [
+    addressCount,
+    credentialAccount,
+    verifiedPhoneCount,
+    verification,
+    strikes,
+    bankAccount,
+  ] = await Promise.all([
     prisma.shippingAddress.count({ where: { userId: user.id } }),
     prisma.account.findFirst({
       where: { userId: user.id, providerId: "credential" },
@@ -23,7 +30,14 @@ export default async function AccountPage() {
       orderBy: { submittedAt: "desc" },
       select: { status: true },
     }),
+    countStrikes(user.id),
+    prisma.sellerBankAccount.findUnique({
+      where: { userId: user.id },
+      select: { id: true },
+    }),
   ]);
+
+  const hasBankAccount = bankAccount !== null;
 
   const hasPassword = Boolean(credentialAccount?.password);
 
@@ -107,6 +121,24 @@ export default async function AccountPage() {
                 : verification?.status === "rejected"
                   ? "ถูกปฏิเสธ — ส่งใหม่ได้"
                   : "ส่งบัตรประชาชนเพื่อรับเครื่องหมายรับรอง"
+          }
+        />
+        <AccountLink
+          href="/account/bids"
+          title="ประวัติการประมูล"
+          detail={
+            strikes > 0
+              ? `มีประวัติไม่ชำระเงิน ${strikes}/${STRIKE_LIMIT} ครั้ง`
+              : "รายการที่เคยเสนอราคา ชนะ และชำระเงิน"
+          }
+        />
+        <AccountLink
+          href="/account/bank"
+          title="บัญชีธนาคาร"
+          detail={
+            hasBankAccount
+              ? "บันทึกไว้แล้ว — ใช้รับเงินเมื่อขายสินค้าได้"
+              : "ยังไม่ได้บันทึก — ต้องมีเพื่อรับเงินค่าสินค้า"
           }
         />
         <AccountLink
