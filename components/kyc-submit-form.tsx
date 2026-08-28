@@ -62,7 +62,7 @@ export function KycSubmitForm({ submitLabel }: { submitLabel: string }) {
       <button
         type="submit"
         disabled={busy}
-        className="self-start rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-60"
+        className="self-start rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
       >
         {busy ? "กำลังส่ง…" : submitLabel}
       </button>

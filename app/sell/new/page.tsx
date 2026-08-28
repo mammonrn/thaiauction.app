@@ -41,24 +41,26 @@ export default async function NewAuctionPage() {
         </p>
       </div>
 
-      <AuctionForm
-        action={createAuctionAction}
-        categories={categories}
-        maxImages={MAX_IMAGES_PER_ITEM}
-        now={now}
-        submitLabel="บันทึกฉบับร่าง"
-        initial={{
-          categoryId: "",
-          title: "",
-          description: "",
-          startPrice: "",
-          buyNowPrice: "",
-          bidIncrement: String(satangToBaht(DEFAULT_BID_INCREMENT_SATANG)),
-          timed: false,
-          endTime: "",
-          images: [],
-        }}
-      />
+      <div className="rounded-xl bg-white p-4 sm:p-6">
+  <AuctionForm
+          action={createAuctionAction}
+          categories={categories}
+          maxImages={MAX_IMAGES_PER_ITEM}
+          now={now}
+          submitLabel="บันทึกฉบับร่าง"
+          initial={{
+            categoryId: "",
+            title: "",
+            description: "",
+            startPrice: "",
+            buyNowPrice: "",
+            bidIncrement: String(satangToBaht(DEFAULT_BID_INCREMENT_SATANG)),
+            timed: false,
+            endTime: "",
+            images: [],
+          }}
+        />
+      </div>
     </main>
   );
 }

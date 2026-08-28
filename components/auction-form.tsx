@@ -192,7 +192,7 @@ export function AuctionForm({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-foreground px-5 py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-60"
+          className="rounded-lg bg-brand px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
         >
           {pending ? "กำลังบันทึก…" : submitLabel}
         </button>

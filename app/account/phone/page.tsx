@@ -65,17 +65,19 @@ export default async function PhonePage({
         ) : null}
       </div>
 
-      <PhoneVerification
-        stubMode={stubMode}
-        verified={verified.map((entry) => ({
-          phone: entry.phone,
-          verifiedAt: entry.verifiedAt.toLocaleDateString("th-TH", {
-            year: "numeric",
-            month: "short",
-            day: "numeric",
-          }),
-        }))}
-      />
+      <div className="rounded-xl bg-white p-4 sm:p-6">
+  <PhoneVerification
+          stubMode={stubMode}
+          verified={verified.map((entry) => ({
+            phone: entry.phone,
+            verifiedAt: entry.verifiedAt.toLocaleDateString("th-TH", {
+              year: "numeric",
+              month: "short",
+              day: "numeric",
+            }),
+          }))}
+        />
+      </div>
     </main>
   );
 }

@@ -61,7 +61,7 @@ export function PublishControls({
         <button
           type="button"
           onClick={() => dialogRef.current?.showModal()}
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90"
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
         >
           เผยแพร่
         </button>
@@ -101,7 +101,7 @@ export function PublishControls({
       <dialog
         ref={dialogRef}
         aria-labelledby="publish-confirm-title"
-        className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl bg-background p-0 text-foreground backdrop:bg-black/50"
+        className="m-auto w-[min(32rem,calc(100vw-2rem))] rounded-xl bg-white p-0 text-ink backdrop:bg-black/50"
       >
         <div className="flex max-h-[80vh] flex-col gap-4 overflow-y-auto p-6">
           <h3 id="publish-confirm-title" className="text-lg font-semibold">
@@ -149,7 +149,7 @@ export function PublishControls({
               <button
                 type="submit"
                 disabled={publishing}
-                className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-60"
+                className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
               >
                 {publishing ? "กำลังเผยแพร่…" : "ยืนยันเผยแพร่"}
               </button>

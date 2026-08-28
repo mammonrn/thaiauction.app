@@ -47,7 +47,7 @@ export default async function SellPage() {
         </div>
         <Link
           href="/sell/new"
-          className="rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition hover:opacity-90"
+          className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
         >
           ลงสินค้าใหม่
         </Link>

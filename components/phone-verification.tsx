@@ -63,7 +63,7 @@ export function PhoneVerification({
           <button
             type="submit"
             disabled={sending}
-            className="rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-60"
+            className="rounded-lg bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
           >
             {sending ? "กำลังส่ง…" : "ขอรหัส OTP"}
           </button>
@@ -151,7 +151,7 @@ function VerifyStep({ phone }: { phone: string }) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-60"
+          className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark disabled:opacity-60"
         >
           {pending ? "กำลังตรวจสอบ…" : "ยืนยันรหัส"}
         </button>

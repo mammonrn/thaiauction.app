@@ -1048,3 +1048,86 @@ IP and User-Agent are erased after **180 days**. The bid itself is never
 deleted — it is a financial record; its origin is not. The script uses
 `updateMany` to null the two columns, never `deleteMany`, and that distinction
 is the whole point of it.
+
+## Design system
+
+Red and white, Shopee's arrangement, built from tokens fixed by the brief
+rather than invented here.
+
+```
+--color-brand       #C41E2A   primary actions, active states, urgency
+--color-brand-dark  #8B0000   header, hero band
+--color-gold        #F0B429   the price readout and nothing else
+--color-ink         #1A1A1A   text, and the readout's housing
+--color-paper       #F7F7F7   page background; content sits on white
+```
+
+Gold is deliberately rationed. It appears on the price readout and on genuine
+urgency, so it never becomes wallpaper — the moment it decorates something, it
+stops meaning "this is the number".
+
+### There is no dark theme
+
+The palette has no dark counterpart, and Thai marketplaces are light-only. The
+352 `dark:` variants inherited from the starter template were removed rather
+than half-translated: a guessed dark palette that fights a fixed brand looks
+worse than none. `body` sets the background explicitly, so nothing borrows the
+host's colour scheme.
+
+### Type
+
+IBM Plex Sans Thai for everything, IBM Plex Mono for figures. One superfamily,
+drawn to sit together, so the two never look bolted on.
+
+The mono is not styling. Prices update while an auction runs, and
+`font-variant-numeric: tabular-nums` is what stops every digit shifting sideways
+on each poll.
+
+### Two signature elements
+
+**The tear line.** A listing card is a ticket: the photograph on top, a
+perforated seam, then what it costs you. The notch marks a real division in the
+content rather than decorating an edge. It is drawn on the seam element, not the
+card, so it tracks the seam at any card width — which is why a listing card must
+never set `overflow-hidden` (the image gets its own rounded wrapper instead).
+`--notch-color` matches whatever the card sits on; the default is paper.
+
+**The price window.** A recessed dark readout with gold tabular digits. It is
+the one loud element on the page, so everything around it stays quiet, and it is
+reserved for where the price is the decision — the grid, search, and the auction
+page. On the closing-soon rail the decision is *time*, so the clock takes the
+housing there and the price is plain gold type.
+
+### Layout
+
+Header, then content on paper, then footer. On phones the header's actions move
+to a bottom tab bar, where Shopee and Lazada have trained Thai shoppers to reach
+— hiding "ลงขาย" behind a hamburger would bury the one action that grows the
+marketplace. The footer carries bottom padding to clear it.
+
+`/account` gets a sidebar through `app/account/layout.tsx`, so every account
+page has it without repeating a nav. On mobile there is no sidebar and the
+`/account` index *is* the menu, which is how Shopee behaves.
+
+### Browsing
+
+`/` and `/search` share `lib/listing.ts`, so both obey one visibility rule:
+`status = active`, and not past its closing time. Settlement is lazy — an
+auction stays `active` until someone reads it or the sweep runs — so filtering
+on status alone briefly advertises auctions that have already finished. This is
+a display filter; it settles nothing.
+
+Filters, sort and pagination are plain links that rewrite the query string, not
+client state. Every view is therefore shareable and back-button-correct, and it
+all works before JavaScript loads — which on a Thai mobile connection is most of
+the first second. Pagination rather than infinite scroll for the same reason,
+plus it does not fight the footer that carries the privacy link.
+
+Search is `contains` on the title. Postgres has no Thai word segmentation, so a
+full-text index would not tokenise Thai correctly and would give worse results
+for far more work. If it gets slow the answer is a trigram index on `title`.
+
+Under "ใกล้หมดเวลา", auctions with no closing time sort **last**
+(`nulls: "last"`). They are open-ended, so they are never the most urgent thing
+on the page; the default would rank them first and the sort would say the
+opposite of what it promises.

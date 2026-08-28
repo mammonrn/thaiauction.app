@@ -74,6 +74,11 @@ export async function findListings(query: ListingQuery): Promise<{
 }> {
   const where: Prisma.AuctionItemWhereInput = {
     status: "active",
+    // Settlement is lazy — an auction stays `active` until someone reads it or
+    // the sweep runs — so a listing filtered on status alone briefly shows
+    // items reading "หมดเวลาแล้ว" as though they could still be bid on. This
+    // is a display filter only; nothing here settles anything.
+    OR: [{ endTime: null }, { endTime: { gt: new Date() } }],
     ...(query.categorySlug ? { category: { slug: query.categorySlug } } : {}),
     // Case-insensitive substring match. Thai has no case, so `insensitive`
     // only matters for the Latin titles that appear alongside; a trigram or

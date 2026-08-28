@@ -53,7 +53,9 @@ export default async function SecurityPage() {
           </p>
         </div>
 
-        {hasPassword ? null : <SetPasswordForm />}
+        {hasPassword ? null : <div className="rounded-xl bg-white p-4 sm:p-6">
+  <SetPasswordForm />
+      </div>}
       </section>
 
       <Link

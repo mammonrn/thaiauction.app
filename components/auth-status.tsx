@@ -24,7 +24,7 @@ export async function AuthStatus() {
         </div>
         <Link
           href="/login"
-          className="shrink-0 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90"
+          className="shrink-0 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-dark"
         >
           เข้าสู่ระบบ
         </Link>

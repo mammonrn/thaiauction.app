@@ -80,13 +80,15 @@ export default async function BankAccountPage() {
         </p>
       ) : null}
 
-      <BankAccountForm
-        initial={{
-          bankCode: account?.bankCode ?? "",
-          accountNumber: account?.accountNumber ?? "",
-          accountName: account?.accountName ?? "",
-        }}
-      />
+      <div className="rounded-xl bg-white p-4 sm:p-6">
+  <BankAccountForm
+          initial={{
+            bankCode: account?.bankCode ?? "",
+            accountNumber: account?.accountNumber ?? "",
+            accountName: account?.accountName ?? "",
+          }}
+        />
+      </div>
     </main>
   );
 }

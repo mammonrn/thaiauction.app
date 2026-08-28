@@ -108,26 +108,28 @@ export default async function EditAuctionPage({
       />
 
       {editable ? (
-        <AuctionForm
-          action={updateAuctionAction}
-          categories={categories}
-          maxImages={MAX_IMAGES_PER_ITEM}
-          now={now}
-          submitLabel="บันทึกการแก้ไข"
-          initial={{
-            itemId: item.id,
-            categoryId: item.categoryId,
-            title: item.title,
-            description: item.description,
-            startPrice: String(satangToBaht(item.startPrice)),
-            buyNowPrice:
-              item.buyNowPrice === null ? "" : String(satangToBaht(item.buyNowPrice)),
-            bidIncrement: String(satangToBaht(item.bidIncrement)),
-            timed: item.endTime !== null,
-            endTime: item.endTime ? toLocalInput(item.endTime) : "",
-            images: item.images.map((key) => ({ key, url: imageUrl(key) })),
-          }}
-        />
+        <div className="rounded-xl bg-white p-4 sm:p-6">
+  <AuctionForm
+            action={updateAuctionAction}
+            categories={categories}
+            maxImages={MAX_IMAGES_PER_ITEM}
+            now={now}
+            submitLabel="บันทึกการแก้ไข"
+            initial={{
+              itemId: item.id,
+              categoryId: item.categoryId,
+              title: item.title,
+              description: item.description,
+              startPrice: String(satangToBaht(item.startPrice)),
+              buyNowPrice:
+                item.buyNowPrice === null ? "" : String(satangToBaht(item.buyNowPrice)),
+              bidIncrement: String(satangToBaht(item.bidIncrement)),
+              timed: item.endTime !== null,
+              endTime: item.endTime ? toLocalInput(item.endTime) : "",
+              images: item.images.map((key) => ({ key, url: imageUrl(key) })),
+            }}
+          />
+      </div>
       ) : (
         <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800">
           {editLockReason({ status: item.status, bidCount: item._count.bids })}
