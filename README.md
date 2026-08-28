@@ -494,3 +494,63 @@ serving `UPLOAD_DIR` directly if the extra hop matters.
 needs — the image limits, key shapes and `imageUrl()` — lives in
 `lib/image-keys.ts` instead. Importing the former from a client component drags
 sharp into the browser bundle and fails the build.
+
+### Bid increment
+
+Each listing carries `bidIncrement`, the smallest step a new bid must clear the
+current price by, stored as **Int satang** like every other price. Default
+**฿10** — low enough not to shut out cheap listings, high enough that bidding
+does not crawl up in single satang. The column default matches, so rows created
+before the field existed behave sensibly.
+
+Beyond requiring at least ฿1, one rule is worth noting: when a buy-now price is
+set the step may not exceed `buyNowPrice - startPrice`. Otherwise the very first
+legal bid already overshoots buy-now and nobody could bid at all.
+
+The value is only stored for now; the bidding system will enforce it.
+
+### Thai date and time
+
+**Native `<input type="datetime-local">` cannot be reformatted.** Tested in
+Chromium under browser locale `th-TH`, with `lang="th"` and even
+`lang="th-TH-u-ca-buddhist"`, it still rendered:
+
+```
+08/28/2026, 02:30 PM
+```
+
+Gregorian year, AM/PM, US field order. The `lang` attribute has no effect —
+the format comes from the browser and OS, not the page, and no attribute or CSS
+changes it. So `components/thai-datetime-picker.tsx` replaces it with five plain
+`<select>`s: day, full Thai month, พ.ศ. year, 00–23 hour, minute, with a live
+`28 สิงหาคม 2569 เวลา 14:30 น.` preview.
+
+Selects rather than a calendar popup: the format stays entirely under our
+control, they are keyboard- and screen-reader-friendly without a focus trap to
+maintain, and mobile gets the platform's own picker wheels.
+
+Two details worth keeping:
+
+- The posted value is the **exact instant as a UTC ISO string**, not a local
+  wall-clock string. The stored time therefore no longer depends on the server's
+  timezone matching the seller's. Database values stay UTC; only presentation is
+  Thai.
+- The picker receives the current time as a **prop from its Server Component
+  parent**. The React Compiler purity rules reject `Date.now()` during render,
+  and it also means the form's "too soon" hint is measured against the same
+  clock the Server Action validates with, so the two cannot disagree.
+
+Month names come from `Intl` rather than being typed out, so they cannot drift
+from the platform's spelling, and switching to a shorter month clamps the day
+instead of producing 31 กุมภาพันธ์. Formatting helpers live in
+`lib/thai-datetime.ts` and are used by the public auction page too.
+
+### Publish confirmation
+
+Publishing opens a review dialog listing the images, title, category, both
+prices, the bid increment and the closing time, and publishes only on a second
+confirmation. Once a bid lands the listing cannot be edited at all, so this is
+the seller's last chance to catch a wrong price or photo.
+
+Built on native `<dialog>`, which provides focus trapping, Esc-to-close and
+background inertness that a div-based modal would have to reimplement.
