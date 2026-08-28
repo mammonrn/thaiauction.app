@@ -222,3 +222,17 @@ export function checkBidAmount(
 export function isBuyNowBid(amount: number, ctx: BidContext): boolean {
   return ctx.buyNowPrice !== null && amount >= ctx.buyNowPrice;
 }
+
+/**
+ * How long a winner has to pay before losing the item.
+ *
+ * Lives here, next to the other auction rules, because both the server (which
+ * enforces it) and the pages (which count down to it) need the same number.
+ */
+export const PAYMENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const PAYMENT_WINDOW_HOURS = PAYMENT_WINDOW_MS / (60 * 60 * 1000);
+
+/** When the deadline falls for an offer made at `from`. */
+export function paymentDeadline(from: Date): Date {
+  return new Date(from.getTime() + PAYMENT_WINDOW_MS);
+}

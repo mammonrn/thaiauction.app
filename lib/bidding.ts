@@ -1,8 +1,15 @@
 import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
-import { checkBidAmount, isBuyNowBid, minimumBid } from "@/lib/auction-rules";
+import { findShillLink, type ShillLink } from "@/lib/anti-shill";
+import {
+  checkBidAmount,
+  isBuyNowBid,
+  minimumBid,
+  paymentDeadline,
+} from "@/lib/auction-rules";
 import { prisma } from "@/lib/prisma";
+import { countStrikes, STRIKE_LIMIT } from "@/lib/strikes";
 
 /**
  * Bidding and settlement.
@@ -61,10 +68,23 @@ export type PlaceBidResult =
         | "already_leading"
         | "below_minimum"
         | "above_buy_now"
-        | "not_an_amount";
+        | "not_an_amount"
+        | "banned"
+        | "shill";
       minimum?: number;
       buyNowPrice?: number | null;
+      strikes?: number;
+      shillLink?: ShillLink;
     };
+
+/**
+ * Where a bid came from. Recorded against the bid so an admin can later spot
+ * several accounts bidding from one machine on one seller's items.
+ */
+export type BidOrigin = {
+  ipAddress: string | null;
+  userAgent: string | null;
+};
 
 /**
  * Place a bid.
@@ -76,7 +96,33 @@ export async function placeBid(
   itemId: string,
   bidderId: string,
   amount: number,
+  origin: BidOrigin = { ipAddress: null, userAgent: null },
 ): Promise<PlaceBidResult> {
+  // Who the bidder IS, checked before the transaction opens.
+  //
+  // These two questions — is this account banned, and is it the seller under
+  // another name — need several queries each, and none of them can be answered
+  // any better by holding the auction's row lock while asking. Doing them here
+  // keeps the lock down to the price arithmetic that genuinely races. An
+  // auction's seller never changes, so reading it beforehand is sound; and a
+  // ban that lands microseconds later costs at most one extra bid, which is a
+  // fairness question rather than a correctness one.
+  const preCheck = await prisma.auctionItem.findUnique({
+    where: { id: itemId },
+    select: { sellerId: true },
+  });
+  if (!preCheck) return { ok: false, reason: "not_found" } as const;
+
+  const strikes = await countStrikes(bidderId);
+  if (strikes >= STRIKE_LIMIT) {
+    return { ok: false, reason: "banned", strikes } as const;
+  }
+
+  const shillLink = await findShillLink(bidderId, preCheck.sellerId);
+  if (shillLink) {
+    return { ok: false, reason: "shill", shillLink } as const;
+  }
+
   return prisma.$transaction(async (tx) => {
     const item = await lockAuction(tx, itemId);
     if (!item) return { ok: false, reason: "not_found" } as const;
@@ -122,7 +168,13 @@ export async function placeBid(
     }
 
     await tx.bid.create({
-      data: { auctionItemId: itemId, bidderId, amount },
+      data: {
+        auctionItemId: itemId,
+        bidderId,
+        amount,
+        ipAddress: origin.ipAddress,
+        userAgent: origin.userAgent,
+      },
     });
 
     const wonByBuyNow = isBuyNowBid(amount, ctx);
@@ -137,6 +189,8 @@ export async function placeBid(
               endedAt: new Date(),
               endReason: "buy_now" as const,
               winnerId: bidderId,
+              paymentState: "awaiting_payment" as const,
+              paymentDueAt: paymentDeadline(new Date()),
             }
           : {}),
       },
@@ -172,14 +226,27 @@ async function settleLocked(
       ? ("cancelled" as const)
       : ("ended" as const);
 
+  const now = new Date();
+
   await tx.auctionItem.update({
     where: { id: item.id },
     data: {
       status,
-      endedAt: new Date(),
+      endedAt: now,
       endReason:
         status === "cancelled" ? "seller_cancelled" : reason,
       winnerId: top?.bidderId ?? null,
+      // The winner's clock starts the moment the auction closes. With no
+      // winner there is nothing to collect, so no clock runs.
+      ...(top
+        ? {
+            paymentState: "awaiting_payment" as const,
+            paymentDueAt: paymentDeadline(now),
+          }
+        : {
+            paymentState: "not_applicable" as const,
+            paymentDueAt: null,
+          }),
     },
   });
 
@@ -259,4 +326,147 @@ export async function settleAllExpired(): Promise<string[]> {
     if (await settleIfExpired(id)) settled.push(id);
   }
   return settled;
+}
+
+/**
+ * The winner let their deadline pass: record a strike and offer the item on.
+ *
+ * Runs under the same row lock bidding uses, so it cannot race a payment that
+ * is landing at the same moment — the payment path takes the lock too, and
+ * whichever gets there first wins. If the payment got there first the auction
+ * is already `paid` and this does nothing.
+ *
+ * The item is offered to the next highest bidder AT THEIR OWN BID, not at the
+ * forfeited price. They never offered the higher number, so charging it would
+ * invent a bid nobody made. `currentPrice` moves down with the offer.
+ *
+ * Skipped when choosing the next holder:
+ *   - anyone who already forfeited this auction (their strike row is the
+ *     record of that, so the chain can never loop back to them);
+ *   - anyone banned, since three missed deadlines is reason enough not to
+ *     spend another 24 hours waiting on them.
+ */
+export type ForfeitResult = {
+  struckUserId: string | null;
+  nextWinnerId: string | null;
+};
+
+export async function forfeitAndReoffer(
+  itemId: string,
+): Promise<ForfeitResult> {
+  return prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<
+      {
+        id: string;
+        winnerId: string | null;
+        currentPrice: number;
+        paymentState: string;
+      }[]
+    >`
+      SELECT id, "winnerId", "currentPrice", "paymentState"
+      FROM auction_items
+      WHERE id = ${itemId}
+      FOR UPDATE
+    `;
+    const item = rows[0];
+
+    // Already paid, already exhausted, or never had a winner.
+    if (!item || item.paymentState !== "awaiting_payment" || !item.winnerId) {
+      return { struckUserId: null, nextWinnerId: null };
+    }
+
+    // The strike. Unique on (userId, auctionItemId), so a sweep that runs twice
+    // over the same lapsed deadline cannot punish the same person twice.
+    await tx.paymentStrike.upsert({
+      where: {
+        userId_auctionItemId: {
+          userId: item.winnerId,
+          auctionItemId: item.id,
+        },
+      },
+      create: {
+        userId: item.winnerId,
+        auctionItemId: item.id,
+        amount: item.currentPrice,
+      },
+      update: {},
+    });
+
+    const forfeited = await tx.paymentStrike.findMany({
+      where: { auctionItemId: item.id },
+      select: { userId: true },
+    });
+    const forfeitedIds = forfeited.map((row) => row.userId);
+
+    // Everyone banned, so they can be skipped in the same pass.
+    const banned = await tx.paymentStrike.groupBy({
+      by: ["userId"],
+      _count: { userId: true },
+      having: { userId: { _count: { gte: STRIKE_LIMIT } } },
+    });
+    const bannedIds = banned.map((row) => row.userId);
+
+    const next = await tx.bid.findFirst({
+      where: {
+        auctionItemId: item.id,
+        bidderId: { notIn: [...new Set([...forfeitedIds, ...bannedIds])] },
+      },
+      orderBy: { amount: "desc" },
+      select: { bidderId: true, amount: true },
+    });
+
+    if (!next) {
+      // Nobody left to offer it to.
+      await tx.auctionItem.update({
+        where: { id: item.id },
+        data: {
+          winnerId: null,
+          paymentState: "unpaid",
+          paymentDueAt: null,
+        },
+      });
+      return { struckUserId: item.winnerId, nextWinnerId: null };
+    }
+
+    const now = new Date();
+    await tx.auctionItem.update({
+      where: { id: item.id },
+      data: {
+        winnerId: next.bidderId,
+        currentPrice: next.amount,
+        paymentState: "awaiting_payment",
+        paymentDueAt: paymentDeadline(now),
+      },
+    });
+
+    return { struckUserId: item.winnerId, nextWinnerId: next.bidderId };
+  });
+}
+
+/**
+ * Sweep every payment deadline that has passed.
+ *
+ * The counterpart to settleAllExpired, and run from the same script for the
+ * same reason: most state changes happen lazily when someone looks at a page,
+ * but a deadline that lapses at 3am with nobody watching must still move the
+ * item on to the next bidder.
+ *
+ * Each auction gets its own transaction so one failure cannot roll back the
+ * rest of the batch.
+ */
+export async function sweepPaymentDeadlines(): Promise<string[]> {
+  const due = await prisma.auctionItem.findMany({
+    where: {
+      paymentState: "awaiting_payment",
+      paymentDueAt: { not: null, lte: new Date() },
+    },
+    select: { id: true },
+  });
+
+  const moved: string[] = [];
+  for (const { id } of due) {
+    const result = await forfeitAndReoffer(id);
+    if (result.struckUserId) moved.push(id);
+  }
+  return moved;
 }
