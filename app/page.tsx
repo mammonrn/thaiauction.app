@@ -3,8 +3,8 @@ import Link from "next/link";
 import { CountdownClock } from "@/components/countdown-clock";
 import { ListingCard } from "@/components/listing-card";
 import { ListingControls, Pagination } from "@/components/listing-controls";
-import { PriceWindow } from "@/components/price-window";
 import { imageUrl } from "@/lib/image-keys";
+import { formatBaht } from "@/lib/money";
 import {
   findCategoriesWithCounts,
   findClosingSoon,
@@ -91,17 +91,18 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
 /**
  * The closing-soonest auctions, clocks running.
  *
- * Sits on the dark red band so the gold readouts are the brightest thing on
- * the screen — which is the point, since the whole band is about urgency.
- * Scrolls horizontally on phones rather than wrapping, so it costs one screen
- * height instead of three.
+ * A STRIP, not a screen. The first draft gave these cards the same weight as
+ * the grid and the band swallowed the whole first viewport on a phone — the
+ * rail is a pointer to the grid, so it has to stay smaller than the thing it
+ * points at. The clock rides on the image as an overlay rather than taking a
+ * row of its own.
  */
 function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
   return (
     <section className="bg-brand-dark text-white">
-      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6">
-        <div className="mb-3 flex items-baseline justify-between gap-3">
-          <h2 className="text-base font-bold sm:text-lg">ปิดเร็วๆ นี้</h2>
+      <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+        <div className="mb-2.5 flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-bold sm:text-base">ปิดเร็วๆ นี้</h2>
           <Link
             href="/?sort=ending"
             className="text-xs text-white/80 underline-offset-4 hover:underline"
@@ -110,37 +111,44 @@ function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
           </Link>
         </div>
 
-        <ul className="rail -mx-4 flex gap-3 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+        <ul className="rail -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:gap-3 sm:px-0">
           {items.map((item) => (
-            <li key={item.id} className="w-36 shrink-0 sm:w-44">
+            <li key={item.id} className="w-28 shrink-0 sm:w-32">
               <Link
                 href={`/auctions/${item.id}`}
-                className="group flex flex-col gap-2"
+                className="group flex flex-col gap-1.5"
               >
-                <div className="relative aspect-square overflow-hidden rounded-lg bg-white/10">
+                <div className="relative aspect-square overflow-hidden rounded-md bg-white/10">
                   {item.images[0] ? (
                     <Image
                       src={imageUrl(item.images[0])}
                       alt=""
                       fill
-                      sizes="(min-width: 640px) 176px, 144px"
+                      sizes="(min-width: 640px) 128px, 112px"
                       className="object-cover transition-transform duration-300 group-hover:scale-[1.04]"
                       unoptimized
                     />
                   ) : null}
+                  {item.endTime ? (
+                    <span className="absolute inset-x-0 bottom-0 flex justify-center bg-ink/85 py-0.5">
+                      <CountdownClock
+                        endsAt={item.endTime.toISOString()}
+                        serverNow={now.toISOString()}
+                      />
+                    </span>
+                  ) : null}
                 </div>
-                <p className="line-clamp-1 text-xs text-white/85">
+                <p className="line-clamp-1 text-[11px] text-white/85">
                   {item.title}
                 </p>
-                <div className="flex items-center justify-between gap-2">
-                  <PriceWindow satang={item.currentPrice} size="sm" />
-                </div>
-                {item.endTime ? (
-                  <CountdownClock
-                    endsAt={item.endTime.toISOString()}
-                    serverNow={now.toISOString()}
-                  />
-                ) : null}
+                {/* Plain gold type, not the price window. The window is
+                    reserved for where the PRICE is the decision — the grid and
+                    the item page. Here the decision is time, which is why the
+                    clock got the dark housing instead. It also cannot overflow
+                    a 112px card the way a boxed seven-figure baht value would. */}
+                <span className="font-mono text-xs font-semibold tabular-nums text-gold">
+                  {formatBaht(item.currentPrice)}
+                </span>
               </Link>
             </li>
           ))}

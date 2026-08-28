@@ -67,7 +67,7 @@
 .ticket-seam {
   position: relative;
   height: 0;
-  border-top: 1px dashed color-mix(in srgb, var(--color-ink) 18%, transparent);
+  border-top: 1.5px dashed color-mix(in srgb, var(--color-ink) 26%, transparent);
 }
 
 .ticket-seam::before,

@@ -32,7 +32,10 @@ export function PriceWindow({
   }[size];
 
   return (
-    <span className="inline-flex flex-col gap-1">
+    /* self-start, or the flex parent stretches the housing to the full card
+       width and it stops reading as an instrument and starts reading as a
+       toolbar. The window should hug its digits. */
+    <span className="inline-flex w-fit max-w-full flex-col gap-1 self-start">
       {label ? (
         <span className="text-[11px] font-medium uppercase tracking-wide text-ink/50">
           {label}

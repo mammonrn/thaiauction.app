@@ -5,7 +5,12 @@ import { useEffect, useState } from "react";
 import { countdownDigits } from "@/lib/time-left";
 
 /**
- * A ticking countdown, in the same readout housing as the price.
+ * A ticking countdown.
+ *
+ * Deliberately NOT in the price window's housing. One recessed readout per
+ * card is a signature; two is a pattern, and the price stops being the thing
+ * the eye goes to. This is gold mono type on the red band instead — same
+ * family, same tabular figures, a quarter of the weight.
  *
  * Used only where the seconds actually matter — the closing-soon rail — rather
  * than on every card in the grid. Two dozen intervals to animate numbers
@@ -39,7 +44,7 @@ export function CountdownClock({
 
   return (
     <span
-      className="price-window text-xs font-semibold"
+      className="font-mono text-[11px] font-semibold tabular-nums text-gold"
       role="timer"
       aria-live="off"
     >

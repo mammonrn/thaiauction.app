@@ -44,9 +44,14 @@ export function countdownDigits(msRemaining: number): string {
     : `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
 
-/** True when an auction is close enough that the urgency styling is honest. */
+/**
+ * True when an auction is close enough that the urgency styling is honest.
+ *
+ * Six hours, not twenty-four. A day out is not urgent, and a badge that lands
+ * on most of the grid stops carrying information — it just adds red.
+ */
 export function isClosingSoon(endTime: Date | null, now: Date): boolean {
   if (!endTime) return false;
   const ms = endTime.getTime() - now.getTime();
-  return ms > 0 && ms <= 24 * 60 * 60 * 1000;
+  return ms > 0 && ms <= 6 * 60 * 60 * 1000;
 }
