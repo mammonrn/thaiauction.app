@@ -649,3 +649,94 @@ off-platform or working out a rival's budget.
 
 Capped at one year, measured from the listing's `createdAt` rather than from
 now, so editing a draft weeks later cannot quietly extend the window.
+
+## Seller identity verification (KYC)
+
+A seller uploads a photo of their national ID card; an administrator looks at it
+and approves or rejects. No automated face matching.
+
+| Route | Who |
+| --- | --- |
+| `/account/verification` | The seller — submit, see status, resubmit if rejected |
+| `/admin/verifications` | Administrators only |
+| `/api/kyc/submit` | Upload (owner) |
+| `/api/kyc/[...key]` | Read a document — **owner or admin only** |
+
+### Who is an admin
+
+```
+ADMIN_EMAILS="you@example.com,someone@else.com"
+```
+
+Deliberately **not** a column on `users`. Admin rights then live outside the
+database, so someone who gains write access to PostgreSQL still cannot make
+themselves an admin and read other people's ID cards — worth more here than
+being able to change the list without a restart. An unset or empty value grants
+nobody. Only `lib/admin.ts` decides, so moving to a role column later touches one
+file.
+
+A signed-in non-admin gets **404, not 403** — there is no reason to confirm to a
+stranger that an admin area exists.
+
+### Storage is completely separate from product images
+
+```
+UPLOAD_DIR      /var/lib/thaiauction/uploads   public product photos
+UPLOAD_DIR_KYC  /var/lib/thaiauction/kyc       identity documents
+```
+
+Separate directory, separate key shape, separate module (`lib/kyc-storage.ts`)
+and separate route. Product images are public and cached for a year; sharing any
+of that machinery would mean one mistake in the product-image path could expose
+an ID card. Create the directory restricted to the app account:
+
+```bash
+sudo install -d -m 700 -o <app-user> -g <app-group> /var/lib/thaiauction/kyc
+```
+
+Documents go through sharp exactly as product images do — decoded, so a file
+that is not a real image fails, then re-encoded, so nothing smuggled inside
+survives — but at **2400px / quality 92** rather than 1600px / 82, because a
+reviewer has to read the print on the card.
+
+Reading a document requires being its owner or an admin; anyone else gets 404,
+so a guessed key cannot even confirm a document exists. The key alone is not
+authority: the document must still be attached to a live submission, so a key
+stops resolving the moment a decision clears it. Responses are `no-store,
+private` with `no-referrer` and `nosniff`, and the review UI renders the image
+`unoptimized` so Next's image optimiser cannot copy the card into its own cache
+outside the protected directory.
+
+### Retention (PDPA)
+
+**The image is erased the moment a decision is made** — approve or reject alike.
+`documentKey` is cleared and `documentDeletedAt` stamped as evidence the rule
+ran. What survives is the audit trail: who decided, when, and the reason for a
+refusal.
+
+Consequences worth knowing:
+
+- A rejected seller must upload again, since their previous image is gone. This
+  is intended.
+- Uploading again replaces any pending request and erases its image, so **at
+  most one document per person exists at any time**.
+- A seller can withdraw a pending request themselves and have the image erased
+  without waiting for a reviewer.
+- Because files are erased on decision, **do not back up `UPLOAD_DIR_KYC`** —
+  or if you must, use a backup that expires faster than your retention promise.
+  A backup would otherwise outlive the deletion.
+
+The upload page asks sellers to cover the **ศาสนา** field before photographing.
+It appears on some Thai ID cards, is sensitive personal data under PDPA s.26
+with stricter handling requirements, and is not needed to check identity.
+
+> This reflects a data-minimisation reading of PDPA and is not legal advice. If
+> you later need to retain documents to satisfy a specific obligation (AML,
+> dispute evidence), revisit the policy with counsel before changing it.
+
+### Badges
+
+`components/seller-badges.tsx` renders two distinct badges. A **verified phone**
+means a number was proved reachable; **verified identity** means a human checked
+a government ID. They are worded and coloured differently on purpose — letting
+them read alike would overstate what the weaker one proves.
