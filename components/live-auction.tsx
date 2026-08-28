@@ -59,6 +59,18 @@ export function LiveAuction({
 }) {
   const [state, setState] = useState(initial);
   const [nowMs, setNowMs] = useState(() => new Date(initial.serverNow).getTime());
+
+  // Adopt fresh server props when the page is re-rendered by a Server Action —
+  // ending the auction, for instance, happens in a sibling component, so
+  // without this the price panel would keep showing "active" until the next
+  // poll. React's documented way to adjust state when props change: compare a
+  // marker and set during render, not in an effect.
+  const [seenServerNow, setSeenServerNow] = useState(initial.serverNow);
+  if (initial.serverNow !== seenServerNow) {
+    setSeenServerNow(initial.serverNow);
+    setState(initial);
+    setNowMs(new Date(initial.serverNow).getTime());
+  }
   const [bidState, bidAction, bidding] = useActionState(
     placeBidAction,
     initialAction,
@@ -158,6 +170,22 @@ export function LiveAuction({
         ) : null}
       </div>
 
+      {/* Outside the form on purpose: a buy-now bid ends the auction, which
+          unmounts the form. Kept here, the winner still sees the confirmation
+          that their purchase went through. */}
+      {bidState.message ? (
+        <p
+          role={bidState.ok ? "status" : "alert"}
+          className={
+            bidState.ok
+              ? "text-sm text-green-700 dark:text-green-400"
+              : "text-sm text-red-600 dark:text-red-400"
+          }
+        >
+          {bidState.message}
+        </p>
+      ) : null}
+
       {live ? (
         canBid ? (
           <form
@@ -191,18 +219,6 @@ export function LiveAuction({
             >
               {bidding ? "กำลังเสนอราคา…" : "เสนอราคา"}
             </button>
-            {bidState.message ? (
-              <p
-                role={bidState.ok ? "status" : "alert"}
-                className={
-                  bidState.ok
-                    ? "text-sm text-green-700 dark:text-green-400"
-                    : "text-sm text-red-600 dark:text-red-400"
-                }
-              >
-                {bidState.message}
-              </p>
-            ) : null}
           </form>
         ) : (
           <p className="rounded-lg border border-dashed border-black/20 px-4 py-3 text-sm text-black/60 dark:border-white/20 dark:text-white/60">
