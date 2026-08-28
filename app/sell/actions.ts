@@ -39,6 +39,7 @@ async function findOwnedItem(itemId: string, sellerId: string) {
       id: true,
       status: true,
       images: true,
+      createdAt: true,
       _count: { select: { bids: true } },
     },
   });
@@ -84,7 +85,11 @@ function echo(form: ReturnType<typeof readForm>): Record<string, string> {
 }
 
 /** Shared parse + validate for create and update. */
-function buildInput(form: ReturnType<typeof readForm>, requireImages: boolean) {
+function buildInput(
+  form: ReturnType<typeof readForm>,
+  requireImages: boolean,
+  createdAt?: Date,
+) {
   const startPriceSatang = parsePrice(form.startPriceRaw);
   const buyNowPriceSatang = parsePrice(form.buyNowPriceRaw);
   const bidIncrementSatang = parsePrice(form.bidIncrementRaw);
@@ -102,6 +107,7 @@ function buildInput(form: ReturnType<typeof readForm>, requireImages: boolean) {
     bidIncrementSatang: bidIncrementSatang ?? -1,
     endTime,
     images: form.images,
+    createdAt,
   };
 
   const errors = validateAuctionInput(input, { requireImages });
@@ -192,7 +198,7 @@ export async function updateAuctionAction(
   }
 
   const form = readForm(formData);
-  const { input, errors } = buildInput(form, owned.status === "active");
+  const { input, errors } = buildInput(form, owned.status === "active", owned.createdAt);
 
   if (input.categoryId) {
     const category = await prisma.category.count({ where: { id: input.categoryId } });
@@ -268,6 +274,7 @@ export async function publishAuctionAction(
       buyNowPriceSatang: item.buyNowPrice,
       bidIncrementSatang: item.bidIncrement,
       endTime: item.endTime,
+      createdAt: item.createdAt,
       images: item.images,
     },
     { requireImages: true },

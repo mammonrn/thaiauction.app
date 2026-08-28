@@ -2,44 +2,69 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
+import { EndAuctionButton } from "@/components/end-auction-button";
+import { LiveAuction } from "@/components/live-auction";
+import { minimumBid } from "@/lib/auction-rules";
+import { settleIfExpired } from "@/lib/bidding";
+import { maskName } from "@/lib/mask-name";
 import { formatBaht } from "@/lib/money";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/session";
 import { imageUrl } from "@/lib/uploads";
-
-/** Rendered on the server, so "time left" is computed against server time. */
-function timeLeft(endTime: Date | null): string {
-  if (!endTime) return "ไม่ระบุเวลาจบ — ผู้ขายเป็นผู้ปิดการประมูล";
-
-  const ms = endTime.getTime() - Date.now();
-  if (ms <= 0) return "หมดเวลาแล้ว";
-
-  const days = Math.floor(ms / 86_400_000);
-  const hours = Math.floor((ms % 86_400_000) / 3_600_000);
-  const minutes = Math.floor((ms % 3_600_000) / 60_000);
-
-  if (days > 0) return `เหลืออีก ${days} วัน ${hours} ชั่วโมง`;
-  if (hours > 0) return `เหลืออีก ${hours} ชั่วโมง ${minutes} นาที`;
-  return `เหลืออีก ${minutes} นาที`;
-}
 
 export default async function AuctionDetailPage({
   params,
 }: PageProps<"/auctions/[id]">) {
   const { id } = await params;
 
+  // Close it here if its clock has run out. Ordinary page views are the main
+  // way auctions get settled; the cron sweep only catches the ones nobody
+  // happens to open.
+  await settleIfExpired(id);
+
+  const session = await getSession();
+
   // Drafts are private: this page only ever resolves a published listing, so a
-  // leaked draft id shows nothing.
+  // leaked draft id shows nothing. Cancelled ones stay readable so anyone who
+  // bid can see what happened.
   const item = await prisma.auctionItem.findFirst({
-    where: { id, status: { in: ["active", "ended"] } },
+    where: { id, status: { in: ["active", "ended", "cancelled"] } },
     include: {
       category: { select: { name: true, slug: true } },
-      seller: { select: { name: true, image: true } },
+      seller: { select: { id: true, name: true, image: true } },
+      winner: { select: { name: true } },
       _count: { select: { bids: true } },
+      bids: {
+        orderBy: { amount: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          amount: true,
+          createdAt: true,
+          bidderId: true,
+          bidder: { select: { name: true } },
+        },
+      },
     },
   });
 
   if (!item) notFound();
+
+  const viewerId = session?.user.id ?? null;
+  const isSeller = viewerId === item.seller.id;
+
+  const verifiedPhones = viewerId
+    ? await prisma.verifiedPhone.count({ where: { userId: viewerId } })
+    : 0;
+
+  const cannotBid = !viewerId
+    ? "เข้าสู่ระบบเพื่อเสนอราคา"
+    : isSeller
+      ? "คุณเป็นผู้ขายรายการนี้ จึงเสนอราคาไม่ได้"
+      : verifiedPhones === 0
+        ? "กรุณายืนยันเบอร์โทรศัพท์ก่อนเสนอราคา (บัญชีของฉัน > เบอร์โทรศัพท์)"
+        : null;
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-8 px-6 py-16">
@@ -101,66 +126,77 @@ export default async function AuctionDetailPage({
             </h1>
           </div>
 
-          <div className="flex flex-col gap-1 rounded-xl border border-black/10 p-5 dark:border-white/15">
-            <span className="text-sm text-black/60 dark:text-white/60">
-              ราคาปัจจุบัน
-            </span>
-            <span className="text-3xl font-semibold">
-              {formatBaht(item.currentPrice)}
-            </span>
-            <span className="text-sm text-black/60 dark:text-white/60">
-              เปิดที่ {formatBaht(item.startPrice)} · {item._count.bids} การเสนอราคา
-            </span>
-            {item.buyNowPrice !== null ? (
-              <span className="mt-2 text-sm">
-                ซื้อทันทีที่ {formatBaht(item.buyNowPrice)}
-              </span>
-            ) : null}
-          </div>
+          <LiveAuction
+            itemId={item.id}
+            canBid={cannotBid === null}
+            reasonCannotBid={cannotBid}
+            initial={{
+              currentPrice: item.currentPrice,
+              minimumBid: minimumBid({
+                currentPrice: item.currentPrice,
+                bidIncrement: item.bidIncrement,
+                buyNowPrice: item.buyNowPrice,
+              }),
+              buyNowPrice: item.buyNowPrice,
+              bidCount: item._count.bids,
+              status: item.status,
+              endReason: item.endReason,
+              endTime: item.endTime?.toISOString() ?? null,
+              endedAt: item.endedAt?.toISOString() ?? null,
+              leader: item.bids[0] ? maskName(item.bids[0].bidder.name) : null,
+              winner: item.winner ? maskName(item.winner.name) : null,
+              serverNow: new Date().toISOString(),
+            }}
+          />
 
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-medium">
-              {item.status === "ended" ? "จบการประมูลแล้ว" : timeLeft(item.endTime)}
-            </span>
-            {item.endTime ? (
-              <span className="text-xs text-black/50 dark:text-white/50">
-                จบ {formatThaiDateTime(item.endTime)}
-              </span>
-            ) : null}
-          </div>
-
-          <div className="flex items-center gap-3 border-t border-black/10 pt-5 dark:border-white/15">
-            {item.seller.image ? (
-              <Image
-                src={item.seller.image}
-                alt=""
-                width={40}
-                height={40}
-                className="rounded-full"
-                unoptimized
-              />
-            ) : (
-              <div
-                aria-hidden="true"
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-black/10 text-sm font-medium dark:bg-white/15"
-              >
-                {item.seller.name.charAt(0).toUpperCase()}
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{item.seller.name}</span>
-              <span className="text-xs text-black/50 dark:text-white/50">
-                ผู้ขาย · ยืนยันเบอร์โทรแล้ว
-              </span>
-            </div>
-          </div>
-
-          {/* Bidding lands in the next phase. */}
-          <p className="rounded-lg border border-dashed border-black/20 px-4 py-3 text-sm text-black/60 dark:border-white/20 dark:text-white/60">
-            ระบบเสนอราคาจะเปิดให้ใช้งานเร็วๆ นี้
+          <p className="text-xs text-black/50 dark:text-white/50">
+            เปิดที่ {formatBaht(item.startPrice)} · เพิ่มขั้นต่ำครั้งละ{" "}
+            {formatBaht(item.bidIncrement)}
           </p>
+
+          {isSeller && item.status === "active" ? (
+            <EndAuctionButton itemId={item.id} bidCount={item._count.bids} />
+          ) : null}
         </div>
       </div>
+
+      {item.bids.length > 0 ? (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-sm font-medium">
+            ประวัติการเสนอราคา ({item._count.bids})
+          </h2>
+          <ul className="flex flex-col divide-y divide-black/5 dark:divide-white/10">
+            {item.bids.map((bid, index) => (
+              <li
+                key={bid.id}
+                className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+              >
+                <span className="flex items-center gap-2">
+                  {/* Names are masked: a full name next to a bid amount would
+                      let anyone approach the underbidder off-platform or work
+                      out a rival's budget. Your own bids are labelled. */}
+                  <span className={index === 0 ? "font-medium" : undefined}>
+                    {bid.bidderId === viewerId
+                      ? "คุณ"
+                      : maskName(bid.bidder.name)}
+                  </span>
+                  {index === 0 ? (
+                    <span className="rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700 dark:text-green-400">
+                      สูงสุด
+                    </span>
+                  ) : null}
+                </span>
+                <span className="flex items-center gap-3">
+                  <span className="tabular-nums">{formatBaht(bid.amount)}</span>
+                  <span className="text-xs text-black/50 dark:text-white/50">
+                    {formatThaiDateTime(bid.createdAt)}
+                  </span>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="flex flex-col gap-2">
         <h2 className="text-sm font-medium">รายละเอียดสินค้า</h2>

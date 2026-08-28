@@ -39,6 +39,12 @@ export const MAX_DESCRIPTION = 5000;
 export const MAX_PRICE_SATANG = 1_000_000_00;
 /** A timed auction must run at least this long, so it cannot close instantly. */
 export const MIN_DURATION_MS = 60 * 60 * 1000;
+/**
+ * And no longer than a year from when the listing was created. An auction open
+ * for years is indistinguishable from an abandoned one, and it would pin the
+ * seller's obligation open indefinitely.
+ */
+export const MAX_DURATION_MS = 365 * 24 * 60 * 60 * 1000;
 
 /**
  * Default bid step: ฿10.
@@ -61,6 +67,8 @@ export type AuctionDraftInput = {
   bidIncrementSatang: number;
   endTime: Date | null;
   images: string[];
+  /** When the listing was created; the one-year cap is measured from here. */
+  createdAt?: Date;
 };
 
 export type AuctionFieldErrors = Partial<
@@ -138,11 +146,18 @@ export function validateAuctionInput(
   }
 
   if (input.endTime) {
-    const remaining = input.endTime.getTime() - Date.now();
+    const now = Date.now();
+    const remaining = input.endTime.getTime() - now;
+    // Measured from when the listing was created, not from now, so editing a
+    // draft days later cannot quietly extend the window past a year.
+    const fromCreation = input.endTime.getTime() - (input.createdAt ?? new Date(now)).getTime();
+
     if (Number.isNaN(input.endTime.getTime())) {
       errors.endTime = "วันเวลาที่จบไม่ถูกต้อง";
     } else if (remaining < MIN_DURATION_MS) {
       errors.endTime = "เวลาจบต้องห่างจากตอนนี้อย่างน้อย 1 ชั่วโมง";
+    } else if (fromCreation > MAX_DURATION_MS) {
+      errors.endTime = "เวลาจบต้องไม่เกิน 1 ปีนับจากวันที่สร้างรายการ";
     }
   }
 
@@ -153,4 +168,57 @@ export function validateAuctionInput(
   }
 
   return errors;
+}
+
+
+/* ------------------------------------------------------------------ bidding */
+
+export type BidContext = {
+  currentPrice: number;
+  bidIncrement: number;
+  buyNowPrice: number | null;
+};
+
+/**
+ * The smallest bid that will be accepted right now.
+ *
+ * Normally current + increment. When a buy-now price exists and that step would
+ * land above it, buy-now itself becomes the only acceptable amount: bids above
+ * buy-now are refused, so without this special case the increment could put the
+ * item out of reach and nobody could bid at all.
+ */
+export function minimumBid(ctx: BidContext): number {
+  const stepped = ctx.currentPrice + ctx.bidIncrement;
+  if (ctx.buyNowPrice !== null && stepped > ctx.buyNowPrice) {
+    return ctx.buyNowPrice;
+  }
+  return stepped;
+}
+
+export type BidRejection =
+  | "below_minimum"
+  | "above_buy_now"
+  | "not_an_amount";
+
+/** Pure amount check, shared by the form hint and the transaction. */
+export function checkBidAmount(
+  amount: number,
+  ctx: BidContext,
+): BidRejection | null {
+  if (!Number.isInteger(amount) || amount <= 0) return "not_an_amount";
+
+  // Checked before the minimum: when buy-now is the only legal amount, an
+  // overshoot should be reported as "too high", not "too low".
+  if (ctx.buyNowPrice !== null && amount > ctx.buyNowPrice) {
+    return "above_buy_now";
+  }
+
+  if (amount < minimumBid(ctx)) return "below_minimum";
+
+  return null;
+}
+
+/** True when this amount closes the auction outright. */
+export function isBuyNowBid(amount: number, ctx: BidContext): boolean {
+  return ctx.buyNowPrice !== null && amount >= ctx.buyNowPrice;
 }

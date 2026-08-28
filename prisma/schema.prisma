@@ -19,6 +19,21 @@ datasource db {
 /// ended     = finished (time ran out, or bought via buy-now)
 /// cancelled = pulled by the seller/admin before it ended
 
+/// Why an auction stopped, kept so the detail page can say "ขายด้วยราคาซื้อทันที"
+/// rather than just "จบแล้ว".
+enum AuctionEndReason {
+  /// endTime passed.
+  expired
+  /// Someone bid the buy-now price.
+  buy_now
+  /// The seller closed it early while bids existed.
+  seller_ended
+  /// The seller closed it early with no bids, so there is no winner.
+  seller_cancelled
+
+  @@map("auction_end_reason")
+}
+
 enum AuctionStatus {
   draft
   active
@@ -48,6 +63,7 @@ model User {
   verifiedPhones    VerifiedPhone[]
   phoneOtpRequests  PhoneOtpRequest[]
   auctionItems      AuctionItem[]     @relation("SellerAuctionItems")
+  wonAuctionItems   AuctionItem[]     @relation("WonAuctionItems")
   bids              Bid[]
 
   sessions Session[]
@@ -133,20 +149,31 @@ model AuctionItem {
   /// Null = no fixed closing time; the seller ends the auction manually.
   endTime DateTime?
 
-  status    AuctionStatus @default(draft)
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  status AuctionStatus @default(draft)
+
+  /// Settlement, written once when the auction stops. The winner is recorded
+  /// rather than derived from the bids, so the outcome is a fixed fact even if
+  /// the bid history is ever archived or re-read differently later.
+  endedAt   DateTime?
+  endReason AuctionEndReason?
+  winnerId  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Restrict, not Cascade: an auction is a financial record. Deleting a seller
   // must not silently erase auctions other people bid on.
   seller   User     @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
+  winner   User?    @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
   category Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   bids     Bid[]
 
   // "Live auctions, soonest ending first" — the main marketplace query.
   // Category browse pages.
   // A seller's own listings.
+  // Sweeping auctions whose time has passed but that nobody has opened yet.
   @@index([status, endTime])
+  @@index([winnerId])
   @@index([categoryId, status])
   @@index([sellerId])
   @@map("auction_items")
