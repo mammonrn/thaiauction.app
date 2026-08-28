@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { validateAddress, type FieldErrors } from "@/lib/address-validation";
+import {
+  validateAddress,
+  type AddressInput,
+  type FieldErrors,
+} from "@/lib/address-validation";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
@@ -10,6 +14,14 @@ export type AddressActionState = {
   ok: boolean;
   message: string | null;
   errors?: FieldErrors;
+  /**
+   * The values as submitted, echoed back on failure.
+   *
+   * React 19 resets an uncontrolled form once its action resolves, so without
+   * this a rejected submission would wipe everything the user typed and make
+   * them retype the whole address to fix one field.
+   */
+  values?: Record<keyof AddressInput, string>;
 };
 
 const GENERIC_FAILURE = "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง";
@@ -49,9 +61,15 @@ export async function createAddressAction(
 ): Promise<AddressActionState> {
   const { user } = await requireSession("/account/addresses");
 
-  const parsed = validateAddress(readAddressForm(formData));
+  const submitted = readAddressForm(formData);
+  const parsed = validateAddress(submitted);
   if (!parsed.ok) {
-    return { ok: false, message: "กรุณาตรวจสอบข้อมูลที่กรอก", errors: parsed.errors };
+    return {
+      ok: false,
+      message: "กรุณาตรวจสอบข้อมูลที่กรอก",
+      errors: parsed.errors,
+      values: submitted,
+    };
   }
 
   try {
@@ -87,9 +105,15 @@ export async function updateAddressAction(
     return { ok: false, message: "ไม่พบที่อยู่นี้" };
   }
 
-  const parsed = validateAddress(readAddressForm(formData));
+  const submitted = readAddressForm(formData);
+  const parsed = validateAddress(submitted);
   if (!parsed.ok) {
-    return { ok: false, message: "กรุณาตรวจสอบข้อมูลที่กรอก", errors: parsed.errors };
+    return {
+      ok: false,
+      message: "กรุณาตรวจสอบข้อมูลที่กรอก",
+      errors: parsed.errors,
+      values: submitted,
+    };
   }
 
   try {

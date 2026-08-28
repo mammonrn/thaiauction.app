@@ -51,6 +51,11 @@ export function AddressForm({
 
   const err = state.errors;
 
+  // Prefer what the user just submitted (echoed back by the action when
+  // validation failed) over the row's saved values, so a rejected submit keeps
+  // their edits instead of reverting the fields.
+  const v = state.values ?? initial;
+
   return (
     <form
       action={formAction}
@@ -61,7 +66,7 @@ export function AddressForm({
       <Field
         label="ชื่อผู้รับ"
         name="recipientName"
-        defaultValue={initial?.recipientName}
+        defaultValue={v?.recipientName}
         maxLength={ADDRESS_FIELD_MAX.recipientName}
         error={err?.recipientName}
         autoComplete="name"
@@ -70,7 +75,7 @@ export function AddressForm({
       <Field
         label="เบอร์โทรศัพท์"
         name="phone"
-        defaultValue={initial?.phone}
+        defaultValue={v?.phone}
         maxLength={ADDRESS_FIELD_MAX.phone}
         error={err?.phone}
         autoComplete="tel"
@@ -81,7 +86,7 @@ export function AddressForm({
       <Field
         label="ที่อยู่ (บ้านเลขที่ ถนน อาคาร)"
         name="addressLine"
-        defaultValue={initial?.addressLine}
+        defaultValue={v?.addressLine}
         maxLength={ADDRESS_FIELD_MAX.addressLine}
         error={err?.addressLine}
         autoComplete="street-address"
@@ -91,28 +96,28 @@ export function AddressForm({
         <Field
           label="ตำบล/แขวง"
           name="subDistrict"
-          defaultValue={initial?.subDistrict}
+          defaultValue={v?.subDistrict}
           maxLength={ADDRESS_FIELD_MAX.subDistrict}
           error={err?.subDistrict}
         />
         <Field
           label="อำเภอ/เขต"
           name="district"
-          defaultValue={initial?.district}
+          defaultValue={v?.district}
           maxLength={ADDRESS_FIELD_MAX.district}
           error={err?.district}
         />
         <Field
           label="จังหวัด"
           name="province"
-          defaultValue={initial?.province}
+          defaultValue={v?.province}
           maxLength={ADDRESS_FIELD_MAX.province}
           error={err?.province}
         />
         <Field
           label="รหัสไปรษณีย์"
           name="postalCode"
-          defaultValue={initial?.postalCode}
+          defaultValue={v?.postalCode}
           maxLength={5}
           error={err?.postalCode}
           inputMode="numeric"
