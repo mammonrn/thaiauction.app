@@ -109,6 +109,7 @@ export async function sendOtpAction(
     data: {
       userId: user.id,
       phone,
+      purpose: "verify_phone",
       token: issued.token,
       refno: issued.refno,
       expiresAt: new Date(now.getTime() + OTP_TTL_MS),
@@ -146,6 +147,11 @@ export async function verifyOtpAction(
     where: {
       userId: user.id,
       phone,
+      // Only a code asked for THIS purpose counts. Codes sent to unlock a
+      // payout account or reset a password go to a number this user has
+      // already verified, so without the filter one of those SMS would also
+      // satisfy this form.
+      purpose: "verify_phone",
       consumedAt: null,
       expiresAt: { gt: new Date() },
     },

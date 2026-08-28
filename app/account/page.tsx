@@ -159,6 +159,19 @@ export default async function AccountPage() {
           <SignOutButton />
         </div>
       </Group>
+
+      {/* Last, and deliberately so. The privacy policy used to sit in the
+          footer at body size next to the brand, which gave a legal document
+          the same weight as the product. It is still in the footer — signed-out
+          visitors need a route to it and PDPA expects it to be findable — but
+          this is where someone who is looking for it will look. */}
+      <Group title="เกี่ยวกับ ThaiAuction">
+        <Row
+          href="/privacy"
+          title="นโยบายความเป็นส่วนตัว"
+          detail="ข้อมูลที่เราเก็บ และสิทธิ์ของคุณตาม PDPA"
+        />
+      </Group>
     </main>
   );
 }
@@ -173,7 +186,9 @@ function Group({
 }) {
   return (
     <section className="flex flex-col gap-0 overflow-hidden rounded-xl bg-white">
-      <h2 className="px-5 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-ink/45">
+      {/* No `uppercase`: every other heading here is Thai, which the transform
+          leaves alone, but it would render the brand as "THAIAUCTION". */}
+      <h2 className="px-5 pb-1 pt-4 text-xs font-semibold tracking-wide text-ink/45">
         {title}
       </h2>
       <div className="flex flex-col divide-y divide-black/[.06]">{children}</div>

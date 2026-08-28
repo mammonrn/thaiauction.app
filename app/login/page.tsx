@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
+import { PasswordSignInForm } from "@/components/password-sign-in-form";
 import { getSession } from "@/lib/session";
 
 /**
@@ -45,10 +46,23 @@ export default async function LoginPage({
 
         <GoogleSignInButton redirectTo={target} />
 
+        {/* Google first, because it is how every account here is created —
+            `disableSignUp` keeps the password endpoint closed to new users.
+            The password form is for people who added one afterwards, and it
+            had been missing entirely: an account could set a password on the
+            security page and then have nowhere to type it. */}
+        <div className="flex items-center gap-3 text-xs text-ink/45">
+          <span className="h-px flex-1 bg-black/10" />
+          หรือ
+          <span className="h-px flex-1 bg-black/10" />
+        </div>
+
+        <PasswordSignInForm redirectTo={target} />
+
         <p className="text-center text-xs leading-relaxed text-ink/50">
-          ตอนนี้รองรับการเข้าสู่ระบบด้วย Google เท่านั้น
+          บัญชีใหม่สมัครผ่าน Google เท่านั้น
           <br />
-          คุณตั้งรหัสผ่านเพิ่มได้ภายหลังจากเข้าสู่ระบบแล้ว
+          ตั้งรหัสผ่านเพิ่มได้ในหน้าความปลอดภัยหลังเข้าสู่ระบบแล้ว
         </p>
 
         <Link

@@ -34,6 +34,24 @@ enum AuctionEndReason {
   @@map("auction_end_reason")
 }
 
+/// What a one-time code is allowed to authorise.
+///
+/// One table holds every OTP challenge, so without this a code sent to change
+/// a payout account could be typed into the phone-verification form, or a
+/// password-reset code could unlock a bank account. Each flow only ever looks
+/// for its own purpose, so a code is spent on the thing it was asked for.
+enum OtpPurpose {
+  /// Prove a NEW number belongs to you.
+  verify_phone
+  /// Unlock the payout account for one change, sent to an ALREADY verified
+  /// number.
+  bank_change
+  /// Set a new password while signed out, sent to an already verified number.
+  password_reset
+
+  @@map("otp_purpose")
+}
+
 /// Where a seller's identity check stands.
 enum SellerVerificationStatus {
   pending
@@ -421,6 +439,10 @@ model PhoneOtpRequest {
   /// Short reference shown in the SMS so the user can match code to request.
   refno String
 
+  /// What this code may be used for. Defaults to verify_phone so rows written
+  /// before this column existed keep their original meaning.
+  purpose OtpPurpose @default(verify_phone)
+
   /// Wrong-PIN count, to stop a 6-digit code being brute-forced.
   attempts   Int       @default(0)
   /// Local copy of the expiry, so an obviously dead challenge is rejected
@@ -435,7 +457,7 @@ model PhoneOtpRequest {
 
   // Finding the newest live challenge, and counting recent sends per number
   // for the rate limit.
-  @@index([userId, phone, createdAt])
+  @@index([userId, phone, purpose, createdAt])
   @@index([phone, createdAt])
   @@map("phone_otp_requests")
 }
@@ -609,10 +631,75 @@ model SellerBankAccount {
   /// the payout, not a reason to refuse the account. Recomputed on every save.
   nameMatchesKyc Boolean @default(false)
 
+  /// While set and in the future, the form accepts ONE change.
+  ///
+  /// The first save is free — there is nothing to protect yet. After that the
+  /// account is where money goes, so changing it is the single most valuable
+  /// thing an attacker with a stolen session could do. An OTP to an already
+  /// verified number opens this window; saving closes it again.
+  unlockedUntil DateTime?
+
+  /// The verified number the open unlock was sent to, copied into the audit
+  /// when the change lands. Cleared with the unlock.
+  unlockedByPhone String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  changes BankAccountChange[]
 
   @@map("seller_bank_accounts")
+}
+
+/// Every change to a payout account after the first save.
+///
+/// Kept because a redirected payout is only discoverable after the fact: the
+/// seller says the money never arrived, and this is the record of when the
+/// destination moved and which number authorised it. Both sides of the change
+/// are stored — a log that says only "it changed" cannot trace where to.
+model BankAccountChange {
+  id     String @id @default(cuid())
+  userId String
+
+  previousBankCode      String
+  previousAccountNumber String
+  previousAccountName   String
+
+  newBankCode       String
+  newAccountNumber  String
+  newAccountName    String
+  /// Whether the NEW name matched KYC, so a reviewer can see at a glance
+  /// whether a change moved money towards a different person.
+  newNameMatchesKyc Boolean
+
+  /// The verified number the unlocking OTP was sent to.
+  authorisedByPhone String
+
+  changedAt DateTime @default(now())
+
+  account SellerBankAccount @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@index([userId, changedAt])
+  @@map("bank_account_changes")
+}
+
+/// Throttle for the signed-out password reset.
+///
+/// The email is stored as a SHA-256 hash, never in the clear: the flow answers
+/// identically whether or not an account exists, and a table listing the
+/// addresses people tried to reset would give away exactly what the answers
+/// are careful not to.
+model PasswordResetRequest {
+  id String @id @default(cuid())
+
+  /// SHA-256 of the lowercased, trimmed email address.
+  emailHash String
+  ipAddress String?
+
+  createdAt DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([ipAddress, createdAt])
+  @@map("password_reset_requests")
 }

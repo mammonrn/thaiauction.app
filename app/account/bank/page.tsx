@@ -1,9 +1,9 @@
 import Link from "next/link";
 
 import { BankAccountForm } from "@/components/bank-account-form";
+import { isUnlocked, maskBankAccount } from "@/lib/bank-account";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
-import { bankName } from "@/lib/thai-banks";
 
 /**
  * Where a seller's share is sent.
@@ -15,7 +15,7 @@ import { bankName } from "@/lib/thai-banks";
 export default async function BankAccountPage() {
   const { user } = await requireSession("/account/bank");
 
-  const [account, identity] = await Promise.all([
+  const [account, identity, verifiedPhoneCount, lastChange] = await Promise.all([
     prisma.sellerBankAccount.findUnique({
       where: { userId: user.id },
       select: {
@@ -23,15 +23,27 @@ export default async function BankAccountPage() {
         accountNumber: true,
         accountName: true,
         nameMatchesKyc: true,
+        unlockedUntil: true,
       },
     }),
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
       select: { firstName: true, lastName: true },
     }),
+    prisma.verifiedPhone.count({ where: { userId: user.id } }),
+    prisma.bankAccountChange.findFirst({
+      where: { userId: user.id },
+      orderBy: { changedAt: "desc" },
+      select: { changedAt: true },
+    }),
   ]);
 
   const hasKycName = Boolean(identity.firstName && identity.lastName);
+  const unlocked = isUnlocked(account?.unlockedUntil ?? null);
+  // While the account is locked its digits never leave the server: the form is
+  // not rendered, so sending them as props would put the full number in the
+  // page source for nothing.
+  const editable = account === null || unlocked;
 
   return (
     <main className="flex w-full flex-col gap-5">
@@ -74,21 +86,38 @@ export default async function BankAccountPage() {
         </p>
       ) : null}
 
-      {account ? (
-        <p className="text-sm text-ink/60">
-          บัญชีปัจจุบัน: {bankName(account.bankCode)} — {account.accountNumber}
-        </p>
-      ) : null}
-
       <div className="rounded-xl bg-white p-4 sm:p-6">
-  <BankAccountForm
-          initial={{
-            bankCode: account?.bankCode ?? "",
-            accountNumber: account?.accountNumber ?? "",
-            accountName: account?.accountName ?? "",
-          }}
+        <BankAccountForm
+          initial={
+            editable
+              ? {
+                  bankCode: account?.bankCode ?? "",
+                  accountNumber: account?.accountNumber ?? "",
+                  accountName: account?.accountName ?? "",
+                }
+              : { bankCode: "", accountNumber: "", accountName: "" }
+          }
+          masked={
+            account ? maskBankAccount(account.bankCode, account.accountNumber) : null
+          }
+          unlocked={unlocked}
+          hasVerifiedPhone={verifiedPhoneCount > 0}
         />
       </div>
+
+      {/* Shown to the seller, not only kept for staff: someone who did not
+          make this change is the person best placed to notice it. */}
+      {lastChange ? (
+        <p className="text-sm text-ink/55">
+          เปลี่ยนบัญชีล่าสุดเมื่อ{" "}
+          {lastChange.changedAt.toLocaleString("th-TH", {
+            dateStyle: "long",
+            timeStyle: "short",
+            timeZone: "Asia/Bangkok",
+          })}{" "}
+          — หากไม่ใช่คุณ กรุณาติดต่อทีมงานทันที
+        </p>
+      ) : null}
     </main>
   );
 }
