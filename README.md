@@ -405,3 +405,92 @@ The real SMS round-trip cannot be exercised here: it needs live credentials and
 sends a real, billed message. On the VPS, with `OTP_STUB_MODE` unset, confirm
 that the SMS arrives, that its `refno` matches the one shown on screen, and that
 the code verifies.
+
+## Selling (auction listings)
+
+| Route | Purpose |
+| --- | --- |
+| `/sell` | The seller's own listings, drafts included |
+| `/sell/new` | Create a listing (saved as a draft) |
+| `/sell/[id]/edit` | Edit, publish or delete a draft |
+| `/auctions/[id]` | Public detail page (active and ended only) |
+
+### Verified phone required
+
+`/sell/new` and publishing both call `requireVerifiedSeller()`, which needs at
+least one row in `verified_phones`. Listing an item is where a stranger is asked
+to send money, so a seller has to be reachable by more than a throwaway email.
+Sellers without one are redirected to
+`/account/phone?reason=sell&next=/sell/new`, which explains why and links back.
+`next` accepts only a relative single-slash path, so it cannot become an open
+redirect.
+
+### When a listing can be edited
+
+| State | Editable |
+| --- | --- |
+| `draft` | Yes — it is private |
+| `active`, no bids | Yes |
+| `active`, has bids | **No** |
+| `ended` / `cancelled` | No |
+
+Once a bid exists the **whole** listing locks, not just the price: changing the
+photos or description alters what someone committed money against just as much
+as changing the number. The rule lives in `lib/auction-rules.ts` and is
+re-checked inside the Server Action, not merely used to hide the form — a tab
+opened before the first bid cannot post an edit after it.
+
+### Image uploads
+
+Stored **outside the project directory**, at `UPLOAD_DIR`:
+
+```
+UPLOAD_DIR="/var/lib/thaiauction/uploads"
+```
+
+Keep it outside so a redeploy, rebuild or `git clean` cannot delete uploads, and
+back that directory up — it is the one piece of state not in PostgreSQL. It
+defaults to `./storage/uploads` (git-ignored) for local development.
+
+```
+<UPLOAD_DIR>/staging/<userId>/<uuid>.webp   before the listing is saved
+<UPLOAD_DIR>/items/<itemId>/<uuid>.webp     after
+```
+
+**Validation is by content, never by name.** sharp parses the bytes, so a file
+that is not a real JPEG/PNG/WebP fails to decode whatever its extension or
+`Content-Type` claims. It is then re-encoded to WebP, so what lands on disk is
+an image sharp itself produced — a real image with a payload appended does not
+survive the round trip. Filenames are fresh UUIDs, never the uploader's, so a
+name can carry no path and no second extension. `rotate()` applies the EXIF
+orientation before the metadata is dropped, which keeps phone photos upright and
+strips the GPS coordinates many cameras embed.
+
+| Limit | Value |
+| --- | --- |
+| Max per file | 10 MB |
+| Images per item | 1–10 |
+| Longest edge | 1600px |
+| Stored format | WebP, quality 82 |
+
+A 4000×3000 JPEG comes out at roughly 5% of its original size.
+
+Uploads go one file per request to `/api/uploads`, not through the form action:
+a Server Action body is capped at 1MB by default and ten untouched phone photos
+are far past any sane cap. Each file lands in the caller's staging area and is
+moved into `items/<itemId>/` on save — which is also what proves the caller owns
+the file it is claiming. Orphaned staged files are swept after 24 hours on the
+next upload by the same user.
+
+Images are served by `/api/images/[...key]`, which pattern-checks the key and
+confirms the resolved path is inside the upload root, so a crafted key cannot
+walk out of it. Item images are public and cached immutably; staging images are
+private to their owner. For production, that route can be put behind nginx
+serving `UPLOAD_DIR` directly if the extra hop matters.
+
+### Client/server split
+
+`lib/uploads.ts` is `server-only` and pulls in sharp. Anything the browser also
+needs — the image limits, key shapes and `imageUrl()` — lives in
+`lib/image-keys.ts` instead. Importing the former from a client component drags
+sharp into the browser bundle and fails the build.
