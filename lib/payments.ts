@@ -13,6 +13,7 @@ import {
   retrieveCharge,
   type OmiseCharge,
 } from "@/lib/omise";
+import { failureMessage } from "@/lib/omise-failures";
 import { splitPayment } from "@/lib/payment-math";
 import { prisma } from "@/lib/prisma";
 
@@ -51,6 +52,7 @@ export type StartPaymentFailure =
   | "already_paid"
   | "attempt_in_flight"
   | "amount_out_of_range"
+  | "declined"
   | "gateway_error";
 
 export type StartPaymentResult =
@@ -200,6 +202,19 @@ export async function startCardPayment(
   }
 
   await adoptCharge(reserved.paymentId, charge);
+
+  // A card settles synchronously, so the outcome is known right here. Say so
+  // now rather than returning "started" and letting the browser discover the
+  // decline on its next poll — the buyer gets the bank's actual reason
+  // immediately, and the failed attempt is already recorded either way.
+  if (charge.status === "failed") {
+    return {
+      ok: false,
+      reason: "declined",
+      message: failureMessage(charge.failure_code, charge.failure_message),
+    };
+  }
+
   return { ok: true, paymentId: reserved.paymentId };
 }
 

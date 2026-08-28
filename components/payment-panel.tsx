@@ -236,11 +236,21 @@ export function PaymentPanel({
           <p className="text-sm">
             สแกน QR นี้ด้วยแอปธนาคารเพื่อชำระ {formatBaht(amount)}
           </p>
+          {/* Omise serves a full PromptPay payment slip, not a bare QR square:
+              a 740x1050 portrait SVG carrying the logo, the amount and the
+              code. Forcing it into a square would stretch it by ~40% and a
+              distorted QR does not scan, so the width is fixed and the height
+              follows the intrinsic ratio.
+
+              The src is Omise's stable api.omise.co document URL, which 302s to
+              a presigned S3 link valid for only 60 seconds. Storing that
+              redirect target instead would give us a URL that dies a minute
+              later; this one re-signs on every load. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={payment.qrDownloadUri ?? ""}
-            alt="PromptPay QR"
-            className="h-64 w-64"
+            alt="PromptPay QR สำหรับชำระเงิน"
+            className="h-auto w-full max-w-[320px]"
           />
           <p className="text-center text-xs text-black/50 dark:text-white/50">
             หน้านี้จะอัปเดตเองเมื่อชำระเงินสำเร็จ ไม่ต้องรีเฟรช

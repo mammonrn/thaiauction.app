@@ -1,3 +1,4 @@
+import { failureMessage } from "@/lib/omise-failures";
 import { refreshPayment } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
@@ -52,6 +53,7 @@ export async function GET(
       amount: true,
       qrDownloadUri: true,
       expiresAt: true,
+      failureCode: true,
       failureMessage: true,
       auctionItemId: true,
     },
@@ -64,7 +66,12 @@ export async function GET(
       amount: payment.amount,
       qrDownloadUri: payment.qrDownloadUri,
       expiresAt: payment.expiresAt?.toISOString() ?? null,
-      failureMessage: payment.failureMessage,
+      // Omise's raw English message is kept in the database for the audit
+      // trail; what the buyer sees is the Thai explanation for that code.
+      failureMessage:
+        payment.status === "failed"
+          ? failureMessage(payment.failureCode, payment.failureMessage)
+          : null,
       auctionItemId: payment.auctionItemId,
       serverNow: new Date().toISOString(),
     },

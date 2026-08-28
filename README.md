@@ -897,6 +897,31 @@ clicks cannot both reach the gateway. Every charge carries its payment row id
 in `metadata`, so the reconcile sweep can find and adopt a charge created just
 before a crash rather than leaving money unaccounted for.
 
+### What the PromptPay QR actually is
+
+Omise does not return a bare QR square. `download_uri` serves a **740x1050
+portrait SVG payment slip** carrying the PromptPay branding, the amount and the
+code. It is rendered at a fixed width with automatic height — forcing it into a
+square stretches it by about 40%, and a non-uniformly distorted QR does not
+scan.
+
+The stored URI is Omise's own `api.omise.co/charges/.../downloads/...` address,
+which **302-redirects to a presigned S3 link valid for 60 seconds**. That
+redirect resolves without credentials, so a plain `<img src>` works; storing the
+redirect target instead would save a URL that dies a minute later.
+
+### Fee rates differ by method
+
+Observed on the test API: a card charge is billed at about **3.65%** plus VAT,
+PromptPay at about **1.65%**. This is exactly why the commission is computed
+from the charge's own `net` rather than from a rate constant — a hard-coded
+percentage would be wrong for one of the two methods, and would silently drift
+if Omise repriced.
+
+PromptPay charges also carry populated `fee`/`net` while still `pending`. Those
+are not recorded: money has not moved yet, and only a `successful` charge
+writes the split.
+
 ### The 24-hour rule and the re-offer chain
 
 A winner has 24 hours to pay. If they do not:
@@ -923,6 +948,32 @@ npm run auctions:settle    # 1. close expired auctions
 Reconciling **before** judging deadlines is the important part: a payment that
 landed while nobody was watching must be seen first, or a buyer who paid on
 time would be struck for not paying.
+
+### Declines
+
+A card settles synchronously, so a decline is reported straight back from the
+Server Action rather than left for the browser's next poll to discover.
+
+Omise returns `failure_message` in English. The buyer is shown a Thai
+explanation keyed off the stable `failure_code` (`lib/omise-failures.ts`), with
+Omise's English as the fallback for unmapped codes. The original English is
+still stored — the database keeps what the gateway said, the UI shows what the
+buyer can act on.
+
+### Testing against the real API
+
+Test keys are prefixed `pkey_test_` / `skey_test_`. Cards settle immediately;
+PromptPay is an offline flow, so a test charge is advanced with Omise's own
+test-mode endpoints rather than by scanning anything:
+
+```bash
+curl https://api.omise.co/charges/{id}/mark_as_paid   -X POST -u $OMISE_SECRET_KEY:
+curl https://api.omise.co/charges/{id}/mark_as_failed -X POST -u $OMISE_SECRET_KEY:
+```
+
+The same actions are on the dashboard's yellow **Actions** button. Useful test
+cards: `4242424242424242` succeeds, `4111111111140011` returns
+`insufficient_fund`.
 
 ### Payouts
 

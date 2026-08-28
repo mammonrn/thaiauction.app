@@ -32,6 +32,8 @@ const FAILURES: Record<StartPaymentFailure, string> = {
     "มีรายการชำระเงินที่ยังไม่เสร็จสิ้นอยู่ กรุณาชำระให้เสร็จหรือรอให้ QR หมดอายุก่อนเริ่มใหม่",
   amount_out_of_range:
     "ยอดเงินอยู่นอกช่วงที่ PromptPay รองรับ (฿20 – ฿150,000) กรุณาชำระด้วยบัตรเครดิตแทน",
+  // Replaced by the bank's own reason, which startCardPayment supplies.
+  declined: "บัตรถูกปฏิเสธ กรุณาลองบัตรอื่นหรือชำระด้วย PromptPay",
   gateway_error: "ติดต่อระบบชำระเงินไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
 };
 
@@ -62,9 +64,11 @@ export async function payWithCardAction(
     return {
       ok: false,
       message:
-        result.reason === "gateway_error" && result.message
-          ? `ชำระเงินไม่สำเร็จ: ${result.message}`
-          : FAILURES[result.reason],
+        result.reason === "declined" && result.message
+          ? result.message
+          : result.reason === "gateway_error" && result.message
+            ? `ชำระเงินไม่สำเร็จ: ${result.message}`
+            : FAILURES[result.reason],
     };
   }
 
