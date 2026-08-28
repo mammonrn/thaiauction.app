@@ -36,7 +36,9 @@ type Capability = {
   country: string;
   banks: string[];
   zero_interest_installments: boolean;
-  limits: Record<string, { min: number; max: number }>;
+  /// `max` is genuinely absent on installment_amount — only a floor is
+  /// published, and the global charge_amount ceiling applies above it.
+  limits: Record<string, { min: number; max?: number }>;
   payment_methods: PaymentMethod[];
   tokenization_methods: (string | null)[];
 };
@@ -74,6 +76,23 @@ async function call<T>(
   return (await response.json()) as T;
 }
 
+/**
+ * The fields that decide feasibility, rather than a truncated JSON blob —
+ * truncation hid `authorize_uri` and `status` on the first run.
+ */
+function summarise(o: Record<string, unknown>): string {
+  if (o.object === "error") return `ERROR ${o.code} — ${o.message}`;
+  const keep = [
+    "id", "object", "status", "flow", "installment_term", "absorption_type",
+    "amount", "fee", "fee_vat", "interest", "interest_vat", "net",
+    "authorize_uri", "expires_at",
+  ];
+  return keep
+    .filter((k) => o[k] !== undefined && o[k] !== null)
+    .map((k) => `${k}=${String(o[k])}`)
+    .join(" ");
+}
+
 const baht = (satang: number) =>
   `฿${(satang / 100).toLocaleString("en-US", { minimumFractionDigits: 2 })}`;
 
@@ -108,7 +127,7 @@ async function main() {
   console.log("  limits:");
   for (const [name, range] of Object.entries(cap.limits ?? {})) {
     console.log(
-      `    ${name.padEnd(20)} ${baht(range.min)} – ${baht(range.max)}`,
+      `    ${name.padEnd(20)} ${baht(range.min)} – ${range.max === undefined ? "(no ceiling published)" : baht(range.max)}`,
     );
   }
 
@@ -157,18 +176,21 @@ async function main() {
       currency: "THB",
       type: method.name,
       installment_term: String(term),
-      "platform_type": "WEB",
+      platform_type: "WEB",
     });
-    console.log("  source:", JSON.stringify(source).slice(0, 400));
+    console.log("  source:", summarise(source));
 
     if (typeof source.id !== "string") continue;
+    // NOTE: if zero_interest_installments is sent here it must ALSO be sent on
+    // the charge below. Sending it on only one of the two is rejected with
+    // "one or more charge parameters don't match source parameters".
     const charge = await call<Record<string, unknown>>("/charges", secretKey, {
       amount: String(amount),
       currency: "THB",
       source: source.id,
       return_uri: RETURN_URI,
     });
-    console.log("  charge:", JSON.stringify(charge).slice(0, 600));
+    console.log("  charge:", summarise(charge));
   }
 
   for (const method of shopee) {
@@ -180,7 +202,7 @@ async function main() {
       type: method.name,
       "platform_type": "WEB",
     });
-    console.log("  source:", JSON.stringify(source).slice(0, 400));
+    console.log("  source:", summarise(source));
 
     if (typeof source.id !== "string") continue;
     const charge = await call<Record<string, unknown>>("/charges", secretKey, {
@@ -189,7 +211,7 @@ async function main() {
       source: source.id,
       return_uri: RETURN_URI,
     });
-    console.log("  charge:", JSON.stringify(charge).slice(0, 600));
+    console.log("  charge:", summarise(charge));
   }
 
   // ---- 4. What the current checkout already supports, for comparison ----
