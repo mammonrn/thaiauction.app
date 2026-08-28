@@ -1,17 +1,28 @@
-import Image from "next/image";
 import Link from "next/link";
 
-import { VerificationLevel } from "@/components/verification-level";
+import { AvatarUpload } from "@/components/avatar-upload";
 import { SignOutButton } from "@/components/sign-out-button";
+import { VerificationLevel } from "@/components/verification-level";
+import { avatarUrl } from "@/lib/avatar";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { countStrikes, STRIKE_LIMIT } from "@/lib/strikes";
 
+/**
+ * The account page.
+ *
+ * Grouped by the job you came to do, not by which table the data lives in. The
+ * previous version was seven equal cards in one list, so finding "bank account"
+ * meant reading all seven; grouping them means reading one heading.
+ *
+ * Verification level stays at the top and stays alone: it is the only thing
+ * here that tells you what you cannot yet do.
+ */
 export default async function AccountPage() {
   const { user } = await requireSession("/account");
 
-  // Small counts to give each link a sense of state, rather than a bare list.
   const [
+    profile,
     addressCount,
     credentialAccount,
     verifiedPhoneCount,
@@ -19,6 +30,10 @@ export default async function AccountPage() {
     strikes,
     bankAccount,
   ] = await Promise.all([
+    prisma.user.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { avatarKey: true, image: true, name: true, email: true },
+    }),
     prisma.shippingAddress.count({ where: { userId: user.id } }),
     prisma.account.findFirst({
       where: { userId: user.id, providerId: "credential" },
@@ -37,12 +52,10 @@ export default async function AccountPage() {
     }),
   ]);
 
-  const hasBankAccount = bankAccount !== null;
-
   const hasPassword = Boolean(credentialAccount?.password);
 
   return (
-    <main className="flex w-full flex-col gap-5">
+    <main className="flex w-full flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Link
           href="/"
@@ -53,33 +66,15 @@ export default async function AccountPage() {
         <h1 className="text-2xl font-semibold tracking-tight">บัญชีของฉัน</h1>
       </div>
 
-      <section className="flex items-center gap-4 rounded-xl bg-white p-5">
-        {user.image ? (
-          <Image
-            src={user.image}
-            alt=""
-            width={64}
-            height={64}
-            className="rounded-full"
-            // Google avatar URLs are external and not in next.config images
-            // remotePatterns, so skip the optimiser rather than 500 on them.
-            unoptimized
-          />
-        ) : (
-          <div
-            aria-hidden="true"
-            className="flex h-16 w-16 items-center justify-center rounded-full bg-black/10 text-xl font-medium"
-          >
-            {user.name.charAt(0).toUpperCase()}
-          </div>
-        )}
-
-        <div className="flex flex-col gap-0.5">
-          <p className="text-lg font-medium">{user.name}</p>
-          <p className="text-sm text-ink/60">
-            {user.email}
-          </p>
-
+      <section className="flex flex-col gap-4 rounded-xl bg-white p-5">
+        <AvatarUpload
+          src={avatarUrl(profile)}
+          name={profile.name}
+          hasUpload={profile.avatarKey !== null}
+        />
+        <div className="flex flex-col gap-0.5 border-t border-black/8 pt-4">
+          <p className="font-medium">{profile.name}</p>
+          <p className="text-sm text-ink/55">{profile.email}</p>
         </div>
       </section>
 
@@ -93,79 +88,98 @@ export default async function AccountPage() {
         />
       </section>
 
-      {/* Two columns on desktop, where the sidebar already handles navigation:
-          these cards then read as a status overview ("ยังไม่มีที่อยู่",
-          "ยืนยันแล้ว 1 เบอร์") rather than repeating the menu beside them. On
-          mobile there is no sidebar, so the single column IS the menu. */}
-      <nav className="grid gap-2.5 sm:grid-cols-2">
-        <AccountLink
-          href="/account/addresses"
-          title="ที่อยู่จัดส่ง"
-          detail={
-            addressCount === 0
-              ? "ยังไม่มีที่อยู่ — เพิ่มไว้เพื่อใช้ตอนชนะประมูล"
-              : `บันทึกไว้ ${addressCount} ที่อยู่`
-          }
-        />
-        <AccountLink
-          href="/account/phone"
-          title="เบอร์โทรศัพท์"
-          detail={
-            verifiedPhoneCount === 0
-              ? "ยังไม่ได้ยืนยันเบอร์ — ยืนยันเพื่อให้ติดต่อได้จริง"
-              : `ยืนยันแล้ว ${verifiedPhoneCount} เบอร์`
-          }
-        />
-        <AccountLink
+      <Group title="ข้อมูลผู้ขาย">
+        <Row
           href="/account/verification"
           title="ยืนยันตัวตนผู้ขาย"
           detail={
             verification?.status === "approved"
-              ? "ยืนยันตัวตนแล้ว"
+              ? "ยืนยันแล้ว"
               : verification?.status === "pending"
                 ? "รอทีมงานตรวจสอบ"
                 : verification?.status === "rejected"
                   ? "ถูกปฏิเสธ — ส่งใหม่ได้"
-                  : "ส่งบัตรประชาชนเพื่อรับเครื่องหมายรับรอง"
+                  : "ยังไม่ได้ส่ง"
           }
         />
-        <AccountLink
+        <Row
+          href="/account/bank"
+          title="บัญชีธนาคาร"
+          detail={bankAccount ? "บันทึกไว้แล้ว" : "ยังไม่ได้บันทึก"}
+        />
+        <Row href="/sell" title="สินค้าของฉัน" detail="รายการที่ลงขายไว้" />
+      </Group>
+
+      <Group title="ข้อมูลติดต่อและจัดส่ง">
+        <Row
+          href="/account/phone"
+          title="เบอร์โทรศัพท์"
+          detail={
+            verifiedPhoneCount === 0
+              ? "ยังไม่ได้ยืนยัน"
+              : `ยืนยันแล้ว ${verifiedPhoneCount} เบอร์`
+          }
+        />
+        <Row
+          href="/account/addresses"
+          title="ที่อยู่จัดส่ง"
+          detail={
+            addressCount === 0 ? "ยังไม่มีที่อยู่" : `บันทึกไว้ ${addressCount} ที่อยู่`
+          }
+        />
+      </Group>
+
+      <Group title="การใช้งาน">
+        <Row
           href="/account/bids"
           title="ประวัติการประมูล"
           detail={
             strikes > 0
               ? `มีประวัติไม่ชำระเงิน ${strikes}/${STRIKE_LIMIT} ครั้ง`
-              : "รายการที่เคยเสนอราคา ชนะ และชำระเงิน"
+              : "รายการที่เคยเสนอราคาและชนะ"
           }
         />
-        <AccountLink
-          href="/account/bank"
-          title="บัญชีธนาคาร"
-          detail={
-            hasBankAccount
-              ? "บันทึกไว้แล้ว — ใช้รับเงินเมื่อขายสินค้าได้"
-              : "ยังไม่ได้บันทึก — ต้องมีเพื่อรับเงินค่าสินค้า"
-          }
-        />
-        <AccountLink
-          href="/account/security"
-          title="ความปลอดภัย"
-          detail={
-            hasPassword
-              ? "ตั้งรหัสผ่านไว้แล้ว"
-              : "ยังไม่ได้ตั้งรหัสผ่าน — ตอนนี้เข้าสู่ระบบด้วย Google เท่านั้น"
-          }
-        />
-      </nav>
+      </Group>
 
-      <div>
-        <SignOutButton />
-      </div>
+      <Group title="ความปลอดภัย">
+        <Row
+          href="/account/security"
+          title="รหัสผ่าน"
+          detail={hasPassword ? "ตั้งไว้แล้ว" : "ยังไม่ได้ตั้ง — เข้าสู่ระบบด้วย Google"}
+        />
+        <div className="flex items-center justify-between gap-4 px-5 py-3.5">
+          <span className="flex flex-col gap-0.5">
+            <span className="font-medium">ออกจากระบบ</span>
+            <span className="text-sm text-ink/55">
+              ออกจากบัญชีนี้บนอุปกรณ์นี้
+            </span>
+          </span>
+          <SignOutButton />
+        </div>
+      </Group>
     </main>
   );
 }
 
-function AccountLink({
+/** A titled block of related rows. One card, not one card per link. */
+function Group({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="flex flex-col gap-0 overflow-hidden rounded-xl bg-white">
+      <h2 className="px-5 pb-1 pt-4 text-xs font-semibold uppercase tracking-wide text-ink/45">
+        {title}
+      </h2>
+      <div className="flex flex-col divide-y divide-black/[.06]">{children}</div>
+    </section>
+  );
+}
+
+function Row({
   href,
   title,
   detail,
@@ -177,15 +191,13 @@ function AccountLink({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-4 rounded-xl bg-white px-5 py-4 transition-colors hover:bg-brand/[.04]"
+      className="flex items-center justify-between gap-4 px-5 py-3.5 transition-colors hover:bg-brand/[.04]"
     >
       <span className="flex flex-col gap-0.5">
         <span className="font-medium">{title}</span>
-        <span className="text-sm text-ink/60">
-          {detail}
-        </span>
+        <span className="text-sm text-ink/55">{detail}</span>
       </span>
-      <span aria-hidden="true" className="text-ink/40">
+      <span aria-hidden="true" className="shrink-0 text-ink/35">
         →
       </span>
     </Link>

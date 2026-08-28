@@ -26,7 +26,7 @@ export async function SiteHeader() {
           className="flex shrink-0 items-center gap-2"
           aria-label="thaiauction หน้าแรก"
         >
-          <TicketMark />
+          <GavelMark />
           <span className="hidden text-lg font-bold tracking-tight sm:inline">
             thai<span className="text-gold">auction</span>
           </span>
@@ -82,17 +82,33 @@ export async function SiteHeader() {
   );
 }
 
-/** The mark echoes the card's tear line: a stub with a notch bitten out. */
-function TicketMark() {
+/**
+ * The gavel from the master logo, reduced for 28px.
+ *
+ * Drawn inline rather than loading public/brand/logo.png, for two reasons. The
+ * master is a red tile, and a second red on the dark-red header reads as a
+ * smudge rather than a mark; white-on-red is the only version that holds. And
+ * the master is drawn in outline — hairlines that turn to mush at header size —
+ * so the reduction is solid shapes: head, handle, block. The arc is dropped
+ * because at 28px it is a grey smear rather than a circle.
+ *
+ * Same silhouette as the app icon, so the two read as one mark.
+ */
+function GavelMark() {
   return (
-    <span
+    <svg
+      viewBox="0 0 32 32"
+      className="h-7 w-7 shrink-0"
+      fill="currentColor"
       aria-hidden="true"
-      className="relative flex h-8 w-8 items-center justify-center rounded-md bg-gold font-bold text-ink"
+      focusable="false"
     >
-      <span className="text-sm leading-none">ป</span>
-      <span className="absolute -right-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-brand-dark" />
-      <span className="absolute -left-[3px] top-1/2 h-1.5 w-1.5 -translate-y-1/2 rounded-full bg-brand-dark" />
-    </span>
+      <g transform="rotate(-20 16 13)">
+        <rect x="4" y="7" width="21" height="9" rx="4.5" />
+        <rect x="12.5" y="15" width="4" height="10" rx="2" />
+      </g>
+      <rect x="3" y="26" width="26" height="4.5" rx="2.25" />
+    </svg>
   );
 }
 

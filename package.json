@@ -14,7 +14,8 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "auctions:settle": "tsx --conditions=react-server scripts/settle-auctions.ts",
-    "bids:prune": "tsx --conditions=react-server scripts/prune-bid-metadata.ts"
+    "bids:prune": "tsx --conditions=react-server scripts/prune-bid-metadata.ts",
+    "icons:build": "tsx scripts/build-icons.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

@@ -128,6 +128,12 @@ model User {
   /// rendered in another timezone.
   dateOfBirth DateTime?
 
+  /// Storage key for a profile picture the user uploaded themselves, e.g.
+  /// "avatars/<userId>/<uuid>.webp". Takes precedence over `image`, which is
+  /// whatever Google supplied at sign-in — kept as the fallback so an account
+  /// that never uploads one still has a picture.
+  avatarKey String?
+
   /// When this seller accepted the selling terms — including the platform's
   /// commission. Recorded rather than assumed: the commission is the one term
   /// a seller is entitled to have seen before listing, so there has to be a

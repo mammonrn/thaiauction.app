@@ -6,12 +6,15 @@ import path from "node:path";
 
 import sharp from "sharp";
 
-import { isItemKey, isStagingKey } from "@/lib/image-keys";
+import { isAvatarKey, isItemKey, isStagingKey, thumbKey } from "@/lib/image-keys";
 
 export {
   imageUrl,
+  isAvatarKey,
   isItemKey,
   isStagingKey,
+  thumbKey,
+  thumbUrl,
   MAX_IMAGES_PER_ITEM,
   MIN_IMAGES_PER_ITEM,
 } from "@/lib/image-keys";
@@ -38,6 +41,17 @@ export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 const MAX_EDGE_PX = 1600;
 const WEBP_QUALITY = 82;
 
+/**
+ * Card-sized copy. Grids show a dozen of these at 220px wide, so serving the
+ * 1600px display image there costs a phone user roughly twenty times the bytes
+ * for pixels they cannot see.
+ */
+const THUMB_EDGE_PX = 400;
+const THUMB_QUALITY = 78;
+
+/** Profile pictures are square and small; nothing shows one above 128px. */
+const AVATAR_PX = 256;
+
 /** Staged files older than this are swept away on the next upload. */
 const STAGING_TTL_MS = 24 * 60 * 60 * 1000;
 
@@ -49,7 +63,7 @@ export class UploadError extends Error {}
  * separators never get this far; the realpath comparison is the backstop.
  */
 export function resolveKey(key: string): string | null {
-  if (!isStagingKey(key) && !isItemKey(key)) return null;
+  if (!isStagingKey(key) && !isItemKey(key) && !isAvatarKey(key)) return null;
 
   const root = path.resolve(uploadRoot());
   const full = path.resolve(root, key);
@@ -69,7 +83,7 @@ export function resolveKey(key: string): string | null {
  * metadata is dropped, so sideways phone photos stay upright, and dropping the
  * metadata also removes the GPS coordinates many phones embed.
  */
-async function processImage(input: Buffer): Promise<Buffer> {
+async function assertRealImage(input: Buffer): Promise<void> {
   let format: string | undefined;
 
   try {
@@ -81,11 +95,57 @@ async function processImage(input: Buffer): Promise<Buffer> {
   if (!format || !["jpeg", "png", "webp"].includes(format)) {
     throw new UploadError("รองรับเฉพาะไฟล์ JPG, PNG และ WebP");
   }
+}
+
+async function processImage(input: Buffer): Promise<Buffer> {
+  await assertRealImage(input);
 
   try {
     return await sharp(input, { failOn: "error" })
       .rotate()
       .resize({ width: MAX_EDGE_PX, height: MAX_EDGE_PX, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
+  } catch {
+    throw new UploadError("ประมวลผลรูปไม่สำเร็จ");
+  }
+}
+
+/**
+ * The card-sized copy of an image.
+ *
+ * Made from the ORIGINAL upload rather than from the display WebP, so it is one
+ * re-encode from the source instead of two — and it goes through the identical
+ * decode-then-re-encode as everything else, so a payload hidden in the original
+ * no more survives into a thumbnail than into a display image.
+ */
+async function processThumbnail(input: Buffer): Promise<Buffer> {
+  await assertRealImage(input);
+
+  try {
+    return await sharp(input, { failOn: "error" })
+      .rotate()
+      .resize({ width: THUMB_EDGE_PX, height: THUMB_EDGE_PX, fit: "inside", withoutEnlargement: true })
+      .webp({ quality: THUMB_QUALITY })
+      .toBuffer();
+  } catch {
+    throw new UploadError("ประมวลผลรูปไม่สำเร็จ");
+  }
+}
+
+/**
+ * A profile picture: square, centred on whatever sharp judges most salient.
+ *
+ * Same decode-and-re-encode contract as every other upload; only the geometry
+ * differs. `attention` beats a centre crop for faces, which is what these are.
+ */
+async function processAvatar(input: Buffer): Promise<Buffer> {
+  await assertRealImage(input);
+
+  try {
+    return await sharp(input, { failOn: "error" })
+      .rotate()
+      .resize(AVATAR_PX, AVATAR_PX, { fit: "cover", position: "attention" })
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();
   } catch {
@@ -125,7 +185,11 @@ export async function stageImage(userId: string, file: File): Promise<string> {
     );
   }
 
-  const processed = await processImage(Buffer.from(await file.arrayBuffer()));
+  const original = Buffer.from(await file.arrayBuffer());
+  const [processed, thumbnail] = await Promise.all([
+    processImage(original),
+    processThumbnail(original),
+  ]);
 
   await sweepStaging(userId);
 
@@ -136,6 +200,9 @@ export async function stageImage(userId: string, file: File): Promise<string> {
   // carry a path, a second extension, or anything the filesystem might act on.
   const name = `${randomUUID()}.webp`;
   await writeFile(path.join(dir, name), processed);
+  // The thumbnail's key is derived from the display key, never stored, so the
+  // two cannot drift apart.
+  await writeFile(path.join(dir, thumbKey(name)), thumbnail);
 
   return `staging/${userId}/${name}`;
 }
@@ -176,6 +243,15 @@ export async function attachImagesToItem(
 
     const name = path.basename(key);
     await rename(from, path.join(itemDir, name));
+
+    // Move the thumbnail alongside. Tolerated if missing: an image staged
+    // before thumbnails existed still attaches, and the backfill script picks
+    // it up later.
+    const stagedThumb = resolveKey(thumbKey(key));
+    if (stagedThumb) {
+      await rename(stagedThumb, path.join(itemDir, thumbKey(name))).catch(() => {});
+    }
+
     result.push(`items/${itemId}/${name}`);
   }
 
@@ -184,10 +260,44 @@ export async function attachImagesToItem(
 
 /** Delete stored files. Best-effort: a missing file is not an error. */
 export async function deleteImages(keys: string[]): Promise<void> {
+  // Each display key takes its thumbnail with it.
+  const all = keys.flatMap((key) => [key, thumbKey(key)]);
+
   await Promise.all(
-    keys.map(async (key) => {
+    all.map(async (key) => {
       const full = resolveKey(key);
       if (full) await rm(full, { force: true });
     }),
   );
+}
+
+/**
+ * Store a profile picture and return its key.
+ *
+ * Written straight to its final location rather than through staging: unlike an
+ * item image there is no draft step, and the row is updated in the same request.
+ */
+export async function storeAvatar(userId: string, file: File): Promise<string> {
+  if (file.size === 0) throw new UploadError("ไฟล์ว่าง");
+  if (file.size > MAX_UPLOAD_BYTES) {
+    throw new UploadError(
+      `ไฟล์ใหญ่เกิน ${Math.round(MAX_UPLOAD_BYTES / 1024 / 1024)}MB`,
+    );
+  }
+
+  const processed = await processAvatar(Buffer.from(await file.arrayBuffer()));
+
+  const dir = path.join(uploadRoot(), "avatars", userId);
+  await mkdir(dir, { recursive: true });
+
+  const name = `${randomUUID()}.webp`;
+  await writeFile(path.join(dir, name), processed);
+
+  return `avatars/${userId}/${name}`;
+}
+
+/** Remove a profile picture file. Best-effort. */
+export async function deleteAvatar(key: string): Promise<void> {
+  const full = resolveKey(key);
+  if (full) await rm(full, { force: true });
 }

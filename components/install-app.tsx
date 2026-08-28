@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { btnSecondarySm } from "@/lib/button";
+
 /**
  * "Install app", handling the fact that the two platforms disagree completely.
  *
@@ -88,7 +90,7 @@ export function InstallApp() {
         // The event is single-use; drop it either way.
         setPrompt(null);
       }}
-      className="rounded-lg border border-black/15 bg-white px-4 py-2 text-sm font-medium transition-colors hover:border-brand/50 hover:text-brand"
+      className={btnSecondarySm}
     >
       ติดตั้งแอป
     </button>

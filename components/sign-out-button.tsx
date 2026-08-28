@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { btnSecondary } from "@/lib/button";
 import { signOut } from "@/lib/auth-client";
 
 export function SignOutButton() {
@@ -22,7 +23,7 @@ export function SignOutButton() {
       type="button"
       onClick={handleClick}
       disabled={pending}
-      className="rounded-lg border border-black/15 px-4 py-2 text-sm font-medium transition hover:bg-black/5 disabled:opacity-60"
+      className={btnSecondary}
     >
       {pending ? "กำลังออกจากระบบ…" : "ออกจากระบบ"}
     </button>

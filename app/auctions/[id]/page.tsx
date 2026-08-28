@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { EndAuctionButton } from "@/components/end-auction-button";
 import { VerificationLevel } from "@/components/verification-level";
+import { avatarUrl } from "@/lib/avatar";
 import { VerifyPhoneDialog } from "@/components/verify-phone-dialog";
 import { isStubMode } from "@/lib/thaibulksms";
 import { isSellerVerified } from "@/lib/seller-verification";
@@ -37,7 +38,7 @@ export default async function AuctionDetailPage({
     where: { id, status: { in: ["active", "ended", "cancelled"] } },
     include: {
       category: { select: { name: true, slug: true } },
-      seller: { select: { id: true, name: true, image: true } },
+      seller: { select: { id: true, name: true, image: true, avatarKey: true } },
       winner: { select: { name: true } },
       _count: { select: { bids: true } },
       bids: {
@@ -193,9 +194,9 @@ export default async function AuctionDetailPage({
               earlier refactor of the price panel; restored here because the
               badges belong beside the person, not the price. */}
           <div className="flex items-center gap-3 border-t border-black/10 pt-5">
-            {item.seller.image ? (
+            {avatarUrl(item.seller) ? (
               <Image
-                src={item.seller.image}
+                src={avatarUrl(item.seller)!}
                 alt=""
                 width={40}
                 height={40}
