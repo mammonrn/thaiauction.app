@@ -36,9 +36,6 @@ export default async function NewAuctionPage() {
           ← กลับรายการสินค้าของฉัน
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">ลงสินค้าประมูล</h1>
-        <p className="text-sm text-ink/60">
-          บันทึกเป็นฉบับร่างก่อน แล้วค่อยตรวจทานและกดเผยแพร่
-        </p>
       </div>
 
       <div className="rounded-xl bg-white p-4 sm:p-6">

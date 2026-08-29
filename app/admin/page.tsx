@@ -82,8 +82,7 @@ export default async function AdminHomePage() {
       </div>
 
       <p className="text-xs text-ink/45">
-        หน้านี้และเครื่องมือทั้งสามไม่มีลิงก์จากส่วนใดของเว็บ
-        สิทธิ์เข้าถึงกำหนดด้วย ADMIN_EMAILS เท่านั้น
+        สิทธิ์เข้าถึงกำหนดด้วย ADMIN_EMAILS
       </p>
     </main>
   );

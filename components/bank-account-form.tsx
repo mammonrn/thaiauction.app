@@ -68,11 +68,6 @@ function LockedAccount({
         <span className="text-lg font-medium tabular-nums">{masked}</span>
       </div>
 
-      <p className="text-sm text-ink/60">
-        บัญชีนี้ถูกล็อกไว้เพื่อความปลอดภัย
-        การเปลี่ยนบัญชีต้องยืนยันด้วยรหัส OTP ที่ส่งไปยังเบอร์ที่คุณยืนยันแล้ว
-      </p>
-
       {asking ? (
         <UnlockSteps />
       ) : (
@@ -87,8 +82,7 @@ function LockedAccount({
 
       {!hasVerifiedPhone ? (
         <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          คุณยังไม่มีเบอร์ที่ยืนยันแล้ว จึงยังเปลี่ยนบัญชีไม่ได้ —
-          กรุณายืนยันเบอร์โทรศัพท์ในหน้าบัญชีของฉันก่อน
+          ต้องยืนยันเบอร์โทรศัพท์ก่อนจึงจะเปลี่ยนบัญชีได้
         </p>
       ) : null}
     </div>
@@ -182,7 +176,7 @@ function EditableForm({
     <form action={action} className="flex flex-col gap-4">
       {unlocked ? (
         <p className="rounded-lg border border-black/10 px-4 py-3 text-sm text-ink/70">
-          ยืนยันตัวตนแล้ว — บันทึกได้ 1 ครั้ง หลังบันทึกบัญชีจะถูกล็อกอีกครั้ง
+          แก้ไขได้ 1 ครั้ง
         </p>
       ) : null}
 

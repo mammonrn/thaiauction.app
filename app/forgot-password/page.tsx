@@ -25,7 +25,7 @@ export default async function ForgotPasswordPage() {
             ลืมรหัสผ่าน
           </h1>
           <p className="text-sm text-ink/60">
-            กรอกอีเมลของบัญชี ระบบจะส่งรหัส OTP ไปยังเบอร์มือถือที่คุณยืนยันไว้
+            ระบบจะส่งรหัส OTP ไปยังเบอร์ที่คุณยืนยันไว้
           </p>
         </div>
 

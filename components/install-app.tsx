@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { btnPrimarySm } from "@/lib/button";
+import { btnLink } from "@/lib/button";
 
 /**
  * "Install app", handling the fact that the two platforms disagree completely.
@@ -67,16 +67,9 @@ export function InstallApp() {
   if (platform === "installed") return null;
 
   if (platform === "ios") {
-    return (
-      <p className="text-sm text-ink/60">
-        ติดตั้งเป็นแอป: กดปุ่มแชร์{" "}
-        <span aria-hidden="true" className="mx-0.5">
-          􀈂
-        </span>
-        ใน Safari แล้วเลือก{" "}
-        <strong className="text-ink/80">เพิ่มไปยังหน้าจอโฮม</strong>
-      </p>
-    );
+    // iOS has no install API, so the only option is telling someone where the
+    // button is. One line: any more and it is a tutorial in a footer.
+    return <span>ติดตั้งแอป: แชร์ → เพิ่มไปยังหน้าจอโฮม</span>;
   }
 
   if (!prompt) return null;
@@ -90,7 +83,7 @@ export function InstallApp() {
         // The event is single-use; drop it either way.
         setPrompt(null);
       }}
-      className={btnPrimarySm}
+      className={btnLink}
     >
       ติดตั้งแอป
     </button>

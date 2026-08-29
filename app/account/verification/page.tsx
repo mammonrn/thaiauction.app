@@ -64,10 +64,6 @@ export default async function VerificationPage() {
           ← กลับหน้าบัญชีของฉัน
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">ยืนยันตัวตนผู้ขาย</h1>
-        <p className="text-sm text-ink/60">
-          ผู้ขายที่ยืนยันตัวตนแล้วจะมีเครื่องหมายรับรองบนหน้าสินค้า
-          ช่วยให้ผู้ซื้อมั่นใจมากขึ้น
-        </p>
       </div>
 
       {status === "approved" ? (
@@ -75,10 +71,11 @@ export default async function VerificationPage() {
           <p className="font-medium text-green-800">
             ยืนยันตัวตนแล้ว
           </p>
+          {/* The retention rule is in /privacy. Restating it here made the
+              reader parse a sentence to find the date. */}
           <p className="text-sm text-green-800/80">
             อนุมัติเมื่อ{" "}
-            {latest?.reviewedAt ? formatThaiDateTime(latest.reviewedAt) : "-"} ·
-            รูปบัตรถูกลบออกจากระบบแล้ว
+            {latest?.reviewedAt ? formatThaiDateTime(latest.reviewedAt) : "-"}
           </p>
         </section>
       ) : null}
@@ -93,13 +90,7 @@ export default async function VerificationPage() {
             ต้องยืนยันตัวตนอีกครั้ง
           </p>
           <p className="text-sm text-amber-800/80">
-            บัญชีของคุณผ่านการยืนยันก่อนที่ระบบจะเริ่มเก็บชื่อ-นามสกุลและวันเกิด
-            และรูปบัตรเดิมถูกลบไปตามนโยบายแล้ว จึงตรวจสอบย้อนหลังไม่ได้
-            กรุณากรอกข้อมูลและส่งรูปบัตรใหม่อีกครั้ง
-          </p>
-          <p className="text-sm font-medium text-amber-900">
-            สถานะผู้ขายเดิมของคุณยังใช้งานได้ตามปกติระหว่างรอตรวจสอบ
-            — ลงขายและรับเงินได้เหมือนเดิม
+            กรอกข้อมูลและส่งรูปบัตรใหม่อีกครั้ง · สถานะผู้ขายเดิมยังใช้งานได้
           </p>
         </section>
       ) : null}
@@ -110,8 +101,7 @@ export default async function VerificationPage() {
             ส่งคำขอใหม่แล้ว — สถานะผู้ขายเดิมยังใช้งานได้
           </p>
           <p className="text-sm text-green-800/80">
-            ระบบจะสลับไปใช้ข้อมูลชุดใหม่เมื่อทีมงานอนุมัติ
-            คุณลงขายและรับเงินได้ตามปกติระหว่างนี้
+            ลงขายและรับเงินได้ตามปกติระหว่างรอตรวจสอบ
           </p>
         </section>
       ) : null}
@@ -150,14 +140,9 @@ export default async function VerificationPage() {
           always has something to compare the card against — and so an underage
           seller is told before uploading a photo of their ID for nothing. */}
       <section className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-sm font-medium">
-            ขั้นที่ 1 — ข้อมูลตามบัตรประชาชน
-          </h2>
-          <p className="text-sm text-ink/60">
-            กรอกให้ตรงกับบัตร เจ้าหน้าที่จะใช้เทียบกับรูปที่คุณอัปโหลด
-          </p>
-        </div>
+        <h2 className="text-sm font-medium">
+          ขั้นที่ 1 — ข้อมูลตามบัตรประชาชน
+        </h2>
 
         {identityEditable ? (
           <IdentityForm
@@ -188,7 +173,7 @@ export default async function VerificationPage() {
             </dl>
             <p className="text-xs text-ink/50">
               {status === "approved"
-                ? "ยืนยันแล้วจึงแก้ไขไม่ได้ — หากข้อมูลไม่ถูกต้อง กรุณาติดต่อทีมงาน"
+                ? "แก้ไขไม่ได้ · ติดต่อทีมงานหากไม่ถูกต้อง"
                 : "แก้ไขไม่ได้ระหว่างรอตรวจสอบ"}
             </p>
           </div>
@@ -207,27 +192,20 @@ export default async function VerificationPage() {
             </p>
           ) : !oldEnough ? (
             <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800">
-              ผู้ขายต้องมีอายุ {MIN_SELLER_AGE} ปีบริบูรณ์ขึ้นไปจึงจะยืนยันตัวตนได้
-              คุณยังคงซื้อและเสนอราคาได้ตามปกติ
+              ผู้ขายต้องมีอายุ {MIN_SELLER_AGE} ปีขึ้นไป
             </p>
           ) : (
             <>
-              <div className="flex flex-col gap-2 rounded-xl border border-black/10 px-5 py-4 text-sm">
-                <p className="font-medium">ก่อนอัปโหลด</p>
-                <ul className="flex list-disc flex-col gap-1 pl-5 text-ink/70">
-                  <li>ถ่ายให้เห็นตัวอักษรชัดเจน ไม่เบลอ ไม่มีแสงสะท้อนบัง</li>
-                  <li>
-                    แนะนำให้ปิดทับช่อง <strong>ศาสนา</strong>{" "}
-                    ก่อนถ่าย — เราไม่ต้องใช้ข้อมูลนี้
-                    และเป็นข้อมูลอ่อนไหวตามกฎหมายคุ้มครองข้อมูลส่วนบุคคล
-                  </li>
-                  <li>
-                    รูปจะถูกเก็บไว้เฉพาะระหว่างรอตรวจสอบ และ
-                    <strong>ลบทิ้งทันทีที่ทีมงานตัดสิน</strong>
-                  </li>
-                  <li>เฉพาะคุณและผู้ตรวจสอบเท่านั้นที่เปิดดูรูปนี้ได้</li>
-                </ul>
-              </div>
+              {/* Two instructions, both of which change what the seller does
+                  in the next thirty seconds. Covering the religion field is an
+                  action and stays; WHY it matters, and how long the image is
+                  kept, are policy and live in /privacy. */}
+              <ul className="flex list-disc flex-col gap-1 rounded-xl border border-black/10 px-5 py-4 pl-9 text-sm text-ink/70">
+                <li>ถ่ายให้เห็นตัวอักษรชัดเจน ไม่เบลอ ไม่มีแสงสะท้อน</li>
+                <li>
+                  ปิดทับช่อง <strong>ศาสนา</strong> ก่อนถ่าย
+                </li>
+              </ul>
 
               <KycSubmitForm
                 submitLabel={

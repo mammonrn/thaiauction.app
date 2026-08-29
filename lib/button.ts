@@ -57,6 +57,16 @@ export const btnSecondarySm = `${BASE} ${BUTTON_SIZE.sm} border border-brand/35 
 export const btnDangerSm = `${BASE} ${BUTTON_SIZE.sm} bg-brand-dark text-white hover:bg-ink`;
 
 /**
+ * A control that has to sit inside a line of running text.
+ *
+ * The footer is one caption-sized line; a padded button in it would set the
+ * line height on its own and undo the point of shrinking the footer. This is
+ * still a token rather than inline classes, so the brand colour moves with the
+ * theme like everything else.
+ */
+export const btnLink = "inline font-medium text-brand underline-offset-4 hover:underline disabled:opacity-60 disabled:pointer-events-none";
+
+/**
  * The one control that is allowed to be white.
  *
  * Google's sign-in branding requires their own colours and their own mark, so

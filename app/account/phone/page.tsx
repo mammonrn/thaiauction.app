@@ -52,7 +52,6 @@ export default async function PhonePage({
         {reason === "sell" ? (
           <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800">
             ต้องยืนยันเบอร์โทรก่อนจึงจะลงสินค้าประมูลได้
-            เพื่อให้ผู้ซื้อติดต่อผู้ขายได้จริง
             {backTo ? (
               <>
                 {" "}

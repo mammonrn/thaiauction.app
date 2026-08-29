@@ -47,13 +47,7 @@ export function PublishControls({
 
   return (
     <div className="flex flex-col gap-3 rounded-xl bg-white p-5">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-sm font-medium">เผยแพร่</h2>
-        <p className="text-sm text-ink/60">
-          ตอนนี้เป็นฉบับร่าง คนอื่นยังมองไม่เห็น เมื่อเผยแพร่แล้วจะแก้ไขได้จน
-          กว่าจะมีคนเสนอราคาคนแรก
-        </p>
-      </div>
+      <h2 className="text-sm font-medium">เผยแพร่</h2>
 
       <div className="flex flex-wrap items-center gap-3">
         {/* Opens the review step rather than publishing straight away: once a
@@ -109,8 +103,7 @@ export function PublishControls({
             ตรวจสอบก่อนเผยแพร่
           </h3>
           <p className="text-sm text-ink/60">
-            เมื่อมีผู้เสนอราคาแล้วจะแก้ไขรายการนี้ไม่ได้อีก
-            กรุณาตรวจสอบให้ครบถ้วน
+            แก้ไขไม่ได้อีกเมื่อมีผู้เสนอราคาแล้ว
           </p>
 
           {summary.imageUrls.length > 0 ? (

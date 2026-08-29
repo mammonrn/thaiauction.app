@@ -61,12 +61,11 @@ export function ForgotPasswordForm() {
       ) : null}
 
       <p className="text-xs leading-relaxed text-ink/50">
-        ไม่ได้ผูกเบอร์มือถือไว้? บัญชีที่ไม่มีเบอร์ที่ยืนยันแล้วจะรีเซ็ตรหัสผ่านทางนี้ไม่ได้ —
-        กรุณา{" "}
+        ไม่มีเบอร์ที่ยืนยันไว้?{" "}
         <Link href="/login" className="underline underline-offset-4">
           เข้าสู่ระบบด้วย Google
         </Link>{" "}
-        แล้วตั้งรหัสผ่านใหม่ในหน้าความปลอดภัย
+        แล้วตั้งรหัสผ่านในหน้าความปลอดภัย
       </p>
     </div>
   );

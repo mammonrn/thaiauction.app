@@ -56,23 +56,18 @@ export default async function BankAccountPage() {
 
       <header className="flex flex-col gap-2">
         <h1 className="text-2xl font-semibold tracking-tight">บัญชีธนาคาร</h1>
-        <p className="text-sm text-ink/60">
-          บัญชีที่ทีมงานจะโอนเงินให้เมื่อสินค้าของคุณขายได้และผู้ซื้อชำระเงินแล้ว
-          (หักค่าธรรมเนียมระบบชำระเงินและค่าคอมมิชชั่น 10%)
-        </p>
       </header>
 
       {hasKycName ? (
         <p className="rounded-lg border border-black/10 px-4 py-3 text-sm text-ink/70">
-          ชื่อบัญชีควรตรงกับชื่อที่ยืนยันตัวตนไว้:{" "}
+          ชื่อบัญชีต้องตรงกับ{" "}
           <strong>
             {identity.firstName} {identity.lastName}
           </strong>
         </p>
       ) : (
         <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          คุณยังไม่ได้ยืนยันตัวตน — กรอกบัญชีไว้ก่อนได้
-          แต่ทีมงานจะโอนเงินให้ก็ต่อเมื่อยืนยันตัวตนผ่านแล้ว{" "}
+          ต้องยืนยันตัวตนก่อนจึงจะรับเงินได้{" "}
           <Link href="/account/verification" className="underline">
             ยืนยันตัวตน
           </Link>
@@ -81,8 +76,8 @@ export default async function BankAccountPage() {
 
       {account && !account.nameMatchesKyc && hasKycName ? (
         <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          ชื่อบัญชีที่บันทึกไว้ (<strong>{account.accountName}</strong>)
-          ไม่ตรงกับชื่อที่ยืนยันตัวตน ทีมงานจะตรวจสอบด้วยตนเองก่อนโอนเงิน
+          <strong>{account.accountName}</strong> ไม่ตรงกับชื่อที่ยืนยันตัวตน —
+          ทีมงานจะตรวจสอบก่อนโอน
         </p>
       ) : null}
 
@@ -109,13 +104,12 @@ export default async function BankAccountPage() {
           make this change is the person best placed to notice it. */}
       {lastChange ? (
         <p className="text-sm text-ink/55">
-          เปลี่ยนบัญชีล่าสุดเมื่อ{" "}
+          เปลี่ยนล่าสุด{" "}
           {lastChange.changedAt.toLocaleString("th-TH", {
             dateStyle: "long",
             timeStyle: "short",
             timeZone: "Asia/Bangkok",
-          })}{" "}
-          — หากไม่ใช่คุณ กรุณาติดต่อทีมงานทันที
+          })}
         </p>
       ) : null}
     </main>

@@ -7,9 +7,10 @@ import { requireSession } from "@/lib/session";
 /**
  * Password and sign-in methods.
  *
- * Rewritten to say each thing once. The previous version had a heading, a
- * paragraph explaining the heading, and a list — three ways of saying "you
- * signed in with Google and you have not set a password", which is one fact.
+ * Two facts and, when there is something to do, one form. The rows say what is
+ * true; how to recover a password is a flow, and it lives at the point of
+ * failure — the sign-in page — not as a paragraph here that nobody signed out
+ * can read anyway.
  */
 export default async function SecurityPage() {
   const { user } = await requireSession("/account/security");
@@ -47,29 +48,12 @@ export default async function SecurityPage() {
           title="เข้าสู่ระบบด้วย Google"
           detail={hasGoogle ? "เชื่อมไว้แล้ว" : "ยังไม่ได้เชื่อม"}
         />
-        <Fact
-          title="รหัสผ่าน"
-          detail={
-            hasPassword
-              ? "ตั้งไว้แล้ว — เข้าสู่ระบบด้วยอีเมลและรหัสผ่านได้"
-              : "ยังไม่ได้ตั้ง"
-          }
-        />
+        <Fact title="รหัสผ่าน" detail={hasPassword ? "ตั้งไว้แล้ว" : "ยังไม่ได้ตั้ง"} />
       </section>
 
-      {hasPassword ? (
-        <p className="text-sm text-ink/60">
-          ลืมรหัสผ่าน? ออกจากระบบแล้วใช้{" "}
-          <Link href="/forgot-password" className="underline underline-offset-4">
-            ลืมรหัสผ่าน
-          </Link>{" "}
-          ที่หน้าเข้าสู่ระบบ ระบบจะส่งรหัส OTP ไปยังเบอร์ที่คุณยืนยันไว้
-        </p>
-      ) : (
+      {hasPassword ? null : (
         <section className="flex flex-col gap-4 rounded-xl bg-white p-4 sm:p-6">
-          <p className="text-sm text-ink/60">
-            ตั้งรหัสผ่านไว้เพื่อเข้าสู่ระบบด้วยอีเมลได้ โดยไม่ต้องพึ่ง Google
-          </p>
+          <h2 className="text-sm font-medium">ตั้งรหัสผ่าน</h2>
           <SetPasswordForm />
         </section>
       )}
