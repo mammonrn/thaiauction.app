@@ -109,6 +109,19 @@ enum PayoutStatus {
   @@map("payout_status")
 }
 
+/// Whether an item has been used.
+///
+/// Nullable on the row rather than defaulted: listings created before this
+/// question existed genuinely have no answer, and defaulting them to `used`
+/// would be the app asserting something the seller never said. They render as
+/// "ไม่ระบุ" until edited.
+enum ItemCondition {
+  brand_new
+  used
+
+  @@map("item_condition")
+}
+
 enum AuctionStatus {
   draft
   active
@@ -238,6 +251,10 @@ model AuctionItem {
   categoryId  String
   title       String
   description String
+
+  /// New or second-hand. Required on new listings; null only on ones that
+  /// predate the field.
+  condition ItemCondition?
 
   /// Ordered image URLs; images[0] is the cover image.
   images String[]

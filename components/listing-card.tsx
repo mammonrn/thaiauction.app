@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { PriceWindow } from "@/components/price-window";
+import { CONDITION_LABEL } from "@/lib/condition";
 import { thumbUrl } from "@/lib/image-keys";
 import type { ListingCard as Listing } from "@/lib/listing";
 import { isClosingSoon, timeLeft } from "@/lib/time-left";
@@ -56,6 +57,16 @@ export function ListingCard({
           {urgent ? (
             <span className="absolute left-0 top-2 rounded-r bg-brand px-2 py-0.5 text-[11px] font-semibold text-white">
               ใกล้ปิด
+            </span>
+          ) : null}
+
+          {/* Only "ของใหม่" is called out. On a second-hand marketplace used is
+              the assumption, so a "มือสอง" badge on nearly every card would be
+              noise; the item page states it either way. Unanswered listings get
+              no badge at all rather than an "ไม่ระบุ" one nobody can act on. */}
+          {item.condition === "brand_new" ? (
+            <span className="absolute right-2 top-2 rounded bg-white/95 px-1.5 py-0.5 text-[10px] font-semibold text-brand shadow-[0_1px_2px_rgb(0_0_0/0.12)]">
+              {CONDITION_LABEL.brand_new}
             </span>
           ) : null}
         </div>

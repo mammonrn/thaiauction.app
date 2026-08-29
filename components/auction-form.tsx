@@ -7,15 +7,22 @@ import { ImageUploader, type UploadedImage } from "@/components/image-uploader";
 import { ThaiDateTimePicker } from "@/components/thai-datetime-picker";
 import { MAX_DESCRIPTION, MAX_TITLE } from "@/lib/auction-rules";
 import { btnPrimary } from "@/lib/button";
+import { CONDITION_LABEL } from "@/lib/condition";
 
 const initialState: SellActionState = { ok: false, message: null };
 
 const inputClass =
   "rounded-lg border border-black/15 px-3 py-2";
 
+const CONDITIONS = [
+  { value: "brand_new", label: CONDITION_LABEL.brand_new },
+  { value: "used", label: CONDITION_LABEL.used },
+] as const;
+
 export type AuctionFormValues = {
   itemId?: string;
   categoryId: string;
+  condition: string;
   title: string;
   description: string;
   startPrice: string;
@@ -29,6 +36,7 @@ export type AuctionFormValues = {
 export function AuctionForm({
   action,
   categories,
+  category,
   initial,
   submitLabel,
   maxImages,
@@ -38,7 +46,11 @@ export function AuctionForm({
     prev: SellActionState,
     formData: FormData,
   ) => Promise<SellActionState>;
-  categories: { id: string; name: string }[];
+  /** Editing: the category is one field among many and can be changed here. */
+  categories?: { id: string; name: string }[];
+  /** Creating: already answered on the previous screen, so it rides along as
+   *  a hidden value and the picker link above the form does the changing. */
+  category?: { id: string; name: string };
   initial: AuctionFormValues;
   submitLabel: string;
   maxImages: number;
@@ -59,21 +71,52 @@ export function AuctionForm({
         <input type="hidden" name="itemId" value={initial.itemId} />
       ) : null}
 
-      <Row label="หมวดหมู่" error={err?.categoryId}>
-        <select
-          name="categoryId"
-          required
-          defaultValue={v?.categoryId ?? initial.categoryId}
-          className={inputClass}
-        >
-          <option value="">เลือกหมวดหมู่</option>
-          {categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name}
-            </option>
+      {category ? (
+        <input type="hidden" name="categoryId" value={category.id} />
+      ) : (
+        <Row label="หมวดหมู่" error={err?.categoryId}>
+          <select
+            name="categoryId"
+            required
+            defaultValue={v?.categoryId ?? initial.categoryId}
+            className={inputClass}
+          >
+            <option value="">เลือกหมวดหมู่</option>
+            {(categories ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </Row>
+      )}
+
+      {/* Second, right after the name: it is the buyer's first question and
+          the one thing the photographs cannot answer. */}
+      <fieldset className="flex flex-col gap-1.5">
+        <legend className="text-sm font-medium">สภาพสินค้า</legend>
+        <div className="flex gap-2">
+          {CONDITIONS.map(({ value, label }) => (
+            <label
+              key={value}
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-black/15 px-3 py-2.5 text-sm has-checked:border-brand has-checked:bg-brand/[.06] has-checked:font-medium has-checked:text-brand"
+            >
+              <input
+                type="radio"
+                name="condition"
+                value={value}
+                required
+                defaultChecked={(v?.condition ?? initial.condition) === value}
+                className="accent-brand"
+              />
+              {label}
+            </label>
           ))}
-        </select>
-      </Row>
+        </div>
+        {err?.condition ? (
+          <span className="text-xs text-brand">{err.condition}</span>
+        ) : null}
+      </fieldset>
 
       <Row label="ชื่อสินค้า" error={err?.title}>
         <input

@@ -9,18 +9,43 @@ import { PrismaClient } from "../generated/prisma/client";
  * percent-encoded Thai.
  */
 const CATEGORIES = [
-  { name: "ภาพเขียนศิลปะ", slug: "art-paintings" },
-  { name: "นาฬิกา", slug: "watches" },
-  { name: "โทรศัพท์", slug: "phones" },
-  { name: "อุปกรณ์ไอที", slug: "it-gadgets" },
-  { name: "ของสะสม", slug: "collectibles" },
+  // What this marketplace was built for.
   { name: "พระเครื่อง", slug: "amulets" },
+  { name: "ของสะสม", slug: "collectibles" },
   { name: "Art Toys", slug: "art-toys" },
   { name: "การ์ดสะสม", slug: "trading-cards" },
-  { name: "กระเป๋า/รองเท้าแบรนด์เนม", slug: "brand-bags-shoes" },
-  { name: "กล้อง", slug: "cameras" },
-  { name: "ต้นไม้ด่าง", slug: "variegated-plants" },
+  { name: "ภาพเขียนศิลปะ", slug: "art-paintings" },
+  { name: "นาฬิกา", slug: "watches" },
   { name: "เครื่องประดับ", slug: "jewelry" },
+
+  // Fashion.
+  { name: "กระเป๋าแบรนด์เนม", slug: "brand-bags-shoes" },
+  { name: "รองเท้า", slug: "shoes" },
+  { name: "เสื้อผ้า เครื่องแต่งกาย", slug: "fashion" },
+
+  // Electronics. `phones` and `it-gadgets` are renamed rather than replaced:
+  // the upsert is keyed on slug, so existing listings keep their category.
+  { name: "มือถือ แท็บเล็ต", slug: "phones" },
+  { name: "คอมพิวเตอร์ ไอที", slug: "it-gadgets" },
+  { name: "กล้อง", slug: "cameras" },
+  { name: "เกม", slug: "games" },
+
+  // Hobbies and home.
+  { name: "เครื่องดนตรี", slug: "musical-instruments" },
+  { name: "กีฬา", slug: "sports" },
+  { name: "หนังสือ งานอดิเรก", slug: "books-hobbies" },
+  { name: "ต้นไม้ด่าง", slug: "variegated-plants" },
+  { name: "บ้านและสวน", slug: "home-garden" },
+  { name: "เครื่องใช้ไฟฟ้า", slug: "appliances" },
+  { name: "สุขภาพและความงาม", slug: "health-beauty" },
+  { name: "แม่และเด็ก", slug: "mother-baby" },
+
+  // Vehicles. Everything here fits under MAX_PRICE_SATANG (฿1,000,000) and can
+  // actually change hands; property does not, on either count.
+  { name: "จักรยาน", slug: "bicycles" },
+  { name: "มอเตอร์ไซค์", slug: "motorcycles" },
+  { name: "รถมือสอง", slug: "cars" },
+  { name: "อะไหล่รถ ประดับยนต์", slug: "car-parts" },
 ] as const;
 
 async function main() {

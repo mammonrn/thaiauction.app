@@ -18,6 +18,7 @@ import { formatBaht } from "@/lib/money";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { conditionLabel } from "@/lib/condition";
 
 export default async function AuctionDetailPage({
   params,
@@ -111,9 +112,15 @@ export default async function AuctionDetailPage({
 
         <div className="flex flex-col gap-5">
           <div className="flex flex-col gap-2">
-            <span className="text-sm text-ink/60">
-              {item.category.name}
-            </span>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-ink/60">
+              <span>{item.category.name}</span>
+              {/* Stated on every listing, including the ones that predate the
+                  field — a buyer deciding what to bid needs to know that the
+                  answer is missing as much as they need the answer. */}
+              <span className="rounded border border-black/12 px-1.5 py-0.5 text-xs">
+                {conditionLabel(item.condition)}
+              </span>
+            </div>
             <h1 className="text-2xl font-semibold tracking-tight">
               {item.title}
             </h1>

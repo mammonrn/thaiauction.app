@@ -8,6 +8,7 @@ import {
   validateAuctionInput,
   type AuctionFieldErrors,
 } from "@/lib/auction-rules";
+import { isItemCondition } from "@/lib/condition";
 import { bahtToSatang } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { requireVerifiedSeller } from "@/lib/seller";
@@ -59,6 +60,7 @@ function readForm(formData: FormData) {
 
   return {
     categoryId: String(formData.get("categoryId") ?? ""),
+    condition: String(formData.get("condition") ?? ""),
     title: String(formData.get("title") ?? "").trim(),
     description: String(formData.get("description") ?? "").trim(),
     startPriceRaw: String(formData.get("startPrice") ?? ""),
@@ -74,6 +76,7 @@ function readForm(formData: FormData) {
 function echo(form: ReturnType<typeof readForm>): Record<string, string> {
   return {
     categoryId: form.categoryId,
+    condition: form.condition,
     title: form.title,
     description: form.description,
     startPrice: form.startPriceRaw,
@@ -98,6 +101,7 @@ function buildInput(
 
   const input = {
     categoryId: form.categoryId,
+    condition: form.condition,
     title: form.title,
     description: form.description,
     startPriceSatang: startPriceSatang ?? -1,
@@ -111,6 +115,13 @@ function buildInput(
   };
 
   const errors = validateAuctionInput(input, { requireImages });
+
+  // Narrowed before it reaches Prisma: the column is an enum, and a posted
+  // value that is not one of its members must be a validation error rather
+  // than a database exception.
+  if (!errors.condition && !isItemCondition(input.condition)) {
+    errors.condition = "สภาพสินค้าไม่ถูกต้อง";
+  }
 
   // A timed auction with no date at all is a separate mistake from a bad date.
   if (form.timed && !form.endTimeRaw) {
@@ -147,6 +158,7 @@ export async function createAuctionAction(
       data: {
         sellerId: user.id,
         categoryId: input.categoryId,
+        condition: isItemCondition(input.condition) ? input.condition : null,
         title: input.title,
         description: input.description,
         images: [],
@@ -216,6 +228,7 @@ export async function updateAuctionAction(
       where: { id: owned.id, sellerId: user.id },
       data: {
         categoryId: input.categoryId,
+        condition: isItemCondition(input.condition) ? input.condition : null,
         title: input.title,
         description: input.description,
         images: stored,
@@ -268,6 +281,9 @@ export async function publishAuctionAction(
   const errors = validateAuctionInput(
     {
       categoryId: item.categoryId,
+      // A draft created before this field existed has no answer. Publishing
+      // asks for one rather than inventing it; the edit form is right there.
+      condition: item.condition ?? "",
       title: item.title,
       description: item.description,
       startPriceSatang: item.startPrice,

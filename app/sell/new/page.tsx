@@ -1,63 +1,62 @@
 import Link from "next/link";
 
-import { AuctionForm } from "@/components/auction-form";
-import { createAuctionAction } from "@/app/sell/actions";
+import { CategoryIcon, sortCategories } from "@/lib/category-icons";
 import { prisma } from "@/lib/prisma";
 import { requireVerifiedSeller } from "@/lib/seller";
-import { MAX_IMAGES_PER_ITEM } from "@/lib/uploads";
-import { DEFAULT_BID_INCREMENT_SATANG } from "@/lib/auction-rules";
-import { satangToBaht } from "@/lib/money";
 
-export default async function NewAuctionPage() {
+export const metadata = { title: "เลือกหมวดหมู่" };
+
+/**
+ * Step one of listing something: what is it?
+ *
+ * A category was the first field of a long form, which is the wrong shape for
+ * the question. It is the one answer that changes nothing else on screen but
+ * decides where the listing lives, and it is answerable in a glance — so it
+ * gets its own screen, as a grid you point at rather than a select you scroll.
+ *
+ * Icons carry the scanning here; the labels confirm. Grids of pure text force
+ * reading every cell, which is exactly what a seller holding a phone with one
+ * hand will not do.
+ */
+export default async function ChooseCategoryPage() {
   // Redirects to /account/phone when the seller has no verified number.
   await requireVerifiedSeller("/sell/new");
 
-  // Request time, handed to the date picker so its "too soon" hint is measured
-  // against the same clock the Server Action validates with.
-  //
-  // react-hooks/purity targets client components that may re-render at any
-  // moment. This is an async Server Component on a dynamic route: it runs once
-  // per request, and reading the clock is exactly what it should do.
-  // eslint-disable-next-line react-hooks/purity
-  const now = Date.now();
-
-  const categories = await prisma.category.findMany({
-    orderBy: { name: "asc" },
-    select: { id: true, name: true },
-  });
+  const categories = sortCategories(
+    await prisma.category.findMany({ select: { id: true, name: true, slug: true } }),
+  );
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
+    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-col gap-2">
         <Link
           href="/sell"
           className="text-sm text-ink/60 underline-offset-4 hover:underline"
         >
-          ← กลับรายการสินค้าของฉัน
+          ← สินค้าของฉัน
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">ลงสินค้าประมูล</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          ลงขายอะไรดี?
+        </h1>
       </div>
 
-      <div className="rounded-xl bg-white p-4 sm:p-6">
-  <AuctionForm
-          action={createAuctionAction}
-          categories={categories}
-          maxImages={MAX_IMAGES_PER_ITEM}
-          now={now}
-          submitLabel="บันทึกฉบับร่าง"
-          initial={{
-            categoryId: "",
-            title: "",
-            description: "",
-            startPrice: "",
-            buyNowPrice: "",
-            bidIncrement: String(satangToBaht(DEFAULT_BID_INCREMENT_SATANG)),
-            timed: false,
-            endTime: "",
-            images: [],
-          }}
-        />
-      </div>
+      <ul className="grid grid-cols-3 gap-2 sm:grid-cols-4 sm:gap-3">
+        {categories.map((category) => (
+          <li key={category.id}>
+            <Link
+              href={`/sell/new/${category.slug}`}
+              className="flex h-full flex-col items-center gap-2 rounded-xl bg-white px-2 py-4 text-center transition-colors hover:bg-brand/[.06]"
+            >
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand/[.08] text-brand">
+                <CategoryIcon slug={category.slug} className="h-6 w-6" />
+              </span>
+              <span className="text-xs leading-tight text-ink/80">
+                {category.name}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </main>
   );
 }

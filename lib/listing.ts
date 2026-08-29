@@ -59,6 +59,7 @@ const CARD_FIELDS = {
   images: true,
   currentPrice: true,
   endTime: true,
+  condition: true,
   category: { select: { name: true, slug: true } },
   _count: { select: { bids: true } },
 } as const;

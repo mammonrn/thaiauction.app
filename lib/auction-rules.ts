@@ -60,6 +60,8 @@ export const MIN_BID_INCREMENT_SATANG = 100;
 
 export type AuctionDraftInput = {
   categoryId: string;
+  /** "brand_new" | "used"; empty string means the seller did not answer. */
+  condition: string;
   title: string;
   description: string;
   startPriceSatang: number;
@@ -74,6 +76,7 @@ export type AuctionDraftInput = {
 export type AuctionFieldErrors = Partial<
   Record<
     | "categoryId"
+    | "condition"
     | "title"
     | "description"
     | "startPrice"
@@ -96,6 +99,10 @@ export function validateAuctionInput(
   const errors: AuctionFieldErrors = {};
 
   if (!input.categoryId) errors.categoryId = "กรุณาเลือกหมวดหมู่";
+
+  // Required on every new listing. Existing rows may be null, but nothing
+  // written from here is allowed to be.
+  if (!input.condition) errors.condition = "กรุณาเลือกสภาพสินค้า";
 
   if (!input.title.trim()) errors.title = "กรุณากรอกชื่อสินค้า";
   else if (input.title.length > MAX_TITLE)

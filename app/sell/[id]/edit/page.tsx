@@ -117,6 +117,7 @@ export default async function EditAuctionPage({
             submitLabel="บันทึกการแก้ไข"
             initial={{
               itemId: item.id,
+              condition: item.condition ?? "",
               categoryId: item.categoryId,
               title: item.title,
               description: item.description,
