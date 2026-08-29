@@ -445,25 +445,23 @@ export function PaymentPanel({
         </p>
       ) : null}
 
-      {!qrLive && payment?.status !== "pending" ? (
-        method === "promptpay" ? (
-          <form action={qrAction} className="flex flex-col gap-3">
-            <input type="hidden" name="itemId" value={itemId} />
-            <button
-              type="submit"
-              disabled={busy}
-              className={btnPrimary}
-            >
-              {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
-            </button>
-            {qrState.message ? (
-              <p className="text-sm text-brand">
-                {qrState.message}
-              </p>
-            ) : null}
-          </form>
-        ) : (
-          <form onSubmit={handleCardSubmit} className="flex flex-col gap-3">
+      {/* Explicit per method, not "promptpay or else card". With four methods
+          an else-branch silently rendered the card form underneath the
+          instalment picker and the ShopeePay button. */}
+      {!qrLive && payment?.status !== "pending" && method === "promptpay" ? (
+        <form action={qrAction} className="flex flex-col gap-3">
+          <input type="hidden" name="itemId" value={itemId} />
+          <button type="submit" disabled={busy} className={btnPrimary}>
+            {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
+          </button>
+          {qrState.message ? (
+            <p className="text-sm text-brand">{qrState.message}</p>
+          ) : null}
+        </form>
+      ) : null}
+
+      {!qrLive && payment?.status !== "pending" && method === "card" ? (
+        <form onSubmit={handleCardSubmit} className="flex flex-col gap-3">
             <Field id="card-name" label="ชื่อบนบัตร" autoComplete="cc-name" />
             <Field
               id="card-number"
@@ -510,11 +508,10 @@ export function PaymentPanel({
                 {cardState.message}
               </p>
             ) : null}
-            <p className="text-xs text-ink/50">
-              หมายเลขบัตรส่งตรงถึง Omise — ระบบของเราไม่เห็นและไม่เก็บ
-            </p>
-          </form>
-        )
+          <p className="text-xs text-ink/50">
+            หมายเลขบัตรส่งตรงถึง Omise — ระบบของเราไม่เห็นและไม่เก็บ
+          </p>
+        </form>
       ) : null}
 
       <p className="text-xs text-ink/50">

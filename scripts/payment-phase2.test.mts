@@ -70,6 +70,40 @@ async function wonAuction(amountSatang: number) {
   return { buyer, item };
 }
 
+
+/**
+ * Clear what earlier runs of this suite left behind.
+ *
+ * Not tidiness: `reconcilePayments` sweeps EVERY pending row, so a database
+ * carrying sixty abandoned fixtures from previous runs makes it list charges
+ * back to the oldest of them, and the assertions about this run's rows then
+ * pass or fail depending on how many times the suite has been run before. A
+ * test whose result depends on its own history is not a measurement.
+ *
+ * Scoped to @example.com, which only the fixtures use — a real account cannot
+ * be deleted by this, and the suite still refuses to run without a TEST key.
+ */
+async function resetFixtures() {
+  const fixtures = await prisma.user.findMany({
+    where: { email: { endsWith: "@example.com" } },
+    select: { id: true },
+  });
+  if (fixtures.length === 0) return;
+  const ids = fixtures.map((u) => u.id);
+  const items = await prisma.auctionItem.findMany({
+    where: { OR: [{ sellerId: { in: ids } }, { winnerId: { in: ids } }] },
+    select: { id: true },
+  });
+  const itemIds = items.map((i) => i.id);
+  await prisma.payment.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+  await prisma.paymentStrike.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+  await prisma.bid.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+  await prisma.auctionItem.deleteMany({ where: { id: { in: itemIds } } });
+  await prisma.user.deleteMany({ where: { id: { in: ids } } });
+}
+
+await resetFixtures();
+
 console.log("\nFEATURE FLAGS");
 check("both flags are on for this run", installmentsEnabled() && shopeePayEnabled());
 {
