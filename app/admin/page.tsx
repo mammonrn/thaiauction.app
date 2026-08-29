@@ -17,12 +17,15 @@ export const metadata = { title: "ผู้ดูแลระบบ" };
  * protection and not a convenience on top of an obscure address.
  *
  * Each tile carries what is WAITING, because that is the only number that
- * decides whether the page is worth opening.
+ * decides whether the page is worth opening. It is only the queues: the three
+ * text links that used to sit under them — members, the sales report, the ban
+ * history — are in the sidebar now, on this page and every other one, and a
+ * link repeated two inches from itself is not a shortcut.
  */
 export default async function AdminHomePage() {
   const session = await requireAdmin("/admin");
 
-  const [pendingKyc, pendingPayouts, owed, signals, openReports, members] = await Promise.all([
+  const [pendingKyc, pendingPayouts, owed, signals, openReports] = await Promise.all([
     prisma.sellerVerification.count({ where: { status: "pending" } }),
     prisma.payment.count({
       where: { status: "successful", payoutStatus: "pending" },
@@ -40,7 +43,6 @@ export default async function AdminHomePage() {
     prisma.itemReport
       .groupBy({ by: ["auctionItemId"], where: { status: "open" } })
       .then((rows) => rows.length),
-    prisma.user.count(),
   ]);
 
   return (
@@ -97,30 +99,6 @@ export default async function AdminHomePage() {
               : "หลายบัญชีจากต้นทางเดียวกัน — ต้องตรวจด้วยตนเอง"
           }
         />
-      </div>
-
-      {/* Not tiles. Every tile above counts something WAITING, and neither of
-          these is a queue — nothing here is owed or overdue. In the row they
-          would look exactly like the four numbers that do need acting on. */}
-      <div className="flex flex-wrap gap-4">
-                <Link
-          href="/admin/members"
-          className="text-sm text-info underline-offset-4 hover:underline"
-        >
-          สมาชิกทั้งหมด {members.toLocaleString("th-TH")} คน →
-        </Link>
-        <Link
-          href="/admin/reports/sales"
-          className="text-sm text-info underline-offset-4 hover:underline"
-        >
-          รายงานยอดขาย →
-        </Link>
-        <Link
-          href="/admin/bans"
-          className="text-sm text-info underline-offset-4 hover:underline"
-        >
-          ประวัติการแบนบัญชี →
-        </Link>
       </div>
 
       <p className="text-xs text-ink/45">

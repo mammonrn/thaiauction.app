@@ -150,3 +150,31 @@
 .rail::-webkit-scrollbar {
   display: none;
 }
+
+/**
+ * The admin drawer, on phones.
+ *
+ * It enters from the edge it lives on, so the gesture that opened it and the
+ * thing that arrives agree about where the menu is. Short enough not to be
+ * waited on, and the reduced-motion rule in the base layer flattens it to
+ * nothing for anyone who has asked for that.
+ */
+@keyframes drawer-in-left {
+  from {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.drawer-left {
+  animation: drawer-in-left 180ms ease-out;
+}
+
+.drawer-left::backdrop {
+  animation: backdrop-in 180ms ease-out;
+}
