@@ -32,7 +32,10 @@ export type NotificationType =
   | "payment_missed"
   | "outbid"
   | "ending_soon"
-  | "auction_won";
+  | "auction_won"
+  | "bank_verified"
+  | "bank_rejected"
+  | "payout_sent";
 
 /** Older than this and the list page stops showing it. */
 export const NOTIFICATION_MAX_AGE_DAYS = 90;
@@ -330,6 +333,73 @@ export async function notifyEndingSoon(params: {
     body: `${params.itemTitle} — เหลืออีกประมาณ ${params.minutesLeft} นาที`,
     url: `/auctions/${params.itemId}`,
     dedupeKey: `ending_soon:${params.itemId}`,
+    onceEver: true,
+  });
+}
+
+/**
+ * Omise accepted the seller's bank account.
+ *
+ * `onceEver` on the recipient id rather than on the user: a seller who changes
+ * banks gets a new recipient and deserves to be told that one passed too, but
+ * the sweep that polls Omise must not re-announce the same one every run.
+ */
+export async function notifyBankVerified(params: {
+  sellerId: string;
+  recipientId: string;
+}): Promise<void> {
+  await notify({
+    userId: params.sellerId,
+    type: "bank_verified",
+    title: "บัญชีธนาคารพร้อมรับเงินแล้ว",
+    body: "ยอดขายจะโอนเข้าบัญชีนี้อัตโนมัติหลังทีมงานอนุมัติ",
+    url: "/account/bank",
+    dedupeKey: `bank_verified:${params.recipientId}`,
+    onceEver: true,
+  });
+}
+
+/**
+ * Omise rejected it, or a payout cannot go out until the seller acts.
+ *
+ * The only notification in this file that asks for something back, which is why
+ * it names the page to fix it on rather than merely reporting a state.
+ */
+export async function notifyBankRejected(params: {
+  sellerId: string;
+  recipientId: string;
+  reason: string;
+}): Promise<void> {
+  await notify({
+    userId: params.sellerId,
+    type: "bank_rejected",
+    title: "ตรวจสอบบัญชีธนาคารไม่ผ่าน",
+    body: `${params.reason} — กรุณาแก้ไขบัญชีธนาคารเพื่อรับเงิน`,
+    url: "/account/bank",
+    dedupeKey: `bank_rejected:${params.recipientId}`,
+    onceEver: true,
+  });
+}
+
+/**
+ * The money has left for the seller's bank account.
+ *
+ * Keyed on the payment, not the auction: one sale is paid out once, and the
+ * transfer sweep re-reads a transfer on every run until the bank confirms it.
+ */
+export async function notifyPayoutSent(params: {
+  paymentId: string;
+  itemTitle: string;
+  sellerId: string;
+  amount: number;
+}): Promise<void> {
+  await notify({
+    userId: params.sellerId,
+    type: "payout_sent",
+    title: "โอนเงินให้แล้ว",
+    body: `${params.itemTitle} — ${formatBaht(params.amount)} เข้าบัญชีธนาคารของคุณ`,
+    url: "/sell",
+    dedupeKey: `payout_sent:${params.paymentId}`,
     onceEver: true,
   });
 }

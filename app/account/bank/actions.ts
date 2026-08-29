@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { BANK_UNLOCK_MS, isUnlocked } from "@/lib/bank-account";
 import { maskPhone, sendChallenge, verifyChallenge } from "@/lib/otp-challenge";
+import { recipientPayoutsEnabled, syncRecipient } from "@/lib/payouts";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { namesMatch } from "@/lib/thai-name";
@@ -99,6 +100,9 @@ export async function saveBankAccountAction(
           previousBankCode: existing.bankCode,
           previousAccountNumber: existing.accountNumber,
           previousAccountName: existing.accountName,
+          // Where the money used to go, kept for the same reason the old
+          // digits are: a misdirected payout is only ever traced afterwards.
+          previousOmiseRecipientId: existing.omiseRecipientId,
           newBankCode: data.bankCode,
           newAccountNumber: data.accountNumber,
           newAccountName: data.accountName,
@@ -110,13 +114,40 @@ export async function saveBankAccountAction(
         where: { userId: user.id },
         // Spending the unlock is part of the same write: one OTP buys one
         // change, not a window in which any number of changes can happen.
-        data: { ...data, unlockedUntil: null, unlockedByPhone: null },
+        //
+        // The recipient is DETACHED in the same write. It described the old
+        // account, so leaving it attached would point new payouts at the
+        // destination the seller just moved away from — the exact failure the
+        // OTP lock exists to prevent. A fresh one is created below, and the
+        // sweep creates it anyway if that call does not get through.
+        data: {
+          ...data,
+          unlockedUntil: null,
+          unlockedByPhone: null,
+          omiseRecipientId: null,
+          recipientStatus: "pending",
+          recipientCreatedAt: null,
+          recipientVerifiedAt: null,
+          recipientFailureCode: null,
+          recipientCheckedAt: null,
+        },
       }),
     ]);
   } else {
     await prisma.sellerBankAccount.create({
       data: { userId: user.id, ...data },
     });
+  }
+
+  // Fire and forget, exactly like a notification: the seller's account is
+  // saved, and a gateway having an afternoon must not turn that into an error
+  // they have to act on. Anything this misses, the recipient sweep picks up.
+  if (recipientPayoutsEnabled()) {
+    try {
+      await syncRecipient(user.id);
+    } catch (error) {
+      console.error("[bank] syncRecipient failed:", error);
+    }
   }
 
   revalidatePath("/account/bank");

@@ -417,3 +417,182 @@ function metadataFields(
 export function promptPayQrUri(charge: OmiseCharge): string | null {
   return charge.source?.scannable_code?.image?.download_uri ?? null;
 }
+
+/* ------------------------------------------------- recipients and transfers */
+
+/**
+ * A payout destination at Omise: one seller's bank account, mirrored.
+ *
+ * `verified` and `active` are separate booleans and BOTH matter. Verified means
+ * Omise believes the account details; active means it may receive money. A
+ * transfer to a recipient that is verified but not active is accepted by the
+ * API and comes back with `sendable: false` — it would sit there forever. See
+ * `recipientUsable`.
+ */
+export type OmiseRecipient = {
+  object: "recipient";
+  id: string;
+  livemode: boolean;
+  deleted: boolean;
+  verified: boolean;
+  active: boolean;
+  /// Omise's code when it rejects the details. Null while it is still deciding.
+  failure_code: string | null;
+  verified_at: string | null;
+  activated_at: string | null;
+  type: "individual" | "corporation";
+  name: string;
+  email: string | null;
+  bank_account: {
+    brand: string | null;
+    bank_code: string | null;
+    last_digits: string | null;
+    name: string;
+  } | null;
+};
+
+/**
+ * Money on its way to a recipient.
+ *
+ * `net` is what LANDS in the bank account: Omise takes `total_fee` out of
+ * `amount`, it does not bill it separately. Verified against the TEST API —
+ * amount 10000 comes back fee 1869, fee_vat 131, total_fee 2000, net 8000.
+ * Every figure this project records about a transfer comes from here rather
+ * than from arithmetic, for the same reason the charge figures do.
+ */
+export type OmiseTransfer = {
+  object: "transfer";
+  id: string;
+  livemode: boolean;
+  deleted: boolean;
+  /// Whether Omise will actually send it. False for an inactive recipient and
+  /// false when the balance will not cover it — neither is reported as an
+  /// error at creation time, so this is the only signal that a transfer is
+  /// stillborn.
+  sendable: boolean;
+  sent: boolean;
+  paid: boolean;
+  amount: number;
+  fee: number;
+  fee_vat: number;
+  total_fee: number;
+  net: number;
+  currency: string;
+  recipient: string;
+  failure_code: string | null;
+  failure_message: string | null;
+  sent_at: string | null;
+  paid_at: string | null;
+  created_at: string;
+  metadata: Record<string, string> | null;
+};
+
+/** Whether a transfer to this recipient would actually go out. */
+export function recipientUsable(recipient: OmiseRecipient): boolean {
+  return recipient.verified && recipient.active && !recipient.deleted;
+}
+
+/**
+ * Create a payout destination for one seller.
+ *
+ * `type` is always `individual`: this marketplace's sellers are people, and a
+ * corporation recipient additionally needs a tax id that nothing in the app
+ * collects. If business sellers are ever onboarded this is where that starts.
+ *
+ * The bank code is this project's own identifier from lib/thai-banks.ts, which
+ * is already the Omise `bank_account[brand]` vocabulary — "kbank", "bbl",
+ * "scb" — so no translation table stands between the two.
+ */
+export async function createRecipient(params: {
+  name: string;
+  email: string;
+  bankCode: string;
+  accountNumber: string;
+  accountName: string;
+}): Promise<OmiseRecipient> {
+  assertUsableKey();
+  return request<OmiseRecipient>("/recipients", {
+    method: "POST",
+    body: {
+      name: params.name,
+      type: "individual",
+      email: params.email,
+      "bank_account[brand]": params.bankCode,
+      "bank_account[number]": params.accountNumber,
+      "bank_account[name]": params.accountName,
+    },
+  });
+}
+
+/** Re-read a recipient. The authority on whether it can be paid to. */
+export async function retrieveRecipient(
+  recipientId: string,
+): Promise<OmiseRecipient> {
+  return request<OmiseRecipient>(
+    `/recipients/${encodeURIComponent(recipientId)}`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * Send money to a recipient.
+ *
+ * `amount` is what is TAKEN from the marketplace balance; Omise deducts its fee
+ * from it and the recipient receives `net`. So the caller asks for
+ * `sellerNet + transferFee` — see lib/payout-math.ts.
+ *
+ * A creation that succeeds is NOT a transfer that will happen: an inactive
+ * recipient or an insufficient balance both return HTTP 200 with
+ * `sendable: false`, verified against the TEST API. Callers must read it.
+ *
+ * Metadata carries the payment row id for the same reason charges do: it is
+ * how the reconcile sweep re-attaches a transfer whose id was never stored
+ * because the process died between the call and the write.
+ */
+export async function createTransfer(params: {
+  amountSatang: number;
+  recipientId: string;
+  metadata: Record<string, string>;
+}): Promise<OmiseTransfer> {
+  assertUsableKey();
+  return request<OmiseTransfer>("/transfers", {
+    method: "POST",
+    body: {
+      amount: String(params.amountSatang),
+      recipient: params.recipientId,
+      ...metadataFields(params.metadata),
+    },
+  });
+}
+
+/** Re-read a transfer. THE authority on whether the seller has been paid. */
+export async function retrieveTransfer(
+  transferId: string,
+): Promise<OmiseTransfer> {
+  return request<OmiseTransfer>(
+    `/transfers/${encodeURIComponent(transferId)}`,
+    { method: "GET" },
+  );
+}
+
+/**
+ * List transfers in a window.
+ *
+ * The transfer half of `listCharges`, and there for the same one reason: a
+ * crash between "Omise created the transfer" and "we wrote down its id" leaves
+ * real money moving with no local record. Every transfer carries its payment
+ * row id in metadata, so the sweep can find it here and adopt it.
+ */
+export async function listTransfers(params: {
+  from: Date;
+  to: Date;
+  limit?: number;
+}): Promise<{ object: "list"; data: OmiseTransfer[]; total: number }> {
+  const query = new URLSearchParams({
+    from: params.from.toISOString(),
+    to: params.to.toISOString(),
+    limit: String(params.limit ?? 100),
+    order: "reverse_chronological",
+  });
+  return request(`/transfers?${query.toString()}`, { method: "GET" });
+}

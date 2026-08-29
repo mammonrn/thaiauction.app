@@ -31,6 +31,13 @@ if (!process.env.OMISE_SECRET_KEY?.startsWith("skey_test_")) {
   throw new Error("phase2 test refuses to run without a TEST secret key");
 }
 
+// This suite IS the flag-off characterization: it pins what lib/payments.ts
+// does when PAYOUT_RECIPIENTS_ENABLED is unset, which is the guarantee the
+// automatic-payout work had to preserve. Forced rather than assumed, so a
+// developer with the flag set in their .env sees the behaviour this file is
+// about instead of three confusing failures about a fee it predates.
+process.env.PAYOUT_RECIPIENTS_ENABLED = "";
+
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });

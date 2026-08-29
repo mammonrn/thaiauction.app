@@ -128,6 +128,12 @@ enum NotificationType {
   ending_soon
   /// You won.
   auction_won
+  /// Your bank account passed Omise's check and can receive money.
+  bank_verified
+  /// Omise rejected your bank account; it has to be corrected.
+  bank_rejected
+  /// Your money has been sent to your bank account.
+  payout_sent
 
   @@map("notification_type")
 }
@@ -188,6 +194,47 @@ enum PayoutStatus {
   transferred
 
   @@map("payout_status")
+}
+
+/// Whether Omise will accept a transfer to this seller's bank account.
+///
+/// Three states because three is what the seller can act on: it is being
+/// checked, it works, or it needs fixing. Omise itself reports two booleans —
+/// `verified` (the details are real) and `active` (the recipient may receive
+/// money) — and a transfer is only sendable when BOTH are true, proven against
+/// the TEST API: a recipient with verified=true and active=false still gives
+/// `sendable: false`. So `verified` here means both, and no state distinguishes
+/// them, because "verified but not yet active" is not something a seller can do
+/// anything about.
+enum RecipientStatus {
+  /// Created at Omise and waiting on their check.
+  pending
+  /// Verified AND active: money can be sent.
+  verified
+  /// Omise rejected the details. The seller has to correct and save again.
+  failed
+
+  @@map("recipient_status")
+}
+
+/// Progress of an automatic Omise transfer.
+///
+/// Mirrors the Transfer object's own booleans rather than inventing a
+/// vocabulary: `sent` is money that has left, `paid` is money that arrived.
+/// They are separate states because they are separated in time — a transfer can
+/// sit sent-but-not-paid across a banking cut-off — and a seller asking "where
+/// is my money" is asking exactly which of the two it is.
+enum TransferStatus {
+  /// Created at Omise, not yet sent.
+  pending
+  /// Omise has sent it to the bank.
+  sent
+  /// It arrived.
+  paid
+  /// Omise refused it, or the bank sent it back.
+  failed
+
+  @@map("transfer_status")
 }
 
 /// Whether an item has been used.
@@ -261,11 +308,11 @@ model User {
   shippingAddresses     ShippingAddress[]
   notifications         Notification[]
   pushSubscriptions     PushSubscription[]
-  submittedReports      ItemReport[]      @relation("SubmittedReports")
-  reviewedReports       ItemReport[]      @relation("ReviewedReports")
-  bansReceived          UserBan[]         @relation("BansReceived")
-  bansIssued            UserBan[]         @relation("BansIssued")
-  deletedItems          AuctionItem[]     @relation("DeletedItems")
+  submittedReports      ItemReport[]         @relation("SubmittedReports")
+  reviewedReports       ItemReport[]         @relation("ReviewedReports")
+  bansReceived          UserBan[]            @relation("BansReceived")
+  bansIssued            UserBan[]            @relation("BansIssued")
+  deletedItems          AuctionItem[]        @relation("DeletedItems")
   verifiedPhones        VerifiedPhone[]
   sellerVerifications   SellerVerification[] @relation("SubmittedVerifications")
   reviewedVerifications SellerVerification[] @relation("ReviewedVerifications")
@@ -388,8 +435,8 @@ model AuctionItem {
   /// row would erase the evidence for the removal along with it, and orphan a
   /// buyer's own bid history. Every public query filters on this; the admin
   /// pages deliberately do not.
-  deletedAt   DateTime?
-  deletedById String?
+  deletedAt     DateTime?
+  deletedById   String?
   /// What the admin recorded as the reason, shown to the seller.
   deletedReason String?
 
@@ -409,27 +456,27 @@ model AuctionItem {
   /// A sold order must keep saying where it was sent, so the fields are frozen
   /// here at the moment of purchase. Null on orders that predate this, and on
   /// anything never paid for.
-  shipToName       String?
-  shipToPhone      String?
-  shipToLine       String?
+  shipToName        String?
+  shipToPhone       String?
+  shipToLine        String?
   shipToSubDistrict String?
-  shipToDistrict   String?
-  shipToProvince   String?
-  shipToPostalCode String?
+  shipToDistrict    String?
+  shipToProvince    String?
+  shipToPostalCode  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Restrict, not Cascade: an auction is a financial record. Deleting a seller
   // must not silently erase auctions other people bid on.
-  seller   User            @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
-  winner   User?           @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
-  category Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  bids     Bid[]
-  payments Payment[]
-  strikes  PaymentStrike[]
-  reports  ItemReport[]
-  deletedBy User?          @relation("DeletedItems", fields: [deletedById], references: [id], onDelete: Restrict)
+  seller    User            @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
+  winner    User?           @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
+  category  Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  bids      Bid[]
+  payments  Payment[]
+  strikes   PaymentStrike[]
+  reports   ItemReport[]
+  deletedBy User?           @relation("DeletedItems", fields: [deletedById], references: [id], onDelete: Restrict)
 
   // "Live auctions, soonest ending first" — the main marketplace query.
   // Category browse pages.
@@ -679,13 +726,20 @@ model Payment {
   /// not an estimate of them. Null while the charge is still pending.
   /// `net` is Omise's own "amount after fees, interest and VAT", so
   /// commission is taken from it rather than from `amount`.
-  fee        Int?
-  feeVat     Int?
-  net        Int?
+  fee         Int?
+  feeVat      Int?
+  net         Int?
   /// 10% of `net`, floored, so the platform never rounds in its own favour.
-  commission Int?
+  commission  Int?
   /// `net - commission`. What the seller is owed, to the satang.
-  sellerNet  Int?
+  sellerNet   Int?
+  /// Omise's fee for MOVING the money to the seller, deducted from `net`
+  /// before the commission is worked out — see lib/payout-math.ts.
+  ///
+  /// Null on every row settled before PAYOUT_RECIPIENTS_ENABLED was switched
+  /// on, which is exactly how the payout path recognises a row whose split
+  /// predates the transfer fee and has to be rebuilt before it can be sent.
+  transferFee Int?
 
   /// Omise's own words when a charge fails, shown to the buyer so a decline is
   /// actionable ("insufficient funds" vs "wrong CVV").
@@ -732,6 +786,22 @@ model Payment {
   payoutAccountNumber String?
   payoutAccountName   String?
 
+  // --- automatic payout (Omise Transfers API) ---------------------------
+  /// Omise's transfer id (`trsf_...`). Unique, so one API transfer can never
+  /// be recorded against two payments.
+  omiseTransferId        String?         @unique
+  transferStatus         TransferStatus?
+  /// What was ASKED of Omise: sellerNet + transferFee.
+  transferAmount         Int?
+  /// What Omise says actually lands in the bank account. The authority on
+  /// what the seller received — `sellerNet` is the intention, this is the
+  /// fact, and recordTransferResult reconciles the two when they differ.
+  transferNet            Int?
+  transferSentAt         DateTime?
+  transferPaidAt         DateTime?
+  transferFailureCode    String?
+  transferFailureMessage String?
+
   auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Restrict)
   // Restrict throughout: a payment is a financial record. Nobody involved in
   // one can be deleted out from under it.
@@ -745,6 +815,8 @@ model Payment {
   @@index([payerId, createdAt])
   // The reconcile sweep: pending charges to re-check against Omise.
   @@index([status, createdAt])
+  // The transfer sweep: transfers that have not landed yet.
+  @@index([transferStatus, transferSentAt])
   @@map("payments")
 }
 
@@ -809,12 +881,32 @@ model SellerBankAccount {
   /// when the change lands. Cleared with the unlock.
   unlockedByPhone String?
 
+  // --- Omise recipient ---------------------------------------------------
+  /// The recipient at Omise that mirrors this account (`recp_...`).
+  ///
+  /// Held HERE rather than on the user because the recipient IS the bank
+  /// account: change the account and the old recipient is wrong, so a change
+  /// creates a new one and the previous id moves into the change log. Unique,
+  /// so two sellers can never end up pointed at one destination.
+  omiseRecipientId     String?         @unique
+  recipientStatus      RecipientStatus @default(pending)
+  recipientCreatedAt   DateTime?
+  recipientVerifiedAt  DateTime?
+  /// Omise's own code when it rejects the details, kept so a rejection can be
+  /// investigated rather than only reported.
+  recipientFailureCode String?
+  /// When the sweep last asked Omise about it. Drives the polling order, the
+  /// same way the payment sweep works off `createdAt`.
+  recipientCheckedAt   DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   changes BankAccountChange[]
 
+  // The recipient sweep: accounts still waiting on Omise.
+  @@index([recipientStatus, recipientCheckedAt])
   @@map("seller_bank_accounts")
 }
 
@@ -828,9 +920,14 @@ model BankAccountChange {
   id     String @id @default(cuid())
   userId String
 
-  previousBankCode      String
-  previousAccountNumber String
-  previousAccountName   String
+  previousBankCode         String
+  previousAccountNumber    String
+  previousAccountName      String
+  /// The recipient the money used to go to. Kept for the same reason both
+  /// account numbers are: a payout that went to the wrong place is only ever
+  /// investigated after the fact, and "which recipient was live then" is the
+  /// question. Null for a change made before recipients existed.
+  previousOmiseRecipientId String?
 
   newBankCode       String
   newAccountNumber  String
@@ -870,7 +967,6 @@ model PasswordResetRequest {
   @@map("password_reset_requests")
 }
 
-
 /// One person's report of one listing.
 ///
 /// Unique on (auctionItemId, reporterId): reporting the same listing twice is
@@ -887,8 +983,8 @@ model ItemReport {
   /// Only meaningful for `other`, and capped in the action layer.
   note   String?
 
-  status     ReportStatus @default(open)
-  reviewedAt DateTime?
+  status       ReportStatus @default(open)
+  reviewedAt   DateTime?
   reviewedById String?
 
   createdAt DateTime @default(now())
@@ -942,7 +1038,6 @@ model UserBan {
   @@index([userId, createdAt])
   @@map("user_bans")
 }
-
 
 /// One thing that happened, addressed to one person.
 ///

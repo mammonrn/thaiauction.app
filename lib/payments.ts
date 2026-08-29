@@ -23,7 +23,9 @@ import {
   isOfferedInstallment,
 } from "@/lib/payment-methods";
 import { failureMessage } from "@/lib/omise-failures";
-import { splitPayment } from "@/lib/payment-math";
+import { splitPayment, type PaymentBreakdown } from "@/lib/payment-math";
+import { splitPaymentWithTransfer } from "@/lib/payout-math";
+import { recipientPayoutsEnabled } from "@/lib/payouts";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -611,7 +613,7 @@ async function adoptCharge(paymentId: string, charge: OmiseCharge) {
 
   const money =
     status === "successful" && charge.net !== null
-      ? splitPayment({
+      ? splitSettledCharge({
           amount: charge.amount,
           fee: charge.fee ?? 0,
           feeVat: charge.fee_vat ?? 0,
@@ -642,7 +644,7 @@ async function recordCharge(
   paymentId: string,
   charge: OmiseCharge,
   status: "pending" | "successful" | "failed" | "expired",
-  money: ReturnType<typeof splitPayment> | null,
+  money: (PaymentBreakdown & { transferFee?: number }) | null,
 ) {
   await prisma.$transaction(async (tx) => {
     const payment = await tx.payment.update({
@@ -669,6 +671,11 @@ async function recordCharge(
               net: money.net,
               commission: money.commission,
               sellerNet: money.sellerNet,
+              // Only under the flag. Null is how the payout path recognises a
+              // row whose split predates the transfer fee.
+              ...(money.transferFee === undefined
+                ? {}
+                : { transferFee: money.transferFee }),
               paidAt: new Date(),
             }
           : {}),
@@ -685,6 +692,36 @@ async function recordCharge(
       });
     }
   });
+}
+
+/**
+ * How a settled charge is split. The ONE thing PAYOUT_RECIPIENTS_ENABLED
+ * changes inside this file.
+ *
+ * Flag off: `splitPayment`, and nothing else — the behaviour the payment
+ * regression suites pin down, unchanged in every case.
+ *
+ * Flag on: Omise's transfer fee comes off `net` before the commission, because
+ * the money now leaves through the Transfers API and Omise deducts its fee from
+ * the transfer itself. See lib/payout-math.ts for the arithmetic and for the
+ * measurements it rests on.
+ *
+ * The new split can DECLINE — a sale too small to cover the transfer fee — and
+ * the old one stands in when it does. The money is still owed and still
+ * recorded to the satang; it just cannot leave as a transfer, and an admin pays
+ * it the way they always have.
+ */
+function splitSettledCharge(charge: {
+  amount: number;
+  fee: number;
+  feeVat: number;
+  net: number;
+}): PaymentBreakdown & { transferFee?: number } {
+  if (recipientPayoutsEnabled()) {
+    const withTransfer = splitPaymentWithTransfer(charge);
+    if (withTransfer) return withTransfer;
+  }
+  return splitPayment(charge);
 }
 
 /** Omise's `reversed` never occurs here: every charge is captured on creation. */

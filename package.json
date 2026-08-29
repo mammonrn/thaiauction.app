@@ -24,7 +24,10 @@
     "test:shipping": "tsx --conditions=react-server scripts/shipping.test.mts",
     "test:moderation": "tsx --conditions=react-server scripts/moderation.test.mts",
     "notifications:remind-ending": "tsx --conditions=react-server scripts/remind-ending.ts",
-    "test:notifications": "tsx --conditions=react-server scripts/notifications.test.mts"
+    "test:notifications": "tsx --conditions=react-server scripts/notifications.test.mts",
+    "payouts:backfill-recipients": "tsx --conditions=react-server scripts/backfill-recipients.ts",
+    "payouts:reconcile": "tsx --conditions=react-server scripts/reconcile-payouts.ts",
+    "test:payouts": "tsx --conditions=react-server scripts/payouts.test.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

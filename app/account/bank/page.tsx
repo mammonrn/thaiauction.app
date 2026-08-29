@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { BankAccountForm } from "@/components/bank-account-form";
 import { isUnlocked, maskBankAccount } from "@/lib/bank-account";
+import { recipientPayoutsEnabled } from "@/lib/payouts";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
@@ -24,6 +25,8 @@ export default async function BankAccountPage() {
         accountName: true,
         nameMatchesKyc: true,
         unlockedUntil: true,
+        recipientStatus: true,
+        omiseRecipientId: true,
       },
     }),
     prisma.user.findUniqueOrThrow({
@@ -39,6 +42,10 @@ export default async function BankAccountPage() {
   ]);
 
   const hasKycName = Boolean(identity.firstName && identity.lastName);
+  // Only worth saying when there is an account to say it about, and only when
+  // the automatic payout path is the live one — otherwise it describes a check
+  // that is not happening.
+  const showRecipient = recipientPayoutsEnabled() && account !== null;
   const unlocked = isUnlocked(account?.unlockedUntil ?? null);
   // While the account is locked its digits never leave the server: the form is
   // not rendered, so sending them as props would put the full number in the
@@ -73,6 +80,8 @@ export default async function BankAccountPage() {
           </Link>
         </p>
       )}
+
+      {showRecipient && account ? <RecipientStatus account={account} /> : null}
 
       {account && !account.nameMatchesKyc && hasKycName ? (
         <p className="rounded-lg border border-warning/35 bg-warning/8 px-4 py-3 text-sm text-warning">
@@ -113,5 +122,45 @@ export default async function BankAccountPage() {
         </p>
       ) : null}
     </main>
+  );
+}
+
+/**
+ * Whether this account can receive money yet.
+ *
+ * A status, in the voice the rest of the app uses for statuses: what is true,
+ * and — only where the seller has something to do — what to do. The reason
+ * Omise checks accounts at all is policy and lives at /privacy; it is not
+ * repeated here.
+ *
+ * "กำลังตรวจสอบ" covers both "we have not managed to register it yet" and
+ * "Omise is still deciding", because the seller's position is identical in
+ * either case: nothing to do, and the money is not lost.
+ */
+function RecipientStatus({
+  account,
+}: {
+  account: { recipientStatus: string; omiseRecipientId: string | null };
+}) {
+  if (account.recipientStatus === "verified" && account.omiseRecipientId) {
+    return (
+      <p className="rounded-lg border border-success/35 bg-success/8 px-4 py-3 text-sm text-success">
+        พร้อมรับเงิน
+      </p>
+    );
+  }
+
+  if (account.recipientStatus === "failed") {
+    return (
+      <p className="rounded-lg border border-warning/35 bg-warning/8 px-4 py-3 text-sm text-warning">
+        ตรวจสอบไม่ผ่าน — กรุณาตรวจเลขบัญชีและชื่อบัญชีแล้วบันทึกใหม่
+      </p>
+    );
+  }
+
+  return (
+    <p className="rounded-lg border border-black/10 px-4 py-3 text-sm text-ink/70">
+      กำลังตรวจสอบบัญชี (ปกติ 1-2 วันทำการ)
+    </p>
   );
 }

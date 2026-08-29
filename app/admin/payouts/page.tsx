@@ -1,9 +1,12 @@
 import Link from "next/link";
 
+import { AutoPayoutRow, type RecipientState } from "@/components/auto-payout-row";
 import { PayoutRow } from "@/components/payout-row";
 import { requireAdmin } from "@/lib/admin";
+import { maskBankAccount } from "@/lib/bank-account";
 import { formatBaht } from "@/lib/money";
 import { COMMISSION_PERCENT } from "@/lib/payment-math";
+import { recipientPayoutsEnabled } from "@/lib/payouts";
 import { prisma } from "@/lib/prisma";
 import { bankName } from "@/lib/thai-banks";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
@@ -20,6 +23,11 @@ import { AdminBackLink } from "@/components/admin-back-link";
 export default async function AdminPayoutsPage() {
   await requireAdmin("/admin/payouts");
 
+  // Which flow this page IS, decided once. The manual controls stay in the file
+  // and stay working: this is a switch between two live paths, not a rewrite of
+  // one, until the automatic path has been watched on production.
+  const automatic = recipientPayoutsEnabled();
+
   const selection = {
     id: true,
     amount: true,
@@ -28,6 +36,11 @@ export default async function AdminPayoutsPage() {
     net: true,
     commission: true,
     sellerNet: true,
+    transferFee: true,
+    transferStatus: true,
+    transferNet: true,
+    transferFailureMessage: true,
+    omiseTransferId: true,
     paidAt: true,
     payoutAt: true,
     payoutReference: true,
@@ -51,6 +64,8 @@ export default async function AdminPayoutsPage() {
                 accountNumber: true,
                 accountName: true,
                 nameMatchesKyc: true,
+                recipientStatus: true,
+                omiseRecipientId: true,
               },
             },
           },
@@ -150,7 +165,25 @@ export default async function AdminPayoutsPage() {
                   )}
                 </div>
 
-                {account ? <PayoutRow paymentId={row.id} /> : null}
+                {automatic ? (
+                  <AutoPayoutRow
+                    paymentId={row.id}
+                    recipient={recipientStateOf(account)}
+                    sellerNet={row.sellerNet ?? 0}
+                    accountLabel={
+                      account
+                        ? maskBankAccount(account.bankCode, account.accountNumber)
+                        : "-"
+                    }
+                    failureMessage={
+                      row.transferStatus === "failed"
+                        ? row.transferFailureMessage
+                        : null
+                    }
+                  />
+                ) : account ? (
+                  <PayoutRow paymentId={row.id} />
+                ) : null}
               </li>
             );
           })}
@@ -180,6 +213,17 @@ export default async function AdminPayoutsPage() {
                   อ้างอิง {row.payoutReference} · โอนเมื่อ{" "}
                   {row.payoutAt ? formatThaiDateTime(row.payoutAt) : "-"} · โดย{" "}
                   {row.payoutBy?.email ?? "-"}
+                  {row.omiseTransferId ? (
+                    <>
+                      {" "}
+                      ·{" "}
+                      {row.transferStatus === "paid"
+                        ? "เงินเข้าบัญชีแล้ว"
+                        : row.transferStatus === "sent"
+                          ? "ส่งเข้าธนาคารแล้ว"
+                          : "รอ Omise ส่ง"}
+                    </>
+                  ) : null}
                 </span>
               </li>
             ))}
@@ -188,6 +232,23 @@ export default async function AdminPayoutsPage() {
       </section>
     </main>
   );
+}
+
+/**
+ * Whether money can be sent to this seller right now.
+ *
+ * Collapses Omise's two booleans and our own "has an account at all" into the
+ * four cases the admin's button cares about — see lib/omise.ts for why verified
+ * and active are not the same thing.
+ */
+function recipientStateOf(
+  account: { recipientStatus: string; omiseRecipientId: string | null } | null,
+): RecipientState {
+  if (!account) return "missing";
+  if (!account.omiseRecipientId) return "pending";
+  if (account.recipientStatus === "verified") return "verified";
+  if (account.recipientStatus === "failed") return "failed";
+  return "pending";
 }
 
 /**
@@ -214,6 +275,7 @@ function Breakdown({
     net: number | null;
     commission: number | null;
     sellerNet: number | null;
+    transferFee?: number | null;
   };
 }) {
   return (
@@ -221,6 +283,11 @@ function Breakdown({
       <Figure label="ยอดปิดประมูล" value={row.amount} />
       <Figure label="ค่าธรรมเนียม Omise" value={-(row.fee ?? 0)} />
       <Figure label="VAT ค่าธรรมเนียม" value={-(row.feeVat ?? 0)} />
+      {/* A figure, not an explanation. The transfer fee may be named on the
+          payout statement and at /sell/terms, and nowhere else. */}
+      {row.transferFee !== null && row.transferFee !== undefined ? (
+        <Figure label="ค่าธรรมเนียมโอน" value={-row.transferFee} />
+      ) : null}
       <Figure label={`ค่าคอมมิชชั่น ${COMMISSION_PERCENT}%`} value={-(row.commission ?? 0)} />
       <Figure label="ผู้ขายได้รับ" value={row.sellerNet ?? 0} total />
     </dl>
