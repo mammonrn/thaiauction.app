@@ -114,7 +114,10 @@ export default async function EditAuctionPage({
             categories={categories}
             maxImages={MAX_IMAGES_PER_ITEM}
             now={now}
-            submitLabel="บันทึกการแก้ไข"
+            draftLabel={
+              item.status === "draft" ? "บันทึกฉบับร่าง" : "บันทึกการแก้ไข"
+            }
+            canPublish={item.status === "draft"}
             initial={{
               itemId: item.id,
               condition: item.condition ?? "",

@@ -158,15 +158,10 @@ export function PublishControls({
         </div>
       </dialog>
 
-      {publishState.message ? (
-        <p
-          role="alert"
-          className={
-            publishState.ok
-              ? "text-sm text-success"
-              : "text-sm text-brand"
-          }
-        >
+      {/* Failures only. Publishing now redirects to the public listing, so a
+          success is never rendered here — the seller is already gone. */}
+      {publishState.message && !publishState.ok ? (
+        <p role="alert" className="text-sm text-brand">
           {publishState.message}
         </p>
       ) : null}

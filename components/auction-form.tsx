@@ -6,7 +6,7 @@ import type { SellActionState } from "@/app/sell/actions";
 import { ImageUploader, type UploadedImage } from "@/components/image-uploader";
 import { ThaiDateTimePicker } from "@/components/thai-datetime-picker";
 import { MAX_DESCRIPTION, MAX_TITLE } from "@/lib/auction-rules";
-import { btnPrimary } from "@/lib/button";
+import { btnPrimary, btnSecondary } from "@/lib/button";
 import { CONDITION_LABEL } from "@/lib/condition";
 
 const initialState: SellActionState = { ok: false, message: null };
@@ -38,7 +38,8 @@ export function AuctionForm({
   categories,
   category,
   initial,
-  submitLabel,
+  draftLabel,
+  canPublish,
   maxImages,
   now,
 }: {
@@ -52,7 +53,11 @@ export function AuctionForm({
    *  a hidden value and the picker link above the form does the changing. */
   category?: { id: string; name: string };
   initial: AuctionFormValues;
-  submitLabel: string;
+  /** The save button's label. */
+  draftLabel: string;
+  /** False for a listing that is already live, where saving edits is the only
+   *  thing left to do and "เผยแพร่เลย" would be an offer to do it twice. */
+  canPublish: boolean;
   maxImages: number;
   /** Server render time, forwarded to the date picker. */
   now: number;
@@ -232,14 +237,47 @@ export function AuctionForm({
         </p>
       ) : null}
 
-      <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className={btnPrimary}
-        >
-          {pending ? "กำลังบันทึก…" : submitLabel}
-        </button>
+      {/* Both are submits on the same form, distinguished by the value they
+          post. Publishing used to mean saving a draft here and then finding a
+          publish button on the next page; the seller can now finish in one
+          press, and publishing is the press that looks like the point.
+
+          `intent` is only a request: the server still validates a publish
+          strictly (images required) and refuses one that is not ready, which
+          is why the draft button stays useful for a half-finished listing. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {canPublish ? (
+          <>
+            <button
+              type="submit"
+              name="intent"
+              value="publish"
+              disabled={pending}
+              className={btnPrimary}
+            >
+              {pending ? "กำลังบันทึก…" : "เผยแพร่เลย"}
+            </button>
+            <button
+              type="submit"
+              name="intent"
+              value="draft"
+              disabled={pending}
+              className={btnSecondary}
+            >
+              {draftLabel}
+            </button>
+          </>
+        ) : (
+          <button
+            type="submit"
+            name="intent"
+            value="draft"
+            disabled={pending}
+            className={btnPrimary}
+          >
+            {pending ? "กำลังบันทึก…" : draftLabel}
+          </button>
+        )}
       </div>
     </form>
   );

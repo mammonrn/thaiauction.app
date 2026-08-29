@@ -10,6 +10,7 @@ import { VerifyPhoneDialog } from "@/components/verify-phone-dialog";
 import { isStubMode } from "@/lib/thaibulksms";
 import { isSellerVerified } from "@/lib/seller-verification";
 import { LiveAuction } from "@/components/live-auction";
+import { PublishedBanner } from "@/components/published-banner";
 import { minimumBid } from "@/lib/auction-rules";
 import { settleIfExpired } from "@/lib/bidding";
 import { maskName } from "@/lib/mask-name";
@@ -22,8 +23,12 @@ import { conditionLabel } from "@/lib/condition";
 
 export default async function AuctionDetailPage({
   params,
+  searchParams,
 }: PageProps<"/auctions/[id]">) {
   const { id } = await params;
+  // Set by every route that publishes a listing, and cleared from the address
+  // bar by the banner itself so a reload does not show it again.
+  const justPublished = (await searchParams).published === "1";
 
   // Close it here if its clock has run out. Ordinary page views are the main
   // way auctions get settled; the cron sweep only catches the ones nobody
@@ -106,6 +111,8 @@ export default async function AuctionDetailPage({
       >
         ← กลับหน้าแรก
       </Link>
+
+      <PublishedBanner show={justPublished} />
 
       <div className="grid gap-8 rounded-xl bg-white p-4 sm:p-6 md:grid-cols-2">
         <ImageGallery keys={item.images} title={item.title} />

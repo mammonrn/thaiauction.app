@@ -71,7 +71,8 @@ export default async function NewAuctionPage({
           category={category}
           maxImages={MAX_IMAGES_PER_ITEM}
           now={now}
-          submitLabel="บันทึกฉบับร่าง"
+          draftLabel="บันทึกฉบับร่าง"
+          canPublish
           initial={{
             categoryId: category.id,
             condition: "",

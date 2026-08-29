@@ -54,6 +54,17 @@ function parsePrice(raw: string): number | null {
   return bahtToSatang(baht);
 }
 
+/**
+ * Which button was pressed.
+ *
+ * Anything but an explicit "publish" is treated as a draft save, so a form
+ * submitted by pressing Enter — which posts no button value at all — saves
+ * rather than publishes. The safe reading is the default.
+ */
+function wantsPublish(formData: FormData): boolean {
+  return String(formData.get("intent") ?? "") === "publish";
+}
+
 function readForm(formData: FormData) {
   const timed = formData.get("auctionType") === "timed";
   const endTimeRaw = String(formData.get("endTime") ?? "").trim();
@@ -138,7 +149,12 @@ export async function createAuctionAction(
   const { user } = await requireVerifiedSeller("/sell/new");
 
   const form = readForm(formData);
-  const { input, errors } = buildInput(form, false);
+  const publishing = wantsPublish(formData);
+  // Publishing straight from the form is held to the publish-time rules, not
+  // the draft ones: a listing with no photograph is a fine draft and not a
+  // fine listing. Refused here, before anything is written, so the seller gets
+  // the field errors back on the form they are already looking at.
+  const { input, errors } = buildInput(form, publishing);
 
   // The category must exist, or the foreign key would fail with a raw error.
   if (input.categoryId) {
@@ -181,6 +197,17 @@ export async function createAuctionAction(
         data: { images: stored },
       });
     }
+
+    // Created as a draft either way, because the images cannot be attached
+    // until the row exists to name their folder. Going live is a second
+    // statement, guarded on status so nothing that is already active can be
+    // published twice.
+    if (publishing) {
+      await prisma.auctionItem.updateMany({
+        where: { id: itemId, sellerId: user.id, status: "draft" },
+        data: { status: "active" },
+      });
+    }
   } catch (error) {
     if (error instanceof UploadError) {
       return { ok: false, message: error.message, values: echo(form) };
@@ -190,6 +217,14 @@ export async function createAuctionAction(
   }
 
   revalidatePath("/sell");
+
+  // Published listings go to the public page, so the seller sees the thing
+  // they just made where a buyer would see it. A draft has no public page, so
+  // it goes back to its own editor.
+  if (publishing) {
+    revalidatePath(`/auctions/${itemId}`);
+    redirect(`/auctions/${itemId}?published=1`);
+  }
   redirect(`/sell/${itemId}/edit?created=1`);
 }
 
@@ -210,7 +245,16 @@ export async function updateAuctionAction(
   }
 
   const form = readForm(formData);
-  const { input, errors } = buildInput(form, owned.status === "active", owned.createdAt);
+  // Only a draft can be published; pressing it on a live listing would be
+  // asking to publish something already published.
+  const publishing = wantsPublish(formData) && owned.status === "draft";
+  const { input, errors } = buildInput(
+    form,
+    // Strict when the listing is already live, and equally strict when this
+    // save is going to make it live.
+    owned.status === "active" || publishing,
+    owned.createdAt,
+  );
 
   if (input.categoryId) {
     const category = await prisma.category.count({ where: { id: input.categoryId } });
@@ -246,6 +290,13 @@ export async function updateAuctionAction(
     // not linger on the VPS.
     const removed = owned.images.filter((key) => !stored.includes(key));
     await deleteImages(removed);
+
+    if (publishing) {
+      await prisma.auctionItem.updateMany({
+        where: { id: owned.id, sellerId: user.id, status: "draft" },
+        data: { status: "active" },
+      });
+    }
   } catch (error) {
     if (error instanceof UploadError) {
       return { ok: false, message: error.message, values: echo(form) };
@@ -257,6 +308,8 @@ export async function updateAuctionAction(
   revalidatePath("/sell");
   revalidatePath(`/sell/${owned.id}/edit`);
   revalidatePath(`/auctions/${owned.id}`);
+
+  if (publishing) redirect(`/auctions/${owned.id}?published=1`);
   return { ok: true, message: "บันทึกการแก้ไขแล้ว" };
 }
 
@@ -314,7 +367,10 @@ export async function publishAuctionAction(
 
   revalidatePath("/sell");
   revalidatePath(`/auctions/${owned.id}`);
-  return { ok: true, message: "เผยแพร่แล้ว" };
+  // Every route to publishing ends in the same place: the listing as a buyer
+  // sees it. Finishing on the form the seller has just left is the complaint
+  // this fixes — they never got to see that the item actually went up.
+  redirect(`/auctions/${owned.id}?published=1`);
 }
 
 /** Drafts can be deleted outright; anything published is cancelled instead. */
