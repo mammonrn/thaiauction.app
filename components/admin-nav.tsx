@@ -44,7 +44,10 @@ const GROUPS = [
   },
   {
     heading: "รายงาน",
-    links: [{ href: "/admin/reports/sales", label: "รายงานยอดขาย" }],
+    links: [
+      { href: "/admin/reports/sales", label: "รายงานยอดขาย" },
+      { href: "/admin/referrals", label: "ชวนเพื่อน" },
+    ],
   },
 ] as const;
 

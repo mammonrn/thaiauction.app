@@ -124,7 +124,14 @@ function MemberCard({ row }: { row: MemberRow }) {
   return (
     <li className="flex flex-col gap-2 rounded-xl bg-white p-4 text-sm">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-        <span className="font-medium">{row.name}</span>
+        {/* The way into the whole account. Not the card itself: it already
+            carries links of its own, and an anchor cannot hold anchors. */}
+        <Link
+          href={`/admin/members/${row.id}`}
+          className="font-medium text-info underline-offset-4 hover:underline"
+        >
+          {row.name}
+        </Link>
         <span className="text-xs text-ink/50">
           สมัคร {formatThaiDate(row.createdAt)}
         </span>
@@ -186,6 +193,12 @@ function MemberCard({ row }: { row: MemberRow }) {
 
       {/* Where the real detail lives. This page deliberately owns none of it. */}
       <div className="flex flex-wrap gap-3 text-xs">
+        <Link
+          href={`/admin/members/${row.id}`}
+          className="text-info underline-offset-4 hover:underline"
+        >
+          ดูรายละเอียดทั้งหมด
+        </Link>
         <Link
           href={`/admin/bans?user=${row.id}`}
           className="text-info underline-offset-4 hover:underline"

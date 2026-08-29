@@ -30,6 +30,27 @@ import { prisma } from "@/lib/prisma";
 export type MemberRole = "buyer" | "seller" | "both" | "none";
 
 /**
+ * The two questions, answered in ONE place.
+ *
+ * Exported because /admin/members/[id] shows the same badges as the list and
+ * would otherwise carry a second copy of the definition — which is how a
+ * detail page ends up calling somebody a buyer that the list calls nothing.
+ * The facts are gathered differently by each caller (a count here, a relation
+ * there); what they mean is decided here.
+ */
+export function memberRole(facts: {
+  /** Has bid at least once. */
+  hasBid: boolean;
+  /** Has had an identity submission approved. */
+  approvedSeller: boolean;
+}): MemberRole {
+  if (facts.hasBid && facts.approvedSeller) return "both";
+  if (facts.hasBid) return "buyer";
+  if (facts.approvedSeller) return "seller";
+  return "none";
+}
+
+/**
  * What the filter can ask for.
  *
  * "buyer" means HAS the buyer role, not "is only a buyer" — an admin looking
@@ -184,14 +205,7 @@ export async function listMembers(params: {
       email: user.email,
       phone: user.verifiedPhones[0]?.phone ?? null,
       phoneVerified: user.verifiedPhones.length > 0,
-      role:
-        isBuyer && isSeller
-          ? "both"
-          : isBuyer
-            ? "buyer"
-            : isSeller
-              ? "seller"
-              : "none",
+      role: memberRole({ hasBid: isBuyer, approvedSeller: isSeller }),
       kyc: user.sellerVerifications[0]?.status ?? null,
       bans: bans.get(user.id) ?? [],
       createdAt: user.createdAt,

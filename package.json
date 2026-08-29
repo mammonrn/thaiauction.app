@@ -30,7 +30,9 @@
     "test:payouts": "tsx --conditions=react-server scripts/payouts.test.mts",
     "test:members": "tsx --conditions=react-server scripts/members.test.mts",
     "test:sales-report": "tsx --conditions=react-server scripts/sales-report.test.mts",
-    "test:referral": "tsx --conditions=react-server scripts/referral.test.mts"
+    "test:referral": "tsx --conditions=react-server scripts/referral.test.mts",
+    "test:member-detail": "tsx --conditions=react-server scripts/member-detail.test.mts",
+    "test:referral-report": "tsx --conditions=react-server scripts/referral-report.test.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
