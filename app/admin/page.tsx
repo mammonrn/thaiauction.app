@@ -99,16 +99,21 @@ export default async function AdminHomePage() {
         />
       </div>
 
-      {/* Not a tile. Every tile above counts something WAITING, and a member
-          count is not a queue — nothing is owed and nothing is overdue. Putting
-          it in the row would make the one number on the page that never needs
-          acting on look exactly like the four that do. */}
+      {/* Not tiles. Every tile above counts something WAITING, and neither of
+          these is a queue — nothing here is owed or overdue. In the row they
+          would look exactly like the four numbers that do need acting on. */}
       <div className="flex flex-wrap gap-4">
-        <Link
+                <Link
           href="/admin/members"
           className="text-sm text-info underline-offset-4 hover:underline"
         >
           สมาชิกทั้งหมด {members.toLocaleString("th-TH")} คน →
+        </Link>
+        <Link
+          href="/admin/reports/sales"
+          className="text-sm text-info underline-offset-4 hover:underline"
+        >
+          รายงานยอดขาย →
         </Link>
         <Link
           href="/admin/bans"
