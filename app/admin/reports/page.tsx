@@ -2,9 +2,25 @@ import { AdminBackLink } from "@/components/admin-back-link";
 import { AdminReportRow, type ReportedRow } from "@/components/admin-report-row";
 import { requireAdmin } from "@/lib/admin";
 import { reportedItems } from "@/lib/moderation";
+import { thumbUrl } from "@/lib/uploads";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 
 export const metadata = { title: "สินค้าที่ถูกแจ้ง" };
+
+/**
+ * A taste of the listing's own words, not the whole ad.
+ *
+ * Short on purpose: this is a triage queue, and at 390px a 300-character
+ * description was taller than everything else on the card put together —
+ * which buries the thing an admin is actually deciding between, the reports.
+ * The full text is one tap away on the listing itself.
+ */
+const DESCRIPTION_PREVIEW = 180;
+
+function truncate(text: string, max: number): string {
+  const trimmed = text.trim();
+  return trimmed.length <= max ? trimmed : `${trimmed.slice(0, max)}…`;
+}
 
 /**
  * The moderation queue.
@@ -22,6 +38,12 @@ export default async function AdminReportsPage() {
   const rows: ReportedRow[] = queue.map(({ item, reportCount }) => ({
     itemId: item.id,
     title: item.title,
+    coverUrl: item.images[0] ? thumbUrl(item.images[0]) : null,
+    // Truncated here rather than by CSS: a listing description can be five
+    // thousand characters, and shipping all of them to render a clamped
+    // paragraph would make the queue heavy for nothing.
+    description: truncate(item.description, DESCRIPTION_PREVIEW),
+    categoryName: item.category.name,
     price: item.currentPrice,
     status: item.status,
     paymentState: item.paymentState,

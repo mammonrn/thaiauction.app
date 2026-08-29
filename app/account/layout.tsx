@@ -1,5 +1,6 @@
 import { AccountSidebar } from "@/components/account-sidebar";
 import { requireSession } from "@/lib/session";
+import { isAdminEmail } from "@/lib/admin";
 import { unreadNotificationCount } from "@/lib/notifications";
 import { unpaidWinCount } from "@/lib/unpaid";
 
@@ -17,6 +18,7 @@ export default async function AccountLayout({
   const { user } = await requireSession("/account");
   const unpaidWins = await unpaidWinCount(user.id);
   const unreadNotifications = await unreadNotificationCount(user.id);
+  const isAdmin = isAdminEmail(user.email);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -25,6 +27,7 @@ export default async function AccountLayout({
         email={user.email}
         unpaidWins={unpaidWins}
         unreadNotifications={unreadNotifications}
+        isAdmin={isAdmin}
       />
       <div className="min-w-0 flex-1">{children}</div>
     </div>

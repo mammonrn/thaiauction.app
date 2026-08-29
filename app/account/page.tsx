@@ -6,6 +6,7 @@ import { VerificationLevel } from "@/components/verification-level";
 import { avatarUrl } from "@/lib/avatar";
 import { prisma } from "@/lib/prisma";
 import { PushToggle } from "@/components/push-toggle";
+import { isAdminEmail } from "@/lib/admin";
 import { unreadNotificationCount } from "@/lib/notifications";
 import { pushAvailable } from "@/lib/push";
 import { requireSession } from "@/lib/session";
@@ -28,6 +29,8 @@ export default async function AccountPage() {
   // to offer the toggle at all, and a button that cannot work is worse than
   // none.
   const pushEnabled = pushAvailable();
+  // Convenience only; /admin does the real check with the same helper.
+  const isAdmin = isAdminEmail(user.email);
 
   const [
     profile,
@@ -112,6 +115,12 @@ export default async function AccountPage() {
           somewhere else — and it belongs next to the page it configures. */}
       {pushEnabled ? (
         <PushToggle publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
+      ) : null}
+
+      {isAdmin ? (
+        <Group title="ผู้ดูแลระบบ">
+          <Row href="/admin" title="ผู้ดูแลระบบ" detail="ตรวจสอบ แจ้งเตือน และการเงิน" />
+        </Group>
       ) : null}
 
       <Group title="ข้อมูลผู้ขาย">

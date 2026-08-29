@@ -1,3 +1,5 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,7 +23,99 @@ import { formatBaht } from "@/lib/money";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
+import { isAdminEmail } from "@/lib/admin";
 import { conditionLabel } from "@/lib/condition";
+import { imageUrl } from "@/lib/uploads";
+
+/**
+ * Where this deployment lives, for the absolute URLs Open Graph requires.
+ *
+ * Taken from the request rather than a configured base URL, the same way the
+ * payment return path is built, so a deployment behind a different hostname
+ * advertises itself correctly.
+ */
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "thaiauction.app";
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  return `${proto}://${host}`;
+}
+
+/**
+ * The card people see when a listing is pasted into LINE, Facebook or X.
+ *
+ * Deliberately NOT generated for a draft or a removed listing. Those are
+ * invisible to the public page, and a preview that renders their title and
+ * photograph would be a way to read a private or withdrawn listing without
+ * ever loading it — the crawler does the reading for you. Both fall back to
+ * the app's own default card, which says nothing about the item.
+ *
+ * Note this query does not have the admin exemption the page itself has: an
+ * admin viewing a removed listing is a moderation decision, but the OG tags
+ * are served to anyone who asks, crawler or not.
+ */
+export async function generateMetadata({
+  params,
+}: PageProps<"/auctions/[id]">): Promise<Metadata> {
+  const { id } = await params;
+
+  const item = await prisma.auctionItem.findFirst({
+    where: { id, deletedAt: null, status: { in: ["active", "ended", "cancelled"] } },
+    select: {
+      title: true,
+      description: true,
+      images: true,
+      currentPrice: true,
+      buyNowPrice: true,
+      status: true,
+    },
+  });
+
+  if (!item) return {};
+
+  const price =
+    item.status === "active"
+      ? `ราคาปัจจุบัน ${formatBaht(item.currentPrice)}`
+      : `ปิดที่ ${formatBaht(item.currentPrice)}`;
+  const buyNow =
+    item.status === "active" && item.buyNowPrice !== null
+      ? ` · ซื้อทันที ${formatBaht(item.buyNowPrice)}`
+      : "";
+
+  // The price leads, because it is what decides whether the link is worth
+  // opening; the seller's own words follow, trimmed to what a preview shows.
+  const summary = item.description.trim().replace(/\s+/g, " ").slice(0, 120);
+  const description = `${price}${buyNow}${summary ? ` — ${summary}` : ""}`;
+
+  const origin = await siteOrigin();
+  const cover = item.images[0]
+    ? `${origin}${imageUrl(item.images[0])}`
+    : undefined;
+
+  return {
+    title: item.title,
+    description,
+    openGraph: {
+      type: "website",
+      title: item.title,
+      description,
+      url: `${origin}/auctions/${id}`,
+      siteName: "ThaiAuction",
+      locale: "th_TH",
+      ...(cover
+        ? { images: [{ url: cover, alt: item.title }] }
+        : {}),
+    },
+    twitter: {
+      // The large card: a listing is a photograph of a thing, and the small
+      // card crops it to a thumbnail beside the text.
+      card: "summary_large_image",
+      title: item.title,
+      description,
+      ...(cover ? { images: [cover] } : {}),
+    },
+  };
+}
 
 export default async function AuctionDetailPage({
   params,
@@ -39,11 +133,22 @@ export default async function AuctionDetailPage({
 
   const session = await getSession();
 
+  // An admin sees removed listings too, so the moderation queue's "open the
+  // listing" link still works after the listing has been taken down — judging
+  // a removal, or reversing one, needs to see what was removed. Everyone else
+  // gets the 404 they got before; the check is on the session's email against
+  // ADMIN_EMAILS, exactly as /admin itself decides.
+  const viewerIsAdmin = isAdminEmail(session?.user.email);
+
   // Drafts are private: this page only ever resolves a published listing, so a
   // leaked draft id shows nothing. Cancelled ones stay readable so anyone who
   // bid can see what happened.
   const item = await prisma.auctionItem.findFirst({
-    where: { id, deletedAt: null, status: { in: ["active", "ended", "cancelled"] } },
+    where: {
+      id,
+      ...(viewerIsAdmin ? {} : { deletedAt: null }),
+      status: { in: ["active", "ended", "cancelled"] },
+    },
     include: {
       category: { select: { name: true, slug: true } },
       seller: { select: { id: true, name: true, image: true, avatarKey: true } },
@@ -115,6 +220,16 @@ export default async function AuctionDetailPage({
       </Link>
 
       <PublishedBanner show={justPublished} />
+
+      {/* Only an admin can reach this state — a removed listing 404s for
+          everyone else — and they must not mistake it for what the public
+          sees. */}
+      {item.deletedAt ? (
+        <p className="rounded-xl border border-warning/35 bg-warning/12 px-4 py-3 text-sm text-warning">
+          รายการนี้ถูกลบแล้ว — เห็นได้เฉพาะผู้ดูแลระบบ
+          {item.deletedReason ? ` · เหตุผล: ${item.deletedReason}` : ""}
+        </p>
+      ) : null}
 
       <div className="grid gap-8 rounded-xl bg-white p-4 sm:p-6 md:grid-cols-2">
         <ImageGallery keys={item.images} title={item.title} />

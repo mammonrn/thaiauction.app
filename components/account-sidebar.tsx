@@ -44,6 +44,7 @@ export function AccountSidebar({
   email,
   unpaidWins,
   unreadNotifications,
+  isAdmin,
 }: {
   name: string;
   email: string;
@@ -51,6 +52,9 @@ export function AccountSidebar({
   unpaidWins: number;
   /** Unread notifications; puts a count beside การแจ้งเตือน. */
   unreadNotifications: number;
+  /** Decided on the server from ADMIN_EMAILS. Hiding the link is convenience
+   *  only — /admin enforces the real check itself. */
+  isAdmin: boolean;
 }) {
   const pathname = usePathname();
 
@@ -67,7 +71,19 @@ export function AccountSidebar({
         <span className="truncate text-xs text-ink/55">{email}</span>
       </Link>
 
-      {GROUPS.map((group) => (
+      {[
+        ...GROUPS,
+        // Appended rather than written into GROUPS, so the constant stays the
+        // menu everyone has and this is visibly the exception.
+        ...(isAdmin
+          ? [
+              {
+                heading: "ผู้ดูแลระบบ",
+                links: [{ href: "/admin", label: "ผู้ดูแลระบบ" }],
+              } as const,
+            ]
+          : []),
+      ].map((group) => (
         <div key={group.heading} className="flex flex-col gap-1">
           <span className="px-3 text-xs font-semibold uppercase tracking-wide text-ink/45">
             {group.heading}

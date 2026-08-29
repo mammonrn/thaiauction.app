@@ -226,6 +226,11 @@ export async function reportedItems(limit = 50) {
       paymentState: true,
       deletedAt: true,
       currentPrice: true,
+      // Enough for an admin to judge without opening the listing: the cover
+      // image, what the seller said it was, and which category they filed it
+      // under. A report says a listing is wrong; deciding takes seeing it.
+      description: true,
+      category: { select: { name: true } },
       seller: { select: { id: true, name: true, email: true } },
       reports: {
         where: { status: "open" },

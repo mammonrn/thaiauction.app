@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useActionState, useRef, useState } from "react";
 
@@ -20,6 +21,11 @@ const initialState: AdminActionState = { ok: false, message: null };
 export type ReportedRow = {
   itemId: string;
   title: string;
+  /** Cover thumbnail URL, or null when the listing has no images. */
+  coverUrl: string | null;
+  /** Already truncated by the page; this only renders it. */
+  description: string;
+  categoryName: string;
   price: number;
   status: string;
   paymentState: string;
@@ -63,22 +69,59 @@ export function AdminReportRow({ row }: { row: ReportedRow }) {
 
   return (
     <li className="flex flex-col gap-3 rounded-xl bg-white p-5 text-sm">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <Link
-          href={`/auctions/${row.itemId}`}
-          className="font-medium underline-offset-4 hover:underline"
-        >
-          {row.title}
-        </Link>
-        <span className="rounded bg-brand/12 px-2 py-0.5 text-xs font-medium text-brand">
-          ถูกแจ้ง {row.reportCount} ครั้ง
-        </span>
-      </div>
+      <div className="flex gap-3">
+        <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-black/5">
+          {row.coverUrl ? (
+            <Image
+              src={row.coverUrl}
+              alt=""
+              fill
+              sizes="80px"
+              className="object-cover"
+              unoptimized
+            />
+          ) : (
+            <span className="flex h-full items-center justify-center text-[10px] text-ink/40">
+              ไม่มีรูป
+            </span>
+          )}
+        </div>
 
-      <p className="text-xs text-ink/60">
-        {formatBaht(row.price)} · ผู้ขาย {row.seller.name} ({row.seller.email})
-        {row.deleted ? " · ลบแล้ว" : ""}
-      </p>
+        <div className="flex min-w-0 flex-1 flex-col gap-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <span className="font-medium">{row.title}</span>
+            <span className="rounded bg-brand/12 px-2 py-0.5 text-xs font-medium text-brand">
+              ถูกแจ้ง {row.reportCount} ครั้ง
+            </span>
+          </div>
+
+          <p className="text-xs text-ink/60">
+            {row.categoryName} · {formatBaht(row.price)}
+            {row.deleted ? " · ลบแล้ว" : ""}
+          </p>
+          <p className="text-xs text-ink/60">
+            ผู้ขาย {row.seller.name} ({row.seller.email})
+          </p>
+
+          {row.description ? (
+            <p className="line-clamp-3 whitespace-pre-wrap text-xs text-ink/70">
+              {row.description}
+            </p>
+          ) : null}
+
+          {/* A new tab, so the queue keeps its place — an admin working through
+              a list should not lose it to open one listing. The page shows
+              removed listings to admins, so this still works after a removal. */}
+          <Link
+            href={`/auctions/${row.itemId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="self-start text-xs text-info underline-offset-4 hover:underline"
+          >
+            ดูหน้าสินค้าจริง ↗
+          </Link>
+        </div>
+      </div>
 
       <ul className="flex flex-col gap-1.5 border-t border-black/5 pt-2">
         {row.reports.map((report) => (
