@@ -81,6 +81,23 @@ export default async function PayPage({
     ? installmentOffers(item.currentPrice)
     : [];
 
+  // Default first, then newest — the same order as the address book itself, so
+  // the one the panel pre-selects is the one the buyer thinks of as theirs.
+  const addresses = await prisma.shippingAddress.findMany({
+    where: { userId: user.id },
+    orderBy: [{ isDefault: "desc" }, { createdAt: "desc" }],
+    select: {
+      id: true,
+      recipientName: true,
+      phone: true,
+      addressLine: true,
+      subDistrict: true,
+      district: true,
+      province: true,
+      postalCode: true,
+    },
+  });
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <Link
@@ -142,6 +159,7 @@ export default async function PayPage({
           windowHours={PAYMENT_WINDOW_HOURS}
           installmentOffers={offers}
           shopeePayAvailable={shopeePayEnabled()}
+          addresses={addresses}
           initialPayment={
             payment && payment.status !== "successful"
               ? {

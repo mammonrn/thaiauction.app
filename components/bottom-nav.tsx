@@ -29,7 +29,14 @@ const RIGHT = [
   { href: "/account", label: "บัญชี", icon: UserIcon },
 ] as const;
 
-export function BottomNav({ signedIn }: { signedIn: boolean }) {
+export function BottomNav({
+  signedIn,
+  unpaidWins,
+}: {
+  signedIn: boolean;
+  /** Won auctions still to be paid for; puts a dot on "ประมูลของฉัน". */
+  unpaidWins: number;
+}) {
   const pathname = usePathname();
 
   const isActive = (href: string) =>
@@ -67,7 +74,15 @@ export function BottomNav({ signedIn }: { signedIn: boolean }) {
         </li>
 
         {RIGHT.map((tab) => (
-          <Tab key={tab.href} {...tab} active={isActive(tab.href)} href={target(tab.href)} />
+          <Tab
+            key={tab.href}
+            {...tab}
+            active={isActive(tab.href)}
+            href={target(tab.href)}
+            // Only for someone who is signed in and actually owes: a dot that
+            // sends a signed-out visitor to the login page is a lie.
+            dot={signedIn && tab.href === "/account/bids" && unpaidWins > 0}
+          />
         ))}
       </ul>
     </nav>
@@ -79,11 +94,13 @@ function Tab({
   label,
   icon: Icon,
   active,
+  dot = false,
 }: {
   href: string;
   label: string;
   icon: () => React.ReactElement;
   active: boolean;
+  dot?: boolean;
 }) {
   return (
     <li className="min-w-0 flex-1">
@@ -94,8 +111,23 @@ function Tab({
           active ? "text-brand" : "text-ink/55"
         }`}
       >
-        <Icon />
-        <span className="w-full truncate text-center">{label}</span>
+        {/* The dot rides on the icon, not the row, so it reads as marking
+            this tab rather than floating between two of them. Brand, because
+            an unpaid win is something to act on — the status colours are for
+            saying what has already happened. */}
+        <span className="relative">
+          <Icon />
+          {dot ? (
+            <span
+              aria-hidden="true"
+              className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-brand ring-2 ring-white"
+            />
+          ) : null}
+        </span>
+        <span className="w-full truncate text-center">
+          {label}
+          {dot ? <span className="sr-only"> (มีรายการที่ต้องชำระเงิน)</span> : null}
+        </span>
       </Link>
     </li>
   );

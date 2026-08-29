@@ -8,6 +8,8 @@ import { formatBaht } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { timeLeft } from "@/lib/time-left";
+import { ShippingForm } from "@/components/shipping-form";
+import { formatShipTo, shipToOf } from "@/lib/shipping";
 
 export const metadata = { title: "สินค้าของฉัน" };
 
@@ -25,11 +27,18 @@ export const metadata = { title: "สินค้าของฉัน" };
  * target on a phone, and "จัดการ" and "ดูหน้าสาธารณะ" are the same intent —
  * open the thing — one screen apart.
  */
+/**
+ * Sold-and-unposted is first, and is the one group that is not a listing
+ * status: it is the only one where somebody is waiting on the seller to do
+ * something in the physical world. Everything below it is either running by
+ * itself or already over.
+ */
 const GROUPS = [
-  { status: "active", title: "กำลังประมูล" },
-  { status: "draft", title: "ฉบับร่าง" },
-  { status: "ended", title: "จบแล้ว" },
-  { status: "cancelled", title: "ยกเลิก" },
+  { key: "to_ship", title: "ขายแล้ว รอจัดส่ง" },
+  { key: "active", title: "กำลังประมูล" },
+  { key: "draft", title: "ฉบับร่าง" },
+  { key: "ended", title: "จบแล้ว" },
+  { key: "cancelled", title: "ยกเลิก" },
 ] as const;
 
 export default async function SellPage() {
@@ -46,6 +55,16 @@ export default async function SellPage() {
       status: true,
       condition: true,
       endTime: true,
+      paymentState: true,
+      shippingStatus: true,
+      trackingNumber: true,
+      shipToName: true,
+      shipToPhone: true,
+      shipToLine: true,
+      shipToSubDistrict: true,
+      shipToDistrict: true,
+      shipToProvince: true,
+      shipToPostalCode: true,
       _count: { select: { bids: true } },
     },
   });
@@ -71,12 +90,20 @@ export default async function SellPage() {
           </p>
         </div>
       ) : (
-        GROUPS.map(({ status, title }) => {
-          const group = items.filter((item) => item.status === status);
+        GROUPS.map(({ key, title }) => {
+          // A paid order still to be posted leaves the "จบแล้ว" pile and moves
+          // to the top, so the seller never has to work out which of their
+          // finished auctions are waiting on them.
+          const group = items.filter((item) =>
+            key === "to_ship"
+              ? item.paymentState === "paid" && item.shippingStatus === "not_shipped"
+              : item.status === key &&
+                !(item.paymentState === "paid" && item.shippingStatus === "not_shipped"),
+          );
           if (group.length === 0) return null;
 
           return (
-            <section key={status} className="flex flex-col gap-2">
+            <section key={key} className="flex flex-col gap-2">
               <h2 className="flex items-baseline gap-2 text-sm font-semibold text-ink/70">
                 {title}
                 <span className="text-xs font-normal text-ink/45">
@@ -86,10 +113,21 @@ export default async function SellPage() {
 
               <ul className="flex flex-col gap-2">
                 {group.map((item) => (
-                  <li key={item.id}>
+                  <li
+                    key={item.id}
+                    className={
+                      key === "to_ship" || item.shippingStatus === "shipped"
+                        ? "flex flex-col rounded-xl bg-white p-3"
+                        : undefined
+                    }
+                  >
                     <Link
                       href={`/sell/${item.id}/edit`}
-                      className="flex items-center gap-3 rounded-xl bg-white p-3 transition-colors hover:bg-brand/[.03]"
+                      className={
+                        key === "to_ship" || item.shippingStatus === "shipped"
+                          ? "flex items-center gap-3 transition-colors"
+                          : "flex items-center gap-3 rounded-xl bg-white p-3 transition-colors hover:bg-brand/[.03]"
+                      }
                     >
                       <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-black/5">
                         {item.images[0] ? (
@@ -119,9 +157,9 @@ export default async function SellPage() {
                             between rows: bids matter while it is live, the
                             condition matters while it is still being written. */}
                         <span className="truncate text-[11px] text-ink/50">
-                          {status === "active"
+                          {key === "active"
                             ? `${item._count.bids} การเสนอราคา · ${timeLeft(item.endTime, now)}`
-                            : status === "draft"
+                            : key === "draft"
                               ? `${conditionLabel(item.condition)} · ${item.images.length} รูป`
                               : `${item._count.bids} การเสนอราคา`}
                         </span>
@@ -131,6 +169,30 @@ export default async function SellPage() {
                         →
                       </span>
                     </Link>
+
+                    {/* Attached to the row rather than a page of its own: the
+                        address and the tracking box belong next to the thing
+                        being posted. Also shown on already-shipped orders, so
+                        a mistyped number can be corrected. */}
+                    {item.paymentState === "paid" ? (
+                      <ShippingForm
+                        order={{
+                          itemId: item.id,
+                          shippingStatus: item.shippingStatus,
+                          trackingNumber: item.trackingNumber,
+                          shipTo: (() => {
+                            const address = shipToOf(item);
+                            return address
+                              ? {
+                                  recipientName: address.recipientName,
+                                  phone: address.phone,
+                                  line: formatShipTo(address),
+                                }
+                              : null;
+                          })(),
+                        }}
+                      />
+                    ) : null}
                   </li>
                 ))}
               </ul>

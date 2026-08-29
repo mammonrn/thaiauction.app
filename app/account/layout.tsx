@@ -1,5 +1,6 @@
 import { AccountSidebar } from "@/components/account-sidebar";
 import { requireSession } from "@/lib/session";
+import { unpaidWinCount } from "@/lib/unpaid";
 
 /**
  * The account shell.
@@ -13,10 +14,11 @@ export default async function AccountLayout({
   children,
 }: LayoutProps<"/account">) {
   const { user } = await requireSession("/account");
+  const unpaidWins = await unpaidWinCount(user.id);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-1 gap-6 px-4 py-6 sm:px-6 sm:py-8">
-      <AccountSidebar name={user.name} email={user.email} />
+      <AccountSidebar name={user.name} email={user.email} unpaidWins={unpaidWins} />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );

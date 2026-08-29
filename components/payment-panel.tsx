@@ -17,6 +17,7 @@ import {
   type PayActionState,
 } from "@/app/auctions/[id]/pay/actions";
 import { InstallmentPicker } from "@/components/installment-picker";
+import { ShipToPicker, type ShipToOption } from "@/components/ship-to-picker";
 import { formatBaht } from "@/lib/money";
 import { btnPrimary, btnSecondarySm } from "@/lib/button";
 import type { InstallmentOffer } from "@/lib/payment-methods";
@@ -93,6 +94,7 @@ export function PaymentPanel({
   initialPayment,
   installmentOffers,
   shopeePayAvailable,
+  addresses,
 }: {
   itemId: string;
   amount: number;
@@ -103,6 +105,8 @@ export function PaymentPanel({
   installmentOffers: InstallmentOffer[];
   /** Whether the ShopeePay flag is on. Mobile is decided in the browser. */
   shopeePayAvailable: boolean;
+  /** The buyer's address book. Empty means they cannot pay yet. */
+  addresses: ShipToOption[];
 }) {
   const isMobile = useSyncExternalStore(noSubscribe, readMobile, () => false);
 
@@ -126,6 +130,12 @@ export function PaymentPanel({
     payWithCardAction,
     EMPTY,
   );
+  // Pre-selected to the first, which the server sorts default-first: the
+  // common case is one address and no choice to make.
+  const [shipToId, setShipToId] = useState<string | null>(
+    addresses[0]?.id ?? null,
+  );
+
   const [qrState, qrAction, qrPending] = useActionState(
     payWithPromptPayAction,
     EMPTY,
@@ -271,6 +281,7 @@ export function PaymentPanel({
         const data = new FormData();
         data.set("itemId", itemId);
         data.set("token", response.id);
+        data.set("shipToId", shipToId ?? "");
         cardAction(data);
       },
     );
@@ -284,6 +295,20 @@ export function PaymentPanel({
     <section className="flex flex-col gap-5">
       <Script src="https://cdn.omise.co/omise.js" strategy="afterInteractive" />
 
+      {/* Before the method, because where it goes is settled before how it is
+          paid for — and because the address is frozen onto the order the
+          moment a charge is reserved, so this is the last chance to say. */}
+      <ShipToPicker
+        addresses={addresses}
+        selectedId={shipToId}
+        onSelect={setShipToId}
+        disabled={busy || payment?.status === "pending"}
+      />
+
+      {/* No address, no payment: everything below would reserve a charge for
+          an order nobody could post. */}
+      {addresses.length === 0 ? null : (
+      <>
       <div className="flex flex-wrap gap-2" role="tablist">
         {methods.map((option) => (
           <button
@@ -357,6 +382,7 @@ export function PaymentPanel({
               data.set("itemId", itemId);
               data.set("bank", bank);
               data.set("term", String(term));
+              data.set("shipToId", shipToId ?? "");
               instAction(data);
             }}
           />
@@ -375,6 +401,7 @@ export function PaymentPanel({
           </p>
           <form action={shopeeAction}>
             <input type="hidden" name="itemId" value={itemId} />
+            <input type="hidden" name="shipToId" value={shipToId ?? ""} />
             <input
               type="hidden"
               name="platform"
@@ -451,6 +478,7 @@ export function PaymentPanel({
       {!qrLive && payment?.status !== "pending" && method === "promptpay" ? (
         <form action={qrAction} className="flex flex-col gap-3">
           <input type="hidden" name="itemId" value={itemId} />
+          <input type="hidden" name="shipToId" value={shipToId ?? ""} />
           <button type="submit" disabled={busy} className={btnPrimary}>
             {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
           </button>
@@ -517,6 +545,8 @@ export function PaymentPanel({
       <p className="text-xs text-ink/50">
         ไม่ชำระใน {windowHours} ชั่วโมง — สิทธิ์ตกเป็นของผู้เสนอราคารายถัดไป
       </p>
+      </>
+      )}
     </section>
   );
 }

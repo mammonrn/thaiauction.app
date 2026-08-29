@@ -31,6 +31,8 @@ export default async function MyBidsPage() {
         currentPrice: true,
         winnerId: true,
         paymentState: true,
+      shippingStatus: true,
+      trackingNumber: true,
         paymentDueAt: true,
         endedAt: true,
         bids: {
@@ -146,6 +148,21 @@ export default async function MyBidsPage() {
                         ? `จบเมื่อ ${formatThaiDateTime(item.endedAt)}`
                         : ""}
                 </p>
+                {/* Only once it is bought and paid for. Before that there is
+                    nothing being posted, and "ยังไม่ส่ง" on an unpaid item
+                    would read as the seller being slow rather than as the
+                    buyer still owing. */}
+                {won && paid ? (
+                  <p className="text-xs">
+                    {item.shippingStatus === "shipped" ? (
+                      <span className="text-success">
+                        ส่งแล้ว · เลขพัสดุ {item.trackingNumber}
+                      </span>
+                    ) : (
+                      <span className="text-warning">ยังไม่ส่ง</span>
+                    )}
+                  </p>
+                ) : null}
                 {won && !paid && item.paymentDueAt &&
                 item.paymentDueAt.getTime() > now ? (
                   <Link

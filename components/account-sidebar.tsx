@@ -41,9 +41,12 @@ const GROUPS = [
 export function AccountSidebar({
   name,
   email,
+  unpaidWins,
 }: {
   name: string;
   email: string;
+  /** Won auctions still to be paid for; puts a dot on ประวัติการประมูล. */
+  unpaidWins: number;
 }) {
   const pathname = usePathname();
 
@@ -67,18 +70,30 @@ export function AccountSidebar({
           </span>
           {group.links.map((link) => {
             const active = pathname === link.href;
+            const dot = link.href === "/account/bids" && unpaidWins > 0;
             return (
               <Link
                 key={link.href}
                 href={link.href}
                 aria-current={active ? "page" : undefined}
-                className={`rounded-lg px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
                   active
                     ? "bg-brand/10 font-semibold text-brand"
                     : "text-ink/70 hover:bg-black/[.04] hover:text-ink"
                 }`}
               >
                 {link.label}
+                {/* Same mark as the phone tab bar, so the two navigations
+                    agree about what an unpaid win looks like. */}
+                {dot ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="h-2 w-2 shrink-0 rounded-full bg-brand"
+                    />
+                    <span className="sr-only">(มีรายการที่ต้องชำระเงิน)</span>
+                  </>
+                ) : null}
               </Link>
             );
           })}

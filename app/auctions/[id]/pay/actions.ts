@@ -10,8 +10,10 @@ import {
   startInstallmentPayment,
   startPromptPayPayment,
   startShopeePayPayment,
+  type ShipTo,
   type StartPaymentFailure,
 } from "@/lib/payments";
+import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 
 export type PayActionState = {
@@ -45,6 +47,41 @@ const FAILURES: Record<StartPaymentFailure, string> = {
   invalid_installment: "แผนผ่อนชำระนี้ใช้กับยอดนี้ไม่ได้ กรุณาเลือกใหม่",
   gateway_error: "ติดต่อระบบชำระเงินไม่สำเร็จ กรุณาลองใหม่อีกครั้ง",
 };
+
+/**
+ * Turn the posted address id into the values to freeze onto the order.
+ *
+ * The id is looked up WITH the payer in the WHERE clause, so someone posting
+ * another person's address id matches nothing — an address book is personal
+ * data, and a guessable id must not be a way to read one.
+ *
+ * Returns null when the id is missing or not theirs. Every caller treats that
+ * as "cannot pay yet" rather than paying without an address: an order nobody
+ * can post is worse than a payment that did not start.
+ */
+async function shipToFor(
+  userId: string,
+  addressId: string,
+): Promise<ShipTo | null> {
+  if (!addressId) return null;
+
+  const address = await prisma.shippingAddress.findFirst({
+    where: { id: addressId, userId },
+    select: {
+      recipientName: true,
+      phone: true,
+      addressLine: true,
+      subDistrict: true,
+      district: true,
+      province: true,
+      postalCode: true,
+    },
+  });
+
+  return address;
+}
+
+const NO_ADDRESS = "กรุณาเลือกที่อยู่จัดส่งก่อนชำระเงิน";
 
 /**
  * This site's own origin, for the URL Omise returns the buyer to.
@@ -81,7 +118,10 @@ export async function payWithCardAction(
     return { ok: false, message: "ข้อมูลบัตรไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง" };
   }
 
-  const result = await startCardPayment(itemId, user.id, token);
+  const shipTo = await shipToFor(user.id, String(formData.get("shipToId") ?? ""));
+  if (!shipTo) return { ok: false, message: NO_ADDRESS };
+
+  const result = await startCardPayment(itemId, user.id, token, shipTo);
   revalidatePath(`/auctions/${itemId}/pay`);
 
   if (!result.ok) {
@@ -107,7 +147,10 @@ export async function payWithPromptPayAction(
   const itemId = String(formData.get("itemId") ?? "");
   const { user } = await requireSession(`/auctions/${itemId}/pay`);
 
-  const result = await startPromptPayPayment(itemId, user.id);
+  const shipTo = await shipToFor(user.id, String(formData.get("shipToId") ?? ""));
+  if (!shipTo) return { ok: false, message: NO_ADDRESS };
+
+  const result = await startPromptPayPayment(itemId, user.id, shipTo);
   revalidatePath(`/auctions/${itemId}/pay`);
 
   if (!result.ok) {
@@ -143,12 +186,16 @@ export async function payWithInstallmentAction(
     return { ok: false, message: FAILURES.invalid_installment };
   }
 
+  const shipTo = await shipToFor(user.id, String(formData.get("shipToId") ?? ""));
+  if (!shipTo) return { ok: false, message: NO_ADDRESS };
+
   const result = await startInstallmentPayment(
     itemId,
     user.id,
     bank,
     term,
     await siteOrigin(),
+    shipTo,
   );
   revalidatePath(`/auctions/${itemId}/pay`);
 
@@ -179,11 +226,15 @@ export async function payWithShopeePayAction(
   const platform = String(formData.get("platform") ?? "") === "IOS" ? "IOS" : "ANDROID";
   const { user } = await requireSession(`/auctions/${itemId}/pay`);
 
+  const shipTo = await shipToFor(user.id, String(formData.get("shipToId") ?? ""));
+  if (!shipTo) return { ok: false, message: NO_ADDRESS };
+
   const result = await startShopeePayPayment(
     itemId,
     user.id,
     platform,
     await siteOrigin(),
+    shipTo,
   );
   revalidatePath(`/auctions/${itemId}/pay`);
 

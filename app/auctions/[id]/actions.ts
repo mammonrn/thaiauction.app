@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import { bahtToSatang, formatBaht } from "@/lib/money";
 import { buyNow, endAuctionBySeller, placeBid } from "@/lib/bidding";
@@ -167,10 +168,13 @@ export async function buyNowAction(
   }
 
   revalidatePath(`/auctions/${itemId}`);
-  return {
-    ok: true,
-    message: `ซื้อทันทีสำเร็จ! คุณชนะการประมูลที่ ${formatBaht(result.amount)}`,
-  };
+
+  // Straight to the till. Buying outright is a decision to pay NOW, and the
+  // 24-hour clock starts the instant this returns — leaving the buyer on the
+  // listing to find "ประมูลของฉัน" for themselves spends that clock on
+  // navigation. An auction won by outbidding still lands on the listing,
+  // because that win arrives while nobody is necessarily looking.
+  redirect(`/auctions/${itemId}/pay`);
 }
 
 /**

@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSession } from "@/lib/session";
+import { unpaidWinCount } from "@/lib/unpaid";
 
 /**
  * IBM Plex Sans Thai for everything, IBM Plex Mono for figures. One
@@ -37,6 +38,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const session = await getSession();
+  // One count for the whole app shell. Only for a signed-in visitor: a
+  // signed-out one has nothing to owe, and asking would be a query per page
+  // view for a guaranteed zero.
+  const unpaidWins = session ? await unpaidWinCount(session.user.id) : 0;
 
   return (
     <html
@@ -47,7 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         {children}
         <SiteFooter />
-        <BottomNav signedIn={session !== null} />
+        <BottomNav signedIn={session !== null} unpaidWins={unpaidWins} />
       </body>
     </html>
   );
