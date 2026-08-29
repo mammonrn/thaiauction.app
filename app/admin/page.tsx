@@ -98,12 +98,23 @@ export default async function AdminHomePage() {
         />
       </div>
 
-      <Link
-        href="/admin/bans"
-        className="text-sm text-info underline-offset-4 hover:underline"
-      >
-        ประวัติการแบนบัญชี →
-      </Link>
+      {/* Not tiles. Every tile above counts something WAITING, and neither of
+          these is a queue — nothing here is owed or overdue. In the row they
+          would look exactly like the four numbers that do need acting on. */}
+      <div className="flex flex-wrap gap-4">
+        <Link
+          href="/admin/reports/sales"
+          className="text-sm text-info underline-offset-4 hover:underline"
+        >
+          รายงานยอดขาย →
+        </Link>
+        <Link
+          href="/admin/bans"
+          className="text-sm text-info underline-offset-4 hover:underline"
+        >
+          ประวัติการแบนบัญชี →
+        </Link>
+      </div>
 
       <p className="text-xs text-ink/45">
         สิทธิ์เข้าถึงกำหนดด้วย ADMIN_EMAILS
