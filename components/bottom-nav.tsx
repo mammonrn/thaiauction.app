@@ -16,30 +16,33 @@ import { usePathname } from "next/navigation";
  * either side keep the row balanced around it rather than making it look
  * off-centre.
  *
+ * The notification bell was briefly a sixth item here and made the row too
+ * long to read at 390px; it lives in the header now, on every screen size,
+ * which is where a counter belongs anyway.
+ *
  * Hidden from sm: upwards, where the header already carries these links.
  * `pb-[env(safe-area-inset-bottom)]` keeps it clear of the iPhone home bar.
  */
 const LEFT = [
   { href: "/", label: "หน้าแรก", icon: HomeIcon },
-  { href: "/search", label: "ค้นหา", icon: SearchIcon },
+  // Not "ค้นหา". The header carries a real search field on every screen size,
+  // so a tab by that name promised a second one and delivered a browse page.
+  // The label now says what is on the other side of it.
+  { href: "/search", label: "หมวดหมู่", icon: GridIcon },
 ] as const;
 
 const RIGHT = [
   { href: "/account/bids", label: "ประมูล", icon: GavelIcon },
-  { href: "/account/notifications", label: "แจ้งเตือน", icon: BellIcon },
   { href: "/account", label: "บัญชี", icon: UserIcon },
 ] as const;
 
 export function BottomNav({
   signedIn,
   unpaidWins,
-  unreadNotifications,
 }: {
   signedIn: boolean;
   /** Won auctions still to be paid for; puts a dot on "ประมูลของฉัน". */
   unpaidWins: number;
-  /** Unread notifications; puts a count on the bell. */
-  unreadNotifications: number;
 }) {
   const pathname = usePathname();
 
@@ -86,14 +89,6 @@ export function BottomNav({
             // Only for someone who is signed in and actually owes: a dot that
             // sends a signed-out visitor to the login page is a lie.
             dot={signedIn && tab.href === "/account/bids" && unpaidWins > 0}
-            // The bell carries a NUMBER rather than a dot: "you have three
-            // things waiting" is worth more than "you have something", and
-            // the bell is the one tab whose whole job is counting.
-            count={
-              signedIn && tab.href === "/account/notifications"
-                ? unreadNotifications
-                : 0
-            }
           />
         ))}
       </ul>
@@ -107,14 +102,12 @@ function Tab({
   icon: Icon,
   active,
   dot = false,
-  count = 0,
 }: {
   href: string;
   label: string;
   icon: () => React.ReactElement;
   active: boolean;
   dot?: boolean;
-  count?: number;
 }) {
   return (
     <li className="min-w-0 flex-1">
@@ -137,23 +130,10 @@ function Tab({
               className="absolute -right-1 -top-0.5 h-2 w-2 rounded-full bg-brand ring-2 ring-white"
             />
           ) : null}
-          {count > 0 ? (
-            // Capped at 9+: the badge has to stay a badge, and past nine the
-            // exact figure stops changing what anyone does about it.
-            <span
-              aria-hidden="true"
-              className="absolute -right-2 -top-1.5 min-w-4 rounded-full bg-brand px-1 text-center text-[10px] font-medium leading-4 text-white ring-2 ring-white"
-            >
-              {count > 9 ? "9+" : count}
-            </span>
-          ) : null}
         </span>
         <span className="w-full truncate text-center">
           {label}
           {dot ? <span className="sr-only"> (มีรายการที่ต้องชำระเงิน)</span> : null}
-          {count > 0 ? (
-            <span className="sr-only"> ({count} รายการที่ยังไม่อ่าน)</span>
-          ) : null}
         </span>
       </Link>
     </li>
@@ -168,11 +148,14 @@ function HomeIcon() {
   );
 }
 
-function SearchIcon() {
+/** Four panes: browsing by category, not searching. */
+function GridIcon() {
   return (
     <svg viewBox="0 0 22 22" fill="none" className="h-5 w-5" aria-hidden="true">
-      <circle cx="10" cy="10" r="6.5" stroke="currentColor" strokeWidth="1.7" />
-      <path d="m15 15 4 4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
+      <rect x="3.2" y="3.2" width="6.6" height="6.6" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="12.2" y="3.2" width="6.6" height="6.6" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="3.2" y="12.2" width="6.6" height="6.6" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
+      <rect x="12.2" y="12.2" width="6.6" height="6.6" rx="1.6" stroke="currentColor" strokeWidth="1.7" />
     </svg>
   );
 }
@@ -192,20 +175,6 @@ function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6" aria-hidden="true">
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function BellIcon() {
-  return (
-    <svg viewBox="0 0 22 22" fill="none" className="h-5 w-5" aria-hidden="true">
-      <path
-        d="M11 3a5 5 0 0 0-5 5v3.2l-1.3 2.6a.6.6 0 0 0 .5.9h11.6a.6.6 0 0 0 .5-.9L16 11.2V8a5 5 0 0 0-5-5Z"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinejoin="round"
-      />
-      <path d="M9 17.5a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" />
     </svg>
   );
 }
