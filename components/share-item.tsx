@@ -28,6 +28,19 @@ function readCanShare() {
   return typeof navigator !== "undefined" && typeof navigator.share === "function";
 }
 
+/**
+ * This page's own address.
+ *
+ * Read through the same store as the share-sheet check, not inline in render:
+ * the first render happens on the SERVER, where there is no `window`, so an
+ * inline read produced an empty string and — with nothing to trigger a second
+ * render — the named-service links shipped with `url=` blank. Going through
+ * useSyncExternalStore makes the client correct it on hydration.
+ */
+function readHref() {
+  return typeof window === "undefined" ? "" : window.location.href;
+}
+
 type Service = {
   key: string;
   label: string;
@@ -46,14 +59,13 @@ const SERVICES: Service[] = [
     label: "LINE",
     href: (url, title) =>
       `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`,
+    // A squared chat box with a tail, deliberately NOT the round bubble
+    // Messenger gets below: at 20px two bubbles are the same icon twice.
     icon: (
       <>
-        <path
-          d="M19 9.6c0-3.5-3.6-6.4-8-6.4S3 6.1 3 9.6c0 3.2 2.8 5.8 6.7 6.3.3 0 .6.2.7.4.1.2 0 .5 0 .7l-.1.7c0 .2-.2.8.7.4s4.6-2.7 6.3-4.6c1.1-1.2 1.7-2.5 1.7-3.9Z"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
+        <rect x="3" y="4" width="18" height="13" rx="3.5" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M8.5 17 7 20.5 12 17" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+        <path d="M8 8.5v4M8 8.5h.01M11.5 12.5v-4l3 4v-4M17 8.5h-1.2v4H17M15.8 10.5h1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
       </>
     ),
   },
@@ -112,16 +124,12 @@ const SERVICES: Service[] = [
 
 export function ShareItem({ title }: { title: string }) {
   const canShare = useSyncExternalStore(noSubscribe, readCanShare, () => false);
+  const url = useSyncExternalStore(noSubscribe, readHref, () => "");
   const [copied, setCopied] = useState(false);
-
-  // Read at click time, not render time: the URL is the same for everyone, so
-  // there is nothing for the server to send and nothing to keep in state.
-  const currentUrl = () =>
-    typeof window === "undefined" ? "" : window.location.href;
 
   async function copy() {
     try {
-      await navigator.clipboard.writeText(currentUrl());
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -139,7 +147,7 @@ export function ShareItem({ title }: { title: string }) {
           type="button"
           onClick={() => {
             void navigator
-              .share({ title, url: currentUrl() })
+              .share({ title, url })
               // An abandoned share sheet rejects; that is a choice, not a fault.
               .catch(() => {});
           }}
@@ -151,7 +159,7 @@ export function ShareItem({ title }: { title: string }) {
         SERVICES.map((service) => (
           <a
             key={service.key}
-            href={service.href(currentUrl(), title)}
+            href={service.href(url, title)}
             target="_blank"
             // noreferrer as well as noopener: the target keeps window.opener
             // otherwise, and the referrer tells them nothing they need.
