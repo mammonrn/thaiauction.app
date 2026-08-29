@@ -25,6 +25,7 @@ import { PrismaClient } from "../generated/prisma/client";
 import {
   endAuctionBySeller,
   forfeitAndReoffer,
+  buyNow,
   placeBid,
   settleAllExpired,
   settleIfExpired,
@@ -396,6 +397,180 @@ console.log("\nA WINNER WHO DOES NOT PAY");
   const after = await prisma.auctionItem.findUniqueOrThrow({ where: { id: item.id } });
   eq("with nobody left the item goes unpaid", after.paymentState, "unpaid");
   eq("and has no winner", after.winnerId, null);
+}
+
+console.log("\nBUY NOW — THE BUTTON");
+{
+  const seller = await user("s");
+  const buyer = await user("b");
+  const item = await auction(seller.id, { buyNowPrice: 150_000 });
+
+  const result = await buyNow(item.id, buyer.id);
+  check("succeeds", result.ok, JSON.stringify(result));
+  eq("at the price on the row, which the caller never sent",
+    result.ok && result.amount, 150_000);
+
+  const after = await prisma.auctionItem.findUniqueOrThrow({ where: { id: item.id } });
+  eq("the auction ended", after.status, "ended");
+  eq("as a buy-now sale", after.endReason, "buy_now");
+  eq("the buyer won", after.winnerId, buyer.id);
+  eq("the price is the buy-now price", after.currentPrice, 150_000);
+  eq("and they owe money", after.paymentState, "awaiting_payment");
+  check("on the same 24-hour clock as any other win",
+    Math.abs((after.paymentDueAt!.getTime() - after.endedAt!.getTime()) - PAYMENT_WINDOW_MS) < 2_000,
+    String(after.paymentDueAt));
+  eq("the purchase is recorded as a bid",
+    await prisma.bid.count({ where: { auctionItemId: item.id, amount: 150_000 } }), 1);
+}
+{
+  // The gap this whole change exists to close: placeBid refuses the leader
+  // with already_leading, which would have left them unable to stop the
+  // auction they were winning.
+  const seller = await user("s");
+  const leader = await user("b");
+  const item = await auction(seller.id, { buyNowPrice: 150_000 });
+  await placeBid(item.id, leader.id, 101_000);
+
+  eq("placeBid still refuses the leader a second bid",
+    ((await placeBid(item.id, leader.id, 102_000)) as { reason?: string }).reason,
+    "already_leading");
+
+  const result = await buyNow(item.id, leader.id);
+  check("but the leader CAN buy outright", result.ok, JSON.stringify(result));
+  const after = await prisma.auctionItem.findUniqueOrThrow({ where: { id: item.id } });
+  eq("and wins", after.winnerId, leader.id);
+  eq("at the buy-now price, not their own bid", after.currentPrice, 150_000);
+}
+
+console.log("\nBUY NOW — WHEN IT IS REFUSED");
+{
+  const seller = await user("s");
+  const buyer = await user("b");
+
+  eq("an unknown item",
+    ((await buyNow(randomUUID(), buyer.id)) as { reason?: string }).reason, "not_found");
+
+  const noBuyNow = await auction(seller.id, { buyNowPrice: null });
+  eq("an item with no buy-now price",
+    ((await buyNow(noBuyNow.id, buyer.id)) as { reason?: string }).reason, "no_buy_now");
+
+  const draft = await auction(seller.id, { buyNowPrice: 150_000, status: "draft" });
+  eq("a draft", ((await buyNow(draft.id, buyer.id)) as { reason?: string }).reason, "not_active");
+
+  const ended = await auction(seller.id, { buyNowPrice: 150_000, status: "ended" });
+  eq("an auction already over",
+    ((await buyNow(ended.id, buyer.id)) as { reason?: string }).reason, "not_active");
+
+  // Refused as shill for the same reason placeBid is: findShillLink returns
+  // "identity" as soon as buyer === seller, before the transaction opens.
+  const own = await auction(seller.id, { buyNowPrice: 150_000 });
+  eq("the seller buying their own item",
+    ((await buyNow(own.id, seller.id)) as { reason?: string }).reason, "shill");
+}
+{
+  const seller = await user("s");
+  const buyer = await user("b");
+  // Bid through the real path so currentPrice moves with it, then run the
+  // clock out. Inserting a Bid row directly would leave currentPrice at the
+  // start price and prove nothing about what the buyer would have paid.
+  const item = await auction(seller.id, {
+    buyNowPrice: 150_000,
+    endTime: new Date(Date.now() + 3_600_000),
+  });
+  await placeBid(item.id, buyer.id, 101_000);
+  await prisma.auctionItem.update({
+    where: { id: item.id },
+    data: { endTime: new Date(Date.now() - 1_000) },
+  });
+
+  const result = await buyNow(item.id, buyer.id);
+  eq("buying after the clock ran out is refused",
+    (result as { reason?: string }).reason, "expired");
+  const after = await prisma.auctionItem.findUniqueOrThrow({ where: { id: item.id } });
+  eq("and the auction settles normally instead", after.endReason, "expired");
+  eq("at the last real bid, not the buy-now price", after.currentPrice, 101_000);
+}
+{
+  const seller = await user("s");
+  const banned = await user("b");
+  const item = await auction(seller.id, { buyNowPrice: 150_000 });
+  for (let i = 0; i < STRIKE_LIMIT; i++) {
+    const past = await auction(seller.id);
+    await prisma.paymentStrike.create({
+      data: { userId: banned.id, auctionItemId: past.id, amount: 100_000 },
+    });
+  }
+  eq("a banned account cannot buy outright either",
+    ((await buyNow(item.id, banned.id)) as { reason?: string }).reason, "banned");
+}
+
+console.log("\nBUY NOW — RACES");
+{
+  // Two people press the button at the same instant.
+  const seller = await user("s");
+  const a = await user("a");
+  const b = await user("b");
+  const item = await auction(seller.id, { buyNowPrice: 150_000 });
+
+  const [ra, rb] = await Promise.all([buyNow(item.id, a.id), buyNow(item.id, b.id)]);
+  eq("exactly one buyer wins", [ra, rb].filter((r) => r.ok).length, 1);
+  eq("the loser is told it is over",
+    [ra, rb].find((r) => !r.ok)?.ok === false
+      ? ([ra, rb].find((r) => !r.ok) as { reason: string }).reason
+      : "none",
+    "not_active");
+
+  const after = await prisma.auctionItem.findUniqueOrThrow({ where: { id: item.id } });
+  eq("the winner is the one who succeeded",
+    after.winnerId, ra.ok ? a.id : b.id);
+  eq("at the buy-now price", after.currentPrice, 150_000);
+  eq("and only one bid at that amount exists",
+    await prisma.bid.count({ where: { auctionItemId: item.id, amount: 150_000 } }), 1);
+}
+{
+  // A bid and a buy-now landing together. Either order is correct, but the
+  // outcome must be one winner at a price that is really theirs.
+  const seller = await user("s");
+  const bidder = await user("a");
+  const buyer = await user("b");
+  const item = await auction(seller.id, { buyNowPrice: 150_000 });
+
+  const [bid, buy] = await Promise.all([
+    placeBid(item.id, bidder.id, 101_000),
+    buyNow(item.id, buyer.id),
+  ]);
+
+  const after = await prisma.auctionItem.findUniqueOrThrow({ where: { id: item.id } });
+  check("the buy-now always wins the item", buy.ok, JSON.stringify(buy));
+  eq("the auction is over", after.status, "ended");
+  eq("the buyer is the winner", after.winnerId, buyer.id);
+  eq("at the buy-now price", after.currentPrice, 150_000);
+  // The bid either landed first (and is now an underbid) or was refused
+  // because the auction had already closed. Both are correct; what is not
+  // correct is a bid recorded ABOVE the price the item sold for.
+  const above = await prisma.bid.count({
+    where: { auctionItemId: item.id, amount: { gt: 150_000 } },
+  });
+  eq("and no bid sits above the sale price", above, 0);
+  check("a refused bid says the auction closed",
+    bid.ok || (bid as { reason: string }).reason === "not_active",
+    JSON.stringify(bid));
+}
+{
+  // The buy-now button pressed twice by the same person — a double tap, or a
+  // resubmitted form.
+  const seller = await user("s");
+  const buyer = await user("b");
+  const item = await auction(seller.id, { buyNowPrice: 150_000 });
+
+  const [first, second] = await Promise.all([
+    buyNow(item.id, buyer.id),
+    buyNow(item.id, buyer.id),
+  ]);
+  eq("only one of a double tap goes through",
+    [first, second].filter((r) => r.ok).length, 1);
+  eq("and one bid row exists",
+    await prisma.bid.count({ where: { auctionItemId: item.id } }), 1);
 }
 
 console.log("\nA BANNED BIDDER");

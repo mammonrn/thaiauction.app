@@ -200,6 +200,126 @@ export async function placeBid(
   });
 }
 
+export type BuyNowResult =
+  | { ok: true; amount: number }
+  | {
+      ok: false;
+      reason:
+        | "not_found"
+        | "not_active"
+        | "expired"
+        | "own_item"
+        | "no_buy_now"
+        | "banned"
+        | "shill";
+      strikes?: number;
+      shillLink?: ShillLink;
+    };
+
+/**
+ * Buy the item outright at its buy-now price.
+ *
+ * Everything this does, `placeBid` could already do — bid exactly the buy-now
+ * amount and `isBuyNowBid` ends the auction. It exists as its own entry point
+ * for two reasons, both of which are about what the caller is NOT allowed to
+ * decide.
+ *
+ * The price is never sent by the client. It is read from the locked row and
+ * used as-is, so a stale tab showing yesterday's buy-now price cannot buy at
+ * yesterday's price: there is no amount in the request to be stale.
+ *
+ * And the current leader is allowed through. `placeBid` refuses them with
+ * `already_leading`, which is right for bidding — raising your own price only
+ * costs you money — but wrong here, because closing the auction before someone
+ * outbids you is the whole point of the button.
+ *
+ * Concurrency is the same story as bidding, deliberately: the same row lock,
+ * taken the same way. A bid and a buy-now landing together are serialised by
+ * PostgreSQL on that row, so the second one reads what the first committed. If
+ * the buy-now went first the bid finds the auction `ended` and is refused; if
+ * the bid went first the sale still completes, at the buy-now price, which the
+ * bid cannot have exceeded.
+ */
+export async function buyNow(
+  itemId: string,
+  buyerId: string,
+  origin: BidOrigin = { ipAddress: null, userAgent: null },
+): Promise<BuyNowResult> {
+  // Identical pre-checks to placeBid, for the identical reason: they need
+  // several queries each and none of them is better answered while holding the
+  // auction's row lock. Buying outright is a bid that wins immediately, so the
+  // same bans and the same shill rules apply.
+  const preCheck = await prisma.auctionItem.findUnique({
+    where: { id: itemId },
+    select: { sellerId: true },
+  });
+  if (!preCheck) return { ok: false, reason: "not_found" } as const;
+
+  const strikes = await countStrikes(buyerId);
+  if (strikes >= STRIKE_LIMIT) {
+    return { ok: false, reason: "banned", strikes } as const;
+  }
+
+  const shillLink = await findShillLink(buyerId, preCheck.sellerId);
+  if (shillLink) {
+    return { ok: false, reason: "shill", shillLink } as const;
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const item = await lockAuction(tx, itemId);
+    if (!item) return { ok: false, reason: "not_found" } as const;
+
+    if (item.sellerId === buyerId) {
+      return { ok: false, reason: "own_item" } as const;
+    }
+    if (item.status !== "active") {
+      return { ok: false, reason: "not_active" } as const;
+    }
+    if (item.endTime && item.endTime.getTime() <= Date.now()) {
+      await settleLocked(tx, item, "expired");
+      return { ok: false, reason: "expired" } as const;
+    }
+    if (item.buyNowPrice === null) {
+      return { ok: false, reason: "no_buy_now" } as const;
+    }
+
+    const amount = item.buyNowPrice;
+    const now = new Date();
+
+    // Recorded as a bid like any other win, so the auction's history shows what
+    // the item sold for and forfeitAndReoffer can still find the underbidders.
+    //
+    // The unique index on (auctionItemId, amount) would refuse a second bid at
+    // this amount, but it cannot fire here: a bid at the buy-now price ends the
+    // auction, so any transaction arriving second finds `ended` above and stops
+    // before reaching this line. The index stays as the backstop it was.
+    await tx.bid.create({
+      data: {
+        auctionItemId: itemId,
+        bidderId: buyerId,
+        amount,
+        ipAddress: origin.ipAddress,
+        userAgent: origin.userAgent,
+      },
+    });
+
+    await tx.auctionItem.update({
+      where: { id: itemId },
+      data: {
+        currentPrice: amount,
+        status: "ended",
+        endedAt: now,
+        endReason: "buy_now",
+        winnerId: buyerId,
+        paymentState: "awaiting_payment",
+        paymentDueAt: paymentDeadline(now),
+      },
+    });
+
+    return { ok: true, amount } as const;
+  });
+}
+
 /**
  * Close an already-locked auction and record the outcome.
  *

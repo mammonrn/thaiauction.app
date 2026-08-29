@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { bahtToSatang, formatBaht } from "@/lib/money";
-import { endAuctionBySeller, placeBid } from "@/lib/bidding";
+import { buyNow, endAuctionBySeller, placeBid } from "@/lib/bidding";
 import { prisma } from "@/lib/prisma";
 import { requestOrigin } from "@/lib/request-origin";
 import { requireSession } from "@/lib/session";
@@ -104,6 +104,72 @@ export async function placeBidAction(
     message: result.wonByBuyNow
       ? `ซื้อทันทีสำเร็จ! คุณชนะการประมูลที่ ${formatBaht(result.amount)}`
       : `เสนอราคา ${formatBaht(result.amount)} เรียบร้อยแล้ว`,
+  };
+}
+
+/**
+ * Buy the item outright.
+ *
+ * Deliberately takes no amount: the price is read from the locked auction row
+ * inside lib/bidding.ts, so a tab left open since before the seller changed the
+ * price cannot buy at the old one. The same phone check as bidding applies —
+ * buying outright is a commitment to pay, and the seller has to be able to
+ * reach the buyer.
+ */
+export async function buyNowAction(
+  _prev: BidActionState,
+  formData: FormData,
+): Promise<BidActionState> {
+  const itemId = String(formData.get("itemId") ?? "");
+  const { user } = await requireSession(`/auctions/${itemId}`);
+
+  const verified = await prisma.verifiedPhone.count({
+    where: { userId: user.id },
+  });
+  if (verified === 0) {
+    return {
+      ok: false,
+      message: "กรุณายืนยันเบอร์โทรศัพท์ก่อนซื้อ — โหลดหน้านี้ใหม่แล้วกดปุ่มยืนยันเบอร์โทร",
+    };
+  }
+
+  let result;
+  try {
+    result = await buyNow(itemId, user.id, await requestOrigin());
+  } catch (error) {
+    console.error("[buy-now] failed:", error);
+    return { ok: false, message: "ซื้อทันทีไม่สำเร็จ กรุณาลองใหม่อีกครั้ง" };
+  }
+
+  if (!result.ok) {
+    const messages: Record<string, string> = {
+      not_found: "ไม่พบรายการนี้",
+      // Someone else got there first, or the clock ran out mid-click. Both are
+      // "it is over", and the page refreshes itself to show who won.
+      not_active: "การประมูลนี้ปิดแล้ว",
+      expired: "หมดเวลาประมูลแล้ว",
+      own_item: "ผู้ขายซื้อสินค้าของตัวเองไม่ได้",
+      no_buy_now: "รายการนี้ไม่มีราคาซื้อทันที",
+    };
+
+    const explained =
+      result.reason === "banned"
+        ? banMessage(result.strikes ?? 0)
+        : result.reason === "shill" && result.shillLink
+          ? shillMessage(result.shillLink)
+          : null;
+
+    revalidatePath(`/auctions/${itemId}`);
+    return {
+      ok: false,
+      message: explained ?? messages[result.reason] ?? "ซื้อทันทีไม่สำเร็จ",
+    };
+  }
+
+  revalidatePath(`/auctions/${itemId}`);
+  return {
+    ok: true,
+    message: `ซื้อทันทีสำเร็จ! คุณชนะการประมูลที่ ${formatBaht(result.amount)}`,
   };
 }
 

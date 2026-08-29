@@ -1,11 +1,17 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 
-import { placeBidAction, type BidActionState } from "@/app/auctions/[id]/actions";
+import {
+  buyNowAction,
+  placeBidAction,
+  type BidActionState,
+} from "@/app/auctions/[id]/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PriceWindow } from "@/components/price-window";
 import { formatBaht, satangToBaht } from "@/lib/money";
-import { btnPrimary } from "@/lib/button";
+import { PAYMENT_WINDOW_HOURS } from "@/lib/auction-rules";
+import { btnPrimary, btnSecondary } from "@/lib/button";
 
 export type AuctionLiveState = {
   currentPrice: number;
@@ -82,6 +88,15 @@ export function LiveAuction({
     placeBidAction,
     initialAction,
   );
+  const [buyState, buyAction, buying] = useActionState(
+    buyNowAction,
+    initialAction,
+  );
+  const [confirmingBuy, setConfirmingBuy] = useState(false);
+  const buyForm = useRef<HTMLFormElement>(null);
+
+  // Whichever of the two acted most recently is the one with something to say.
+  const actionState = buyState.message ? buyState : bidState;
 
   // Poll for other people's bids. Skipped while the tab is hidden, so a
   // forgotten background tab does not keep asking; a refresh happens
@@ -121,10 +136,12 @@ export function LiveAuction({
     return () => clearInterval(tick);
   }, []);
 
-  // A successful bid should show its result at once rather than after the next
-  // poll, so pull fresh state immediately.
+  // A successful bid or purchase should show its result at once rather than
+  // after the next poll, so pull fresh state immediately. It matters more for
+  // buy-now: that one ends the auction, and waiting five seconds to say so
+  // leaves the buyer looking at a live countdown for an auction they just won.
   useEffect(() => {
-    if (!bidState.ok) return;
+    if (!actionState.ok) return;
     let cancelled = false;
     fetch(`/api/auctions/${itemId}/state`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
@@ -135,7 +152,7 @@ export function LiveAuction({
     return () => {
       cancelled = true;
     };
-  }, [bidState, itemId]);
+  }, [actionState, itemId]);
 
   const live = state.status === "active";
 
@@ -150,7 +167,11 @@ export function LiveAuction({
           {state.bidCount} การเสนอราคา
           {state.leader ? ` · ผู้เสนอสูงสุด ${state.leader}` : ""}
         </span>
-        {state.buyNowPrice !== null && live ? (
+        {/* Only when there is no button to carry it. The button below says
+            "ซื้อทันที ฿X", so repeating the figure here would put one fact on
+            screen twice; a visitor who cannot bid has no button, and still
+            needs to know the price exists. */}
+        {state.buyNowPrice !== null && live && !canBid ? (
           <span className="mt-2 text-sm">
             ซื้อทันทีที่ {formatBaht(state.buyNowPrice)}
           </span>
@@ -178,21 +199,22 @@ export function LiveAuction({
       {/* Outside the form on purpose: a buy-now bid ends the auction, which
           unmounts the form. Kept here, the winner still sees the confirmation
           that their purchase went through. */}
-      {bidState.message ? (
+      {actionState.message ? (
         <p
-          role={bidState.ok ? "status" : "alert"}
+          role={actionState.ok ? "status" : "alert"}
           className={
-            bidState.ok
+            actionState.ok
               ? "text-sm text-success"
               : "text-sm text-brand"
           }
         >
-          {bidState.message}
+          {actionState.message}
         </p>
       ) : null}
 
       {live ? (
         canBid ? (
+          <>
           <form
             action={bidAction}
             className="flex flex-col gap-3 rounded-xl border border-black/10 bg-white p-5"
@@ -217,14 +239,61 @@ export function LiveAuction({
                   : ""}
               </span>
             </label>
-            <button
-              type="submit"
-              disabled={bidding}
-              className={`${btnPrimary} self-start`}
-            >
-              {bidding ? "กำลังเสนอราคา…" : "เสนอราคา"}
-            </button>
+            {/* Bidding is primary and buying outright is secondary: this is an
+                auction site, and the button that ends the auction should not
+                outrank the one that runs it. They sit on one row so the choice
+                reads as a choice rather than as two separate offers. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="submit"
+                disabled={bidding || buying}
+                className={btnPrimary}
+              >
+                {bidding ? "กำลังเสนอราคา…" : "เสนอราคา"}
+              </button>
+
+              {state.buyNowPrice !== null ? (
+                <button
+                  type="button"
+                  disabled={bidding || buying}
+                  onClick={() => setConfirmingBuy(true)}
+                  className={btnSecondary}
+                >
+                  {buying
+                    ? "กำลังซื้อ…"
+                    : `ซื้อทันที ${formatBaht(state.buyNowPrice)}`}
+                </button>
+              ) : null}
+            </div>
           </form>
+
+          {/* Its own form, outside the bid form: nesting forms is invalid HTML,
+              and this one deliberately carries no amount — lib/bidding reads
+              the price from the locked row. */}
+          {state.buyNowPrice !== null ? (
+            <>
+              <form ref={buyForm} action={buyAction} className="hidden">
+                <input type="hidden" name="itemId" value={itemId} />
+              </form>
+
+              <ConfirmDialog
+                open={confirmingBuy}
+                title={`ซื้อทันทีที่ ${formatBaht(state.buyNowPrice)}?`}
+                detail={`การประมูลจบทันทีและคุณเป็นผู้ชนะ ต้องชำระเงินภายใน ${PAYMENT_WINDOW_HOURS} ชั่วโมง`}
+                confirmLabel="ซื้อทันที"
+                // Significant rather than destructive: it commits the buyer to
+                // paying, but destroys nothing.
+                tone="primary"
+                pending={buying}
+                onCancel={() => setConfirmingBuy(false)}
+                onConfirm={() => {
+                  setConfirmingBuy(false);
+                  buyForm.current?.requestSubmit();
+                }}
+              />
+            </>
+          ) : null}
+          </>
         ) : (
           <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-black/20 px-4 py-3">
             <p className="text-sm text-ink/60">{reasonCannotBid}</p>
