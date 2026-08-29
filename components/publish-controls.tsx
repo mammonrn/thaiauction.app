@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useActionState, useRef, useState } from "react";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { btnDangerSm, btnPrimarySm, btnSecondarySm } from "@/lib/button";
 
 import {
@@ -33,6 +34,7 @@ export function PublishControls({
   summary: PublishSummary;
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const deleteForm = useRef<HTMLFormElement>(null);
   const [publishState, publish, publishing] = useActionState(
     publishAuctionAction,
     initialState,
@@ -61,34 +63,31 @@ export function PublishControls({
           เผยแพร่
         </button>
 
-        {confirming ? (
-          <form action={remove} className="flex items-center gap-2">
-            <input type="hidden" name="itemId" value={itemId} />
-            <span className="text-sm">ลบฉบับร่างนี้?</span>
-            <button
-              type="submit"
-              disabled={removing}
-              className={btnDangerSm}
-            >
-              {removing ? "กำลังลบ…" : "ลบเลย"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirming(false)}
-              className={btnSecondarySm}
-            >
-              ยกเลิก
-            </button>
-          </form>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setConfirming(true)}
-            className={btnDangerSm}
-          >
-            ลบฉบับร่าง
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          disabled={removing}
+          className={btnDangerSm}
+        >
+          {removing ? "กำลังลบ…" : "ลบฉบับร่าง"}
+        </button>
+
+        <form ref={deleteForm} action={remove} className="hidden">
+          <input type="hidden" name="itemId" value={itemId} />
+        </form>
+
+        <ConfirmDialog
+          open={confirming}
+          title="ลบฉบับร่างนี้?"
+          detail="รูปที่อัปโหลดไว้จะถูกลบไปด้วย"
+          confirmLabel="ลบฉบับร่าง"
+          pending={removing}
+          onCancel={() => setConfirming(false)}
+          onConfirm={() => {
+            setConfirming(false);
+            deleteForm.current?.requestSubmit();
+          }}
+        />
       </div>
 
       {/* Native <dialog>: the platform gives focus trapping, Esc-to-close and

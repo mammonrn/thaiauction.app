@@ -1,13 +1,20 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 
 import { endAuctionAction, type BidActionState } from "@/app/auctions/[id]/actions";
-import { btnDangerSm, btnSecondarySm } from "@/lib/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { btnDangerSm } from "@/lib/button";
 
 const initialState: BidActionState = { ok: false, message: null };
 
-/** Seller-only control to close an auction before its time. */
+/**
+ * Seller-only control to close an auction before its time.
+ *
+ * The consequence — who wins, or that nobody does — is stated in the dialog
+ * rather than as standing text under the heading. It is only true at the
+ * moment of pressing, and it is the whole reason to stop and read.
+ */
 export function EndAuctionButton({
   itemId,
   bidCount,
@@ -15,7 +22,8 @@ export function EndAuctionButton({
   itemId: string;
   bidCount: number;
 }) {
-  const [confirming, setConfirming] = useState(false);
+  const [asking, setAsking] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(endAuctionAction, initialState);
 
   if (state.ok) {
@@ -26,43 +34,41 @@ export function EndAuctionButton({
     );
   }
 
+  const hasBids = bidCount > 0;
+
   return (
     <div className="flex flex-col gap-2 rounded-xl bg-white p-5">
       <h2 className="text-sm font-medium">จบการประมูลก่อนกำหนด</h2>
-      <p className="text-sm text-ink/60">
-        {bidCount > 0
-          ? "ผู้ที่เสนอราคาสูงสุดตอนนี้จะเป็นผู้ชนะทันที"
-          : "ยังไม่มีผู้เสนอราคา การจบตอนนี้จะเป็นการยกเลิกรายการ (ไม่มีผู้ชนะ)"}
-      </p>
 
-      {confirming ? (
-        <form action={action} className="flex flex-wrap items-center gap-2">
-          <input type="hidden" name="itemId" value={itemId} />
-          <span className="text-sm">ยืนยัน?</span>
-          <button
-            type="submit"
-            disabled={pending}
-            className={btnDangerSm}
-          >
-            {pending ? "กำลังจบ…" : bidCount > 0 ? "จบและประกาศผู้ชนะ" : "ยกเลิกรายการ"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setConfirming(false)}
-            className={btnSecondarySm}
-          >
-            ยกเลิก
-          </button>
-        </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          className={`${btnSecondarySm} self-start`}
-        >
-          จบประมูลทันที
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => setAsking(true)}
+        disabled={pending}
+        className={`${btnDangerSm} self-start`}
+      >
+        {pending ? "กำลังจบ…" : "จบประมูลทันที"}
+      </button>
+
+      <form ref={form} action={action} className="hidden">
+        <input type="hidden" name="itemId" value={itemId} />
+      </form>
+
+      <ConfirmDialog
+        open={asking}
+        title={hasBids ? "จบและประกาศผู้ชนะ?" : "ยกเลิกรายการนี้?"}
+        detail={
+          hasBids
+            ? "ผู้ที่เสนอราคาสูงสุดตอนนี้จะเป็นผู้ชนะทันที"
+            : "ยังไม่มีผู้เสนอราคา จึงไม่มีผู้ชนะ"
+        }
+        confirmLabel={hasBids ? "จบและประกาศผู้ชนะ" : "ยกเลิกรายการ"}
+        pending={pending}
+        onCancel={() => setAsking(false)}
+        onConfirm={() => {
+          setAsking(false);
+          form.current?.requestSubmit();
+        }}
+      />
 
       {state.message && !state.ok ? (
         <p role="alert" className="text-sm text-brand">

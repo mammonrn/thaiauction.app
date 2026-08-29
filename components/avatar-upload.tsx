@@ -4,6 +4,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { ImageCropper } from "@/components/image-cropper";
 import { btnGhost, btnSecondarySm } from "@/lib/button";
 import { MAX_UPLOAD_BYTES, MAX_UPLOAD_MB } from "@/lib/image-keys";
 
@@ -16,6 +18,10 @@ type Result = { ok: boolean; message: string };
  * is several megabytes and an action's body is capped at 1MB — see the route
  * for the full story. Everything here follows from that: fetch instead of
  * useActionState, and router.refresh() to pull the new picture back down.
+ *
+ * Picking a file opens the cropper rather than uploading it. What reaches the
+ * server is a 512px square the person framed themselves, so the upload is
+ * small and the picture is not a centre-crop of somebody's chin.
  *
  * The file input is hidden behind a labelled button — the browser's default
  * "Choose File / No file chosen" is untranslatable and sits outside the theme,
@@ -39,6 +45,10 @@ export function AvatarUpload({
   // One message slot for both operations, so a failed upload cannot mask the
   // result of the removal that follows it.
   const [result, setResult] = useState<Result | null>(null);
+  const [removing, setRemoving] = useState(false);
+  // The picked file, waiting to be framed. Nothing is sent until the crop is
+  // confirmed, so backing out costs no upload.
+  const [picked, setPicked] = useState<File | null>(null);
 
   async function send(request: Promise<Response>) {
     setPending(true);
@@ -85,14 +95,19 @@ export function AvatarUpload({
     }
   }
 
-  function upload(file: File) {
-    // Checked here as well as on the server: refusing a 12MB photo before it
-    // is sent saves a phone user a long upload that was always going to fail.
+  function pick(file: File) {
+    // Checked before the cropper opens: refusing a 12MB photo up front saves
+    // decoding it into a canvas only to fail the same check afterwards.
     if (file.size > MAX_UPLOAD_BYTES) {
       setResult({ ok: false, message: `ไฟล์ใหญ่เกิน ${MAX_UPLOAD_MB}MB` });
       if (input.current) input.current.value = "";
       return;
     }
+    setResult(null);
+    setPicked(file);
+  }
+
+  function upload(file: File) {
     const body = new FormData();
     body.append("avatar", file);
     void send(fetch("/api/avatar", { method: "POST", body }));
@@ -131,12 +146,12 @@ export function AvatarUpload({
             <input
               ref={input}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+                accept="image/jpeg,image/png,image/webp"
               className="sr-only"
               disabled={pending}
               onChange={(event) => {
                 const file = event.target.files?.[0];
-                if (file) upload(file);
+                if (file) pick(file);
               }}
             />
           </label>
@@ -146,13 +161,40 @@ export function AvatarUpload({
               type="button"
               disabled={pending}
               className={btnGhost}
-              onClick={() => void send(fetch("/api/avatar", { method: "DELETE" }))}
+              onClick={() => setRemoving(true)}
             >
               ใช้รูปจาก Google
             </button>
           ) : null}
         </div>
       </div>
+
+      {picked ? (
+        <ImageCropper
+          file={picked}
+          onCancel={() => {
+            setPicked(null);
+            if (input.current) input.current.value = "";
+          }}
+          onCropped={(cropped) => {
+            setPicked(null);
+            upload(cropped);
+          }}
+        />
+      ) : null}
+
+      <ConfirmDialog
+        open={removing}
+        title="ลบรูปโปรไฟล์?"
+        detail="กลับไปใช้รูปจากบัญชี Google"
+        confirmLabel="ลบรูป"
+        pending={pending}
+        onCancel={() => setRemoving(false)}
+        onConfirm={() => {
+          setRemoving(false);
+          void send(fetch("/api/avatar", { method: "DELETE" }));
+        }}
+      />
 
       {result ? (
         <p

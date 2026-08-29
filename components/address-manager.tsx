@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useCallback, useState } from "react";
+import { useActionState, useCallback, useRef, useState } from "react";
 
 import {
   createAddressAction,
@@ -10,6 +10,7 @@ import {
   type AddressActionState,
 } from "@/app/account/addresses/actions";
 import { AddressForm, type AddressFormValues } from "@/components/address-form";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { btnDangerSm, btnPrimary, btnSecondarySm } from "@/lib/button";
 
 type Mode = { type: "none" } | { type: "new" } | { type: "edit"; id: string };
@@ -163,11 +164,7 @@ function SingleButtonForm({
       <button
         type="submit"
         disabled={pending}
-        className={
-          danger
-            ? "rounded-lg border border-brand/40 px-3 py-1.5 text-sm text-brand transition hover:bg-brand/10 disabled:opacity-60"
-            : "rounded-lg border border-black/15 px-3 py-1.5 text-sm transition hover:bg-black/5 disabled:opacity-60"
-        }
+        className={danger ? btnDangerSm : btnSecondarySm}
       >
         {pending ? pendingLabel : label}
       </button>
@@ -180,42 +177,50 @@ function SingleButtonForm({
   );
 }
 
-/**
- * Two-step delete. An inline confirm rather than window.confirm, which is
- * blocking, unstyled, and suppressible by the browser.
- */
+/** Delete, behind the shared confirm. */
 function DeleteButton({ addressId }: { addressId: string }) {
-  const [confirming, setConfirming] = useState(false);
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className={btnDangerSm}
-      >
-        ลบ
-      </button>
-    );
-  }
+  const [asking, setAsking] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
+  const [state, formAction, pending] = useActionState(
+    deleteAddressAction,
+    initialState,
+  );
 
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-ink/70">ยืนยันลบ?</span>
-      <SingleButtonForm
-        action={deleteAddressAction}
-        addressId={addressId}
-        label="ลบเลย"
-        pendingLabel="กำลังลบ…"
-        danger
-      />
+    <>
       <button
         type="button"
-        onClick={() => setConfirming(false)}
-        className={btnSecondarySm}
+        onClick={() => setAsking(true)}
+        disabled={pending}
+        className={btnDangerSm}
       >
-        ยกเลิก
+        {pending ? "กำลังลบ…" : "ลบ"}
       </button>
-    </span>
+
+      {/* The dialog's confirm is a plain button, so the form is submitted
+          through a ref rather than by nesting it inside <dialog> — a form in
+          the top layer loses its place in the page's submit order. */}
+      <form ref={form} action={formAction} className="hidden">
+        <input type="hidden" name="addressId" value={addressId} />
+      </form>
+
+      {state.message && !state.ok ? (
+        <span role="alert" className="text-sm text-brand">
+          {state.message}
+        </span>
+      ) : null}
+
+      <ConfirmDialog
+        open={asking}
+        title="ลบที่อยู่นี้?"
+        confirmLabel="ลบที่อยู่"
+        pending={pending}
+        onCancel={() => setAsking(false)}
+        onConfirm={() => {
+          setAsking(false);
+          form.current?.requestSubmit();
+        }}
+      />
+    </>
   );
 }

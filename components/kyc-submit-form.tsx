@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useRef, useState } from "react";
 import { btnPrimary, btnSecondarySm } from "@/lib/button";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 import {
   withdrawVerificationAction,
@@ -79,20 +80,37 @@ export function KycSubmitForm({ submitLabel }: { submitLabel: string }) {
 
 /** Cancel a pending request; the image is erased with it. */
 export function KycWithdrawButton() {
+  const [asking, setAsking] = useState(false);
+  const form = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState(
     withdrawVerificationAction,
     initialWithdraw,
   );
 
   return (
-    <form action={action} className="flex flex-wrap items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3">
+      <form ref={form} action={action} className="hidden" />
       <button
-        type="submit"
+        type="button"
+        onClick={() => setAsking(true)}
         disabled={pending}
         className={btnSecondarySm}
       >
-        {pending ? "กำลังยกเลิก…" : "ยกเลิกคำขอและลบรูป"}
+        {pending ? "กำลังยกเลิก…" : "ยกเลิกคำขอ"}
       </button>
+
+      <ConfirmDialog
+        open={asking}
+        title="ยกเลิกคำขอยืนยันตัวตน?"
+        detail="รูปบัตรที่ส่งไว้จะถูกลบ และต้องส่งใหม่ทั้งหมด"
+        confirmLabel="ยกเลิกคำขอ"
+        pending={pending}
+        onCancel={() => setAsking(false)}
+        onConfirm={() => {
+          setAsking(false);
+          form.current?.requestSubmit();
+        }}
+      />
       {state.message ? (
         <span
           role="status"
@@ -105,6 +123,6 @@ export function KycWithdrawButton() {
           {state.message}
         </span>
       ) : null}
-    </form>
+    </div>
   );
 }

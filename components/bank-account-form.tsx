@@ -9,6 +9,7 @@ import {
   type BankActionState,
   type UnlockActionState,
 } from "@/app/account/bank/actions";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { btnPrimary, btnSecondary } from "@/lib/button";
 import { THAI_BANKS } from "@/lib/thai-banks";
 
@@ -60,6 +61,7 @@ function LockedAccount({
   hasVerifiedPhone: boolean;
 }) {
   const [asking, setAsking] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   return (
     <div className="flex flex-col gap-4">
@@ -71,13 +73,27 @@ function LockedAccount({
       {asking ? (
         <UnlockSteps />
       ) : (
-        <button
-          type="button"
-          className={`${btnSecondary} self-start`}
-          onClick={() => setAsking(true)}
-        >
-          เปลี่ยนบัญชีธนาคาร
-        </button>
+        <>
+          <button
+            type="button"
+            className={`${btnSecondary} self-start`}
+            onClick={() => setConfirming(true)}
+          >
+            เปลี่ยนบัญชีธนาคาร
+          </button>
+          <ConfirmDialog
+            open={confirming}
+            title="เปลี่ยนบัญชีธนาคาร?"
+            detail="ระบบจะส่งรหัส OTP ไปยังเบอร์ที่ยืนยันไว้"
+            confirmLabel="ส่งรหัส OTP"
+            tone="primary"
+            onCancel={() => setConfirming(false)}
+            onConfirm={() => {
+              setConfirming(false);
+              setAsking(true);
+            }}
+          />
+        </>
       )}
 
       {!hasVerifiedPhone ? (

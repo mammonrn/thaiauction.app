@@ -81,8 +81,7 @@ export default async function AdminPayoutsPage() {
           รอโอนให้ผู้ขาย
         </h1>
         <p className="text-sm text-ink/60">
-          {due.length} รายการ รวม {formatBaht(owed)} — ค่าคอมมิชชั่น{" "}
-          {COMMISSION_PERCENT}% หักจากยอดหลังลบค่าธรรมเนียม Omise แล้ว
+          {due.length} รายการ · รวม {formatBaht(owed)}
         </p>
       </header>
 
@@ -189,7 +188,20 @@ export default async function AdminPayoutsPage() {
   );
 }
 
-/** The audit trail for one sale, every figure as it was recorded. */
+/**
+ * One sale as a statement: label left, figure right, subtractions marked, a
+ * rule before the total.
+ *
+ * It was a three-column grid of equal cells, which is a layout for unrelated
+ * numbers. These are not unrelated — they are one arithmetic, and the reader's
+ * question is "does the bottom line follow?". A column that runs down to a
+ * ruled total answers it by being read, with no prose to explain the rule.
+ *
+ * Every figure is stored, not recomputed: the gateway fee and net came from
+ * the Omise charge, the commission and seller share were fixed when the
+ * payment settled. Recalculating here could quietly disagree with what was
+ * actually taken.
+ */
 function Breakdown({
   row,
 }: {
@@ -203,16 +215,12 @@ function Breakdown({
   };
 }) {
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm sm:grid-cols-3">
-      <Figure label="ผู้ซื้อชำระ" value={row.amount} />
+    <dl className="flex flex-col rounded-lg bg-black/[0.02] px-4 py-3 text-sm">
+      <Figure label="ยอดปิดประมูล" value={row.amount} />
       <Figure label="ค่าธรรมเนียม Omise" value={-(row.fee ?? 0)} />
       <Figure label="VAT ค่าธรรมเนียม" value={-(row.feeVat ?? 0)} />
-      <Figure label="ยอดสุทธิที่ได้รับ" value={row.net ?? 0} />
-      <Figure
-        label={`ค่าคอมมิชชั่น ${COMMISSION_PERCENT}%`}
-        value={-(row.commission ?? 0)}
-      />
-      <Figure label="ผู้ขายได้รับ" value={row.sellerNet ?? 0} strong />
+      <Figure label={`ค่าคอมมิชชั่น ${COMMISSION_PERCENT}%`} value={-(row.commission ?? 0)} />
+      <Figure label="ผู้ขายได้รับ" value={row.sellerNet ?? 0} total />
     </dl>
   );
 }
@@ -220,16 +228,22 @@ function Breakdown({
 function Figure({
   label,
   value,
-  strong,
+  total,
 }: {
   label: string;
   value: number;
-  strong?: boolean;
+  total?: boolean;
 }) {
   return (
-    <div className="flex flex-col">
-      <dt className="text-xs text-ink/60">{label}</dt>
-      <dd className={strong ? "font-semibold" : undefined}>
+    <div
+      className={`flex items-baseline justify-between gap-4 py-1 ${
+        total ? "mt-1 border-t border-black/12 pt-2 font-semibold" : ""
+      }`}
+    >
+      <dt className={total ? undefined : "text-ink/60"}>{label}</dt>
+      {/* tabular-nums so the columns of digits line up down the statement,
+          which is the only reason a reader can check the arithmetic. */}
+      <dd className="font-mono tabular-nums">
         {value < 0 ? `−${formatBaht(-value)}` : formatBaht(value)}
       </dd>
     </div>

@@ -52,7 +52,6 @@ export default async function SellPage() {
 
   // One clock for the page, so every row measures its remaining time against
   // the same instant.
-  // eslint-disable-next-line react-hooks/purity
   const now = new Date();
 
   return (

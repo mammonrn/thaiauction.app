@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRef, useState } from "react";
 
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { btnSecondarySm } from "@/lib/button";
 import { thumbUrl } from "@/lib/image-keys";
 
@@ -22,6 +23,9 @@ export function ImageUploader({
   initial: UploadedImage[];
 }) {
   const [images, setImages] = useState<UploadedImage[]>(initial);
+  // The key awaiting confirmation, or null. A key rather than an index: the
+  // list can be reordered while the dialog is open.
+  const [removing, setRemoving] = useState<string | null>(null);
   const [busy, setBusy] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -131,9 +135,7 @@ export function ImageUploader({
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  setImages((c) => c.filter((i) => i.key !== image.key))
-                }
+                onClick={() => setRemoving(image.key)}
                 aria-label="ลบรูป"
                 className="px-2 py-0.5 text-xs"
               >
@@ -152,6 +154,18 @@ export function ImageUploader({
           </div>
         ))}
       </div>
+
+      <ConfirmDialog
+        open={removing !== null}
+        title="ลบรูปนี้?"
+        detail="รูปจะหายจากประกาศเมื่อบันทึก"
+        confirmLabel="ลบรูป"
+        onCancel={() => setRemoving(null)}
+        onConfirm={() => {
+          setImages((c) => c.filter((i) => i.key !== removing));
+          setRemoving(null);
+        }}
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <label
