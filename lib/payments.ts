@@ -137,11 +137,41 @@ type PayableAuction = {
  * one-pending-attempt index) is claimed BEFORE any charge is created, so two
  * simultaneous "pay" clicks cannot both reach Omise.
  */
+/**
+ * The buyer's chosen delivery address, copied onto the auction.
+ *
+ * Taken when the attempt is RESERVED rather than when the charge succeeds,
+ * because the redirect methods settle later and somewhere else: an instalment
+ * buyer is on their bank's page when the charge completes, and there is no
+ * request carrying their address at that point. Reserving is the last moment
+ * the buyer is definitely here.
+ *
+ * Writing it on a failed attempt is harmless — it is only read once the item
+ * is paid, and the next attempt overwrites it — so this needs no unwinding.
+ *
+ * The values are copied, not linked. See the schema note on shipTo*: an
+ * address book row is one the buyer keeps editing, and a sold order has to go
+ * on saying where it was actually sent.
+ */
+export type ShipTo = {
+  recipientName: string;
+  phone: string;
+  addressLine: string;
+  subDistrict: string;
+  district: string;
+  province: string;
+  postalCode: string;
+};
+
 async function reserveAttempt(
   itemId: string,
   userId: string,
   method: "card" | "promptpay" | "installment" | "shopeepay",
-  extra?: { installmentBank?: string; installmentTerm?: number },
+  extra?: {
+    installmentBank?: string;
+    installmentTerm?: number;
+    shipTo?: ShipTo;
+  },
 ): Promise<
   | { ok: true; paymentId: string; amount: number; title: string }
   | { ok: false; reason: StartPaymentFailure }
@@ -207,6 +237,25 @@ async function reserveAttempt(
         select: { id: true },
       });
 
+      // Inside the same transaction as the reservation, so an attempt can never
+      // exist without the address it is being shipped to. Still under the row
+      // lock, and touching only the shipTo columns — nothing here reads or
+      // writes price, status or payment state.
+      if (extra?.shipTo) {
+        await tx.auctionItem.update({
+          where: { id: item.id },
+          data: {
+            shipToName: extra.shipTo.recipientName,
+            shipToPhone: extra.shipTo.phone,
+            shipToLine: extra.shipTo.addressLine,
+            shipToSubDistrict: extra.shipTo.subDistrict,
+            shipToDistrict: extra.shipTo.district,
+            shipToProvince: extra.shipTo.province,
+            shipToPostalCode: extra.shipTo.postalCode,
+          },
+        });
+      }
+
       return {
         ok: true,
         paymentId: payment.id,
@@ -251,8 +300,10 @@ export async function startCardPayment(
   itemId: string,
   userId: string,
   token: string,
+  /** Where to send it, copied onto the auction. See ShipTo. */
+  shipTo?: ShipTo,
 ): Promise<StartPaymentResult> {
-  const reserved = await reserveAttempt(itemId, userId, "card");
+  const reserved = await reserveAttempt(itemId, userId, "card", { shipTo });
   if (!reserved.ok) return reserved;
 
   let charge: OmiseCharge;
@@ -298,8 +349,10 @@ export async function startCardPayment(
 export async function startPromptPayPayment(
   itemId: string,
   userId: string,
+  /** Where to send it, copied onto the auction. See ShipTo. */
+  shipTo?: ShipTo,
 ): Promise<StartPaymentResult> {
-  const reserved = await reserveAttempt(itemId, userId, "promptpay");
+  const reserved = await reserveAttempt(itemId, userId, "promptpay", { shipTo });
   if (!reserved.ok) return reserved;
 
   let charge: OmiseCharge;
@@ -347,6 +400,8 @@ export async function startInstallmentPayment(
    *  here because it names the payment, which does not exist until the
    *  reservation below has run. */
   origin: string,
+  /** Where to send it, copied onto the auction. See ShipTo. */
+  shipTo?: ShipTo,
 ): Promise<StartPaymentResult> {
   if (!installmentsEnabled()) {
     return { ok: false, reason: "method_unavailable" };
@@ -355,6 +410,7 @@ export async function startInstallmentPayment(
   const reserved = await reserveAttempt(itemId, userId, "installment", {
     installmentBank: bankCode,
     installmentTerm: term,
+    shipTo,
   });
   if (!reserved.ok) return reserved;
 
@@ -421,12 +477,14 @@ export async function startShopeePayPayment(
   platform: "IOS" | "ANDROID",
   /** Site origin; see startInstallmentPayment. */
   origin: string,
+  /** Where to send it, copied onto the auction. See ShipTo. */
+  shipTo?: ShipTo,
 ): Promise<StartPaymentResult> {
   if (!shopeePayEnabled()) {
     return { ok: false, reason: "method_unavailable" };
   }
 
-  const reserved = await reserveAttempt(itemId, userId, "shopeepay");
+  const reserved = await reserveAttempt(itemId, userId, "shopeepay", { shipTo });
   if (!reserved.ok) return reserved;
 
   let charge: OmiseCharge;

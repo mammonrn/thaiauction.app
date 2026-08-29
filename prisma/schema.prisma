@@ -107,6 +107,18 @@ enum AuctionPaymentState {
   @@map("auction_payment_state")
 }
 
+/// Whether a sold item has been posted.
+///
+/// Two states on purpose. A third — "delivered" — would have to be entered by
+/// the same seller who entered "shipped", and nothing in this marketplace can
+/// check it, so it would be a claim wearing the costume of a fact.
+enum ShippingStatus {
+  not_shipped
+  shipped
+
+  @@map("shipping_status")
+}
+
 /// Progress of a manual bank transfer to a seller.
 enum PayoutStatus {
   pending
@@ -298,6 +310,30 @@ model AuctionItem {
   paymentState AuctionPaymentState @default(not_applicable)
   /// When the current holder's right to buy lapses. Null when no offer is live.
   paymentDueAt DateTime?
+
+  /// Whether the seller has posted it. Manual: nobody is talking to a courier,
+  /// so this is the seller's own statement and nothing verifies it.
+  shippingStatus ShippingStatus @default(not_shipped)
+  /// The courier's tracking number, as typed by the seller. Free text because
+  /// every Thai courier formats theirs differently and guessing a pattern would
+  /// reject valid numbers.
+  trackingNumber String?
+
+  /// Where this item is going — COPIED from the buyer's address book when the
+  /// payment attempt is made, never referenced by id.
+  ///
+  /// A snapshot, because an address book entry is a live row the buyer keeps
+  /// editing: correcting a typo, or deleting the address once they have moved.
+  /// A sold order must keep saying where it was sent, so the fields are frozen
+  /// here at the moment of purchase. Null on orders that predate this, and on
+  /// anything never paid for.
+  shipToName       String?
+  shipToPhone      String?
+  shipToLine       String?
+  shipToSubDistrict String?
+  shipToDistrict   String?
+  shipToProvince   String?
+  shipToPostalCode String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
