@@ -95,6 +95,20 @@ async function resetFixtures() {
     select: { id: true },
   });
   const itemIds = items.map((i) => i.id);
+  // Tables added by later features. A fixture user cannot be deleted while a
+  // ban they issued or a notification addressed to them still points at it.
+  await prisma.notification.deleteMany({ where: { userId: { in: ids } } });
+  await prisma.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
+  await prisma.itemReport.deleteMany({
+    where: { OR: [{ auctionItemId: { in: itemIds } }, { reporterId: { in: ids } }, { reviewedById: { in: ids } }] },
+  });
+  await prisma.userBan.deleteMany({
+    where: { OR: [{ userId: { in: ids } }, { bannedById: { in: ids } }] },
+  });
+  await prisma.auctionItem.updateMany({
+    where: { deletedById: { in: ids } },
+    data: { deletedById: null },
+  });
   await prisma.payment.deleteMany({ where: { auctionItemId: { in: itemIds } } });
   await prisma.paymentStrike.deleteMany({ where: { auctionItemId: { in: itemIds } } });
   await prisma.bid.deleteMany({ where: { auctionItemId: { in: itemIds } } });

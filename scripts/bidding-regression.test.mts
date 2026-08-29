@@ -68,6 +68,8 @@ async function resetFixtures() {
     select: { id: true },
   });
   const itemIds = items.map((i) => i.id);
+  await prisma.notification.deleteMany({ where: { userId: { in: ids } } });
+  await prisma.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
   await prisma.itemReport.deleteMany({
     where: { OR: [{ auctionItemId: { in: itemIds } }, { reporterId: { in: ids } }, { reviewedById: { in: ids } }] },
   });

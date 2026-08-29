@@ -107,6 +107,31 @@ enum AuctionPaymentState {
   @@map("auction_payment_state")
 }
 
+/// What a notification is about.
+///
+/// Named for the EVENT, not for who receives it: `new_bid` reaches the seller
+/// and `outbid` reaches the person who just lost the lead, and keeping the
+/// event in the name is what stops a future reader assuming a notification
+/// type implies an audience.
+enum NotificationType {
+  /// Someone bid on your listing.
+  new_bid
+  /// Someone bought your listing outright.
+  buy_now
+  /// Your buyer's payment landed.
+  payment_received
+  /// Your winner let their deadline lapse.
+  payment_missed
+  /// Someone outbid you.
+  outbid
+  /// An auction you have bid on closes within the hour.
+  ending_soon
+  /// You won.
+  auction_won
+
+  @@map("notification_type")
+}
+
 /// Why someone reported a listing.
 ///
 /// Four buckets, not a taxonomy: a reporter picks in a second or picks wrong,
@@ -234,6 +259,8 @@ model User {
   updatedAt DateTime @updatedAt
 
   shippingAddresses     ShippingAddress[]
+  notifications         Notification[]
+  pushSubscriptions     PushSubscription[]
   submittedReports      ItemReport[]      @relation("SubmittedReports")
   reviewedReports       ItemReport[]      @relation("ReviewedReports")
   bansReceived          UserBan[]         @relation("BansReceived")
@@ -914,4 +941,82 @@ model UserBan {
   @@index([userId, kind, expiresAt])
   @@index([userId, createdAt])
   @@map("user_bans")
+}
+
+
+/// One thing that happened, addressed to one person.
+///
+/// The source of truth for the bell. Web Push is only a loudspeaker held up to
+/// these rows: a push that fails to send changes nothing here, which is why
+/// the row is written first and the push attempted afterwards.
+///
+/// The text is FROZEN at creation rather than rendered from the auction on
+/// read. A notification is a record of what was true when it happened — "มีคน
+/// เสนอราคา ฿1,200" stays right after the price moves to ฿5,000, and it
+/// survives the listing being removed by an admin.
+model Notification {
+  id     String           @id @default(cuid())
+  userId String
+  type   NotificationType
+
+  title String
+  body  String
+  /// Where the bell sends them. Always an in-app path, never an absolute URL:
+  /// this is rendered into an href and into a push payload, and an
+  /// attacker-supplied origin has no business in either.
+  url   String
+
+  /// What this notification is ABOUT, for collapsing repeats — usually
+  /// "<type>:<auctionItemId>".
+  ///
+  /// Explicit rather than inferred from `url`, because the two answer
+  /// different questions: `url` is where the reader is sent, and a seller's
+  /// "you were paid" sends them to /sell, which is the same path for every
+  /// item they ever sell. Deduplicating on that would collapse unrelated
+  /// sales into one line.
+  dedupeKey String?
+
+  /// Null = unread. A nullable timestamp rather than a boolean, so "when did
+  /// they see it" is answerable without a second column.
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // The bell's own query: how many are unread for this person.
+  @@index([userId, readAt])
+  // The list page, newest first.
+  @@index([userId, createdAt])
+  // Deduplication looks up "one about this thing, for this person".
+  @@index([userId, dedupeKey])
+  @@map("notifications")
+}
+
+/// One browser's permission to be pushed to.
+///
+/// Per DEVICE, not per person: a seller with a phone and a desktop has two,
+/// and one going stale must not silence the other. `endpoint` is unique
+/// because it IS the address the push service routes on — the same browser
+/// re-subscribing yields the same endpoint, and a duplicate row would only
+/// send the same notification twice.
+model PushSubscription {
+  id     String @id @default(cuid())
+  userId String
+
+  /// The push service's URL for this browser. Unique, and the natural key.
+  endpoint String @unique
+  /// The two halves of the browser's encryption key, from PushSubscription
+  /// .toJSON().keys. Useless without the endpoint and not secret on their own.
+  p256dh   String
+  auth     String
+
+  createdAt  DateTime @default(now())
+  /// Last time a push to this endpoint was accepted. A subscription the push
+  /// service rejects with 404/410 is deleted rather than dated.
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
 }

@@ -1,4 +1,5 @@
 import { failureMessage } from "@/lib/omise-failures";
+import { syncAuctionNotifications } from "@/lib/notifications";
 import { refreshPayment } from "@/lib/payments";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/session";
@@ -31,7 +32,7 @@ export async function GET(
 
   const owned = await prisma.payment.findFirst({
     where: { id, payerId: session.user.id },
-    select: { id: true },
+    select: { id: true, auctionItemId: true },
   });
   if (!owned) {
     return Response.json({ error: "not_found" }, { status: 404 });
@@ -44,6 +45,11 @@ export async function GET(
   } catch (error) {
     console.error(`[payment-state] refresh failed for ${id}:`, error);
   }
+
+  // After the refresh, so a payment that just settled is announced the moment
+  // the buyer's own tab sees it rather than waiting for the next sweep.
+  // Idempotent and self-silencing, so polling every few seconds is harmless.
+  await syncAuctionNotifications(owned.auctionItemId);
 
   const payment = await prisma.payment.findUniqueOrThrow({
     where: { id },

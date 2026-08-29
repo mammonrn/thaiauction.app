@@ -26,6 +26,10 @@
  *   asterisk/5 * * * * cd /srv/thaiauction && /usr/bin/npm run auctions:settle >> /var/log/thaiauction-settle.log 2>&1
  */
 import { settleAllExpired, sweepPaymentDeadlines } from "../lib/bidding";
+import {
+  syncAuctionNotifications,
+  syncMissedPaymentNotifications,
+} from "../lib/notifications";
 import { reconcilePayments } from "../lib/payments";
 
 async function main() {
@@ -61,6 +65,15 @@ async function main() {
       ? `[payment-deadline] ${stamp} nothing overdue`
       : `[payment-deadline] ${stamp} forfeited ${forfeited.length}: ${forfeited.join(", ")}`,
   );
+
+  // 4. Say what happened. Last, so it reports the state the three passes above
+  //    have just settled on, and reconciled rather than hooked: the
+  //    transitions live inside lib/bidding and lib/payments, which this
+  //    feature does not modify. Both calls swallow their own failures — a
+  //    notification problem must never stop the sweep that moves money.
+  await syncAuctionNotifications();
+  await syncMissedPaymentNotifications();
+  console.log(`[notify] ${stamp} caught up`);
 }
 
 main()

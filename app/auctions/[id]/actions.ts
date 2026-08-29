@@ -11,11 +11,47 @@ import { requireSession } from "@/lib/session";
 import { shillMessage } from "@/lib/anti-shill";
 import { banMessage } from "@/lib/strikes";
 import { banMessageFor, biddingBan } from "@/lib/bans";
+import {
+  notifyBidPlaced,
+  notifyBuyNow,
+  syncAuctionNotifications,
+} from "@/lib/notifications";
 
 export type BidActionState = {
   ok: boolean;
   message: string | null;
 };
+
+/**
+ * Who owns this auction and who is currently winning it.
+ *
+ * Read before a bid so the notification layer knows whom the new bid
+ * overtakes. Returns null on any failure — a notification that cannot be
+ * addressed is simply not sent, and the bid proceeds regardless.
+ */
+async function auctionSnapshot(
+  itemId: string,
+): Promise<{ title: string; sellerId: string; leaderId: string | null } | null> {
+  try {
+    const item = await prisma.auctionItem.findUnique({
+      where: { id: itemId },
+      select: {
+        title: true,
+        sellerId: true,
+        bids: { orderBy: { amount: "desc" }, take: 1, select: { bidderId: true } },
+      },
+    });
+    if (!item) return null;
+    return {
+      title: item.title,
+      sellerId: item.sellerId,
+      leaderId: item.bids[0]?.bidderId ?? null,
+    };
+  } catch (error) {
+    console.error("[notify] could not read the auction:", error);
+    return null;
+  }
+}
 
 /**
  * Place a bid.
@@ -56,6 +92,12 @@ export async function placeBidAction(
   if (!raw || !Number.isFinite(baht) || baht <= 0) {
     return { ok: false, message: "กรุณากรอกจำนวนเงินให้ถูกต้อง" };
   }
+
+  // Read BEFORE the bid: once it lands, the person who was leading is
+  // indistinguishable from every other underbidder, and "who did I just
+  // overtake" is the whole of the outbid rule. Failing to read it must not
+  // stop the bid, so it is its own try/catch.
+  const before = await auctionSnapshot(itemId);
 
   let result;
   try {
@@ -106,6 +148,31 @@ export async function placeBidAction(
     };
   }
 
+  // AFTER placeBid has returned success, and never able to undo it: notify()
+  // swallows its own failures, so a bid that landed stays landed even if the
+  // bell cannot be written to.
+  if (before) {
+    if (result.wonByBuyNow) {
+      await notifyBuyNow({
+        itemId,
+        itemTitle: before.title,
+        sellerId: before.sellerId,
+        buyerId: user.id,
+        amount: result.amount,
+        previousLeaderId: before.leaderId,
+      });
+    } else {
+      await notifyBidPlaced({
+        itemId,
+        itemTitle: before.title,
+        sellerId: before.sellerId,
+        bidderId: user.id,
+        amount: result.amount,
+        previousLeaderId: before.leaderId,
+      });
+    }
+  }
+
   revalidatePath(`/auctions/${itemId}`);
   return {
     ok: true,
@@ -144,6 +211,8 @@ export async function buyNowAction(
   const ban = await biddingBan(user.id);
   if (ban) return { ok: false, message: banMessageFor(ban) };
 
+  const before = await auctionSnapshot(itemId);
+
   let result;
   try {
     result = await buyNow(itemId, user.id, await requestOrigin());
@@ -175,6 +244,17 @@ export async function buyNowAction(
       ok: false,
       message: explained ?? messages[result.reason] ?? "ซื้อทันทีไม่สำเร็จ",
     };
+  }
+
+  if (before) {
+    await notifyBuyNow({
+      itemId,
+      itemTitle: before.title,
+      sellerId: before.sellerId,
+      buyerId: user.id,
+      amount: result.amount,
+      previousLeaderId: before.leaderId,
+    });
   }
 
   revalidatePath(`/auctions/${itemId}`);
@@ -217,6 +297,10 @@ export async function endAuctionAction(
           : "ไม่พบรายการนี้",
     };
   }
+
+  // A winner exists now; tell them. Idempotent, so the sweep repeating it
+  // later changes nothing.
+  await syncAuctionNotifications(itemId);
 
   revalidatePath(`/auctions/${itemId}`);
   revalidatePath("/sell");
