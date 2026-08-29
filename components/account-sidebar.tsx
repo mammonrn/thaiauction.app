@@ -26,7 +26,7 @@ const GROUPS = [
     links: [
       { href: "/account/verification", label: "ยืนยันตัวตนผู้ขาย" },
       { href: "/account/bank", label: "บัญชีธนาคาร" },
-      { href: "/sell", label: "สินค้าของฉัน" },
+      { href: "/sell", label: "รายการขายของฉัน" },
     ],
   },
   {

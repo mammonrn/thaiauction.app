@@ -102,3 +102,57 @@ export function isOfferedInstallment(
   const offer = installmentOffers(amountSatang).find((o) => o.bank.code === bankCode);
   return offer ? offer.terms.some((t) => t.term === term) : false;
 }
+
+/**
+ * The amount range each gateway-side method actually accepts.
+ *
+ * Mirrors the PromptPay figures in lib/omise.ts rather than importing them:
+ * that module is `server-only`, and this one is shared with the browser so the
+ * pay page can decide what to OFFER without a round trip. lib/payments.ts
+ * still re-checks PromptPay under the auction's row lock, so these numbers
+ * decide presentation, never permission.
+ *
+ * ShopeePay shares PromptPay's ฿150,000 ceiling. Before this it had no limit
+ * here at all: an over-cap auction offered the button, took the tap, and came
+ * back with Omise's own English refusal.
+ */
+export const SHOPEEPAY_MIN_SATANG = 2_000;
+export const SHOPEEPAY_MAX_SATANG = 15_000_000;
+export const PROMPTPAY_OFFER_MIN_SATANG = 2_000;
+export const PROMPTPAY_OFFER_MAX_SATANG = 15_000_000;
+
+export function shopeePayOffered(amountSatang: number): boolean {
+  return (
+    amountSatang >= SHOPEEPAY_MIN_SATANG &&
+    amountSatang <= SHOPEEPAY_MAX_SATANG
+  );
+}
+
+export function promptPayOffered(amountSatang: number): boolean {
+  return (
+    amountSatang >= PROMPTPAY_OFFER_MIN_SATANG &&
+    amountSatang <= PROMPTPAY_OFFER_MAX_SATANG
+  );
+}
+
+/**
+ * The one line explaining a method the amount has ruled out.
+ *
+ * Only ever says "this amount is outside its range". A method switched OFF by
+ * its flag is never mentioned — the buyer cannot act on that, and the UI
+ * states what is true and what you can do, not what the operator has
+ * configured. Null when everything the amount allows is on offer, so the note
+ * appears only when something is actually missing.
+ */
+export function amountLimitNote(
+  amountSatang: number,
+  { shopeePayEnabled }: { shopeePayEnabled: boolean },
+): string | null {
+  const missing: string[] = [];
+  if (!promptPayOffered(amountSatang)) missing.push("PromptPay");
+  if (shopeePayEnabled && !shopeePayOffered(amountSatang)) {
+    missing.push("ShopeePay");
+  }
+  if (missing.length === 0) return null;
+  return `ยอดนี้อยู่นอกช่วงที่ ${missing.join(" และ ")} รองรับ — ชำระด้วยบัตรเครดิตแทนได้`;
+}

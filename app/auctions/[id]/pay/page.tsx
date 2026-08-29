@@ -4,7 +4,12 @@ import { notFound } from "next/navigation";
 import { PaymentPanel } from "@/components/payment-panel";
 import { PAYMENT_WINDOW_HOURS } from "@/lib/auction-rules";
 import { installmentsEnabled, shopeePayEnabled } from "@/lib/payments";
-import { installmentOffers } from "@/lib/payment-methods";
+import {
+  amountLimitNote,
+  installmentOffers,
+  promptPayOffered,
+  shopeePayOffered,
+} from "@/lib/payment-methods";
 import { formatBaht } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -158,7 +163,11 @@ export default async function PayPage({
           publicKey={process.env.OMISE_PUBLIC_KEY ?? ""}
           windowHours={PAYMENT_WINDOW_HOURS}
           installmentOffers={offers}
-          shopeePayAvailable={shopeePayEnabled()}
+          shopeePayAvailable={shopeePayEnabled() && shopeePayOffered(item.currentPrice)}
+          promptPayAvailable={promptPayOffered(item.currentPrice)}
+          amountNote={amountLimitNote(item.currentPrice, {
+            shopeePayEnabled: shopeePayEnabled(),
+          })}
           addresses={addresses}
           initialPayment={
             payment && payment.status !== "successful"

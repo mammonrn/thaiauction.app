@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AdminBackLink } from "@/components/admin-back-link";
+
 import { VerificationReview } from "@/components/verification-review";
 import { requireAdmin } from "@/lib/admin";
 import { ageOn } from "@/lib/identity";
@@ -53,12 +55,7 @@ export default async function AdminVerificationsPage({
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-col gap-2">
-        <Link
-          href="/"
-          className="text-sm text-ink/60 underline-offset-4 hover:underline"
-        >
-          ← กลับหน้าแรก
-        </Link>
+        <AdminBackLink />
         <h1 className="text-2xl font-semibold tracking-tight">
           ตรวจสอบการยืนยันตัวตน
         </h1>

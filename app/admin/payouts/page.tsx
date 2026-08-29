@@ -7,6 +7,7 @@ import { COMMISSION_PERCENT } from "@/lib/payment-math";
 import { prisma } from "@/lib/prisma";
 import { bankName } from "@/lib/thai-banks";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
+import { AdminBackLink } from "@/components/admin-back-link";
 
 /**
  * What the marketplace owes sellers, and what it has already sent.
@@ -77,6 +78,7 @@ export default async function AdminPayoutsPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-2">
+        <AdminBackLink />
         <h1 className="text-2xl font-semibold tracking-tight">
           รอโอนให้ผู้ขาย
         </h1>

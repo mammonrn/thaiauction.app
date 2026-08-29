@@ -2,6 +2,7 @@ import { requireAdmin } from "@/lib/admin";
 import { findFraudSignals } from "@/lib/fraud-signals";
 import { BID_METADATA_RETENTION_DAYS } from "@/lib/retention";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
+import { AdminBackLink } from "@/components/admin-back-link";
 
 /**
  * Possible shill rings.
@@ -19,6 +20,7 @@ export default async function AdminFraudPage() {
   return (
     <main className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
       <header className="flex flex-col gap-2">
+        <AdminBackLink />
         <h1 className="text-2xl font-semibold tracking-tight">
           สัญญาณน่าสงสัย (อาจเป็นการปั่นราคา)
         </h1>

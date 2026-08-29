@@ -6,18 +6,23 @@ import { AuctionForm } from "@/components/auction-form";
 import { PublishControls } from "@/components/publish-controls";
 import { editLockReason, isEditable } from "@/lib/auction-rules";
 import { formatBaht, satangToBaht } from "@/lib/money";
-import { formatThaiDateTime } from "@/lib/thai-datetime";
+import {
+  formatThaiDateTime,
+  thaiDateTimeInputValue,
+} from "@/lib/thai-datetime";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
 import { MAX_IMAGES_PER_ITEM, imageUrl } from "@/lib/uploads";
 
-/** "2026-08-28T14:30" for a datetime-local input, in local time. */
+/**
+ * "2026-08-28T14:30" to seed the date picker.
+ *
+ * Bangkok, not the server's timezone: this runs in a Server Component, so on a
+ * UTC VPS `getHours()` would seed the picker seven hours behind the closing
+ * time the seller actually chose.
+ */
 function toLocalInput(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return (
-    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
-    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
-  );
+  return thaiDateTimeInputValue(date);
 }
 
 export default async function EditAuctionPage({

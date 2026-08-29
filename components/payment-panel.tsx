@@ -94,6 +94,8 @@ export function PaymentPanel({
   initialPayment,
   installmentOffers,
   shopeePayAvailable,
+  promptPayAvailable,
+  amountNote,
   addresses,
 }: {
   itemId: string;
@@ -103,22 +105,29 @@ export function PaymentPanel({
   initialPayment: PaymentSnapshot | null;
   /** Empty when instalments are switched off, or this amount cannot be split. */
   installmentOffers: InstallmentOffer[];
-  /** Whether the ShopeePay flag is on. Mobile is decided in the browser. */
+  /** Flag on AND the amount inside ShopeePay's range. Mobile is decided in
+   *  the browser. */
   shopeePayAvailable: boolean;
+  /** Whether the amount is inside PromptPay's range. */
+  promptPayAvailable: boolean;
+  /** One line naming any method this amount rules out, or null. */
+  amountNote: string | null;
   /** The buyer's address book. Empty means they cannot pay yet. */
   addresses: ShipToOption[];
 }) {
   const isMobile = useSyncExternalStore(noSubscribe, readMobile, () => false);
 
+  // Card first when PromptPay is out of range, so the tab that opens is one
+  // the buyer can actually use.
   const methods: Method[] = [
-    "promptpay",
+    ...(promptPayAvailable ? (["promptpay"] as const) : []),
     "card",
     ...(installmentOffers.length > 0 ? (["installment"] as const) : []),
     ...(shopeePayAvailable && isMobile ? (["shopeepay"] as const) : []),
   ];
 
   const [method, setMethod] = useState<Method>(
-    initialPayment?.method ?? "promptpay",
+    initialPayment?.method ?? (promptPayAvailable ? "promptpay" : "card"),
   );
   const [payment, setPayment] = useState<PaymentSnapshot | null>(
     initialPayment,
@@ -328,6 +337,12 @@ export function PaymentPanel({
           </button>
         ))}
       </div>
+
+      {/* Said BEFORE the buyer commits to a method, rather than after the
+          gateway refuses the charge in English. */}
+      {amountNote ? (
+        <p className="text-xs text-ink/60">{amountNote}</p>
+      ) : null}
 
       {/* A redirect attempt already exists. The one-pending index will refuse
           a second charge, so the buyer gets the same link back rather than a

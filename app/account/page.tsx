@@ -107,7 +107,7 @@ export default async function AccountPage() {
           title="บัญชีธนาคาร"
           detail={bankAccount ? "บันทึกไว้แล้ว" : "ยังไม่ได้บันทึก"}
         />
-        <Row href="/sell" title="สินค้าของฉัน" detail="รายการที่ลงขายไว้" />
+        <Row href="/sell" title="รายการขายของฉัน" detail="รายการที่ลงขายไว้" />
       </Group>
 
       <Group title="ข้อมูลติดต่อและจัดส่ง">
