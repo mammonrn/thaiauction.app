@@ -6,6 +6,7 @@ import { BottomNav } from "@/components/bottom-nav";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { getSession } from "@/lib/session";
+import { unreadNotificationCount } from "@/lib/notifications";
 import { unpaidWinCount } from "@/lib/unpaid";
 
 /**
@@ -42,6 +43,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   // signed-out one has nothing to owe, and asking would be a query per page
   // view for a guaranteed zero.
   const unpaidWins = session ? await unpaidWinCount(session.user.id) : 0;
+  const unreadNotifications = session
+    ? await unreadNotificationCount(session.user.id)
+    : 0;
 
   return (
     <html
@@ -52,7 +56,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <SiteHeader />
         {children}
         <SiteFooter />
-        <BottomNav signedIn={session !== null} unpaidWins={unpaidWins} />
+        <BottomNav
+          signedIn={session !== null}
+          unpaidWins={unpaidWins}
+          unreadNotifications={unreadNotifications}
+        />
       </body>
     </html>
   );

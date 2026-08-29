@@ -8,9 +8,12 @@ import type { MetadataRoute } from "next";
  * app. `theme_color` is the brand red, so the Android status bar matches the
  * header rather than flashing white on launch.
  *
- * No service worker: offline use is not a goal here, and a cache that serves a
- * stale auction price would be actively harmful. Installability does not
- * require one.
+ * The service worker at /sw.js handles push and NOTHING else — no fetch
+ * handler, so nothing is ever served from a cache and a deploy can never be
+ * shadowed by a stale one. Offline use is still not a goal, and a cached
+ * auction price would still be actively harmful; installability never required
+ * a worker, and this one is registered only when someone turns notifications
+ * on.
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {

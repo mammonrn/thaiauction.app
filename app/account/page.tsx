@@ -5,6 +5,9 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { VerificationLevel } from "@/components/verification-level";
 import { avatarUrl } from "@/lib/avatar";
 import { prisma } from "@/lib/prisma";
+import { PushToggle } from "@/components/push-toggle";
+import { unreadNotificationCount } from "@/lib/notifications";
+import { pushAvailable } from "@/lib/push";
 import { requireSession } from "@/lib/session";
 import { countStrikes, STRIKE_LIMIT } from "@/lib/strikes";
 
@@ -20,6 +23,11 @@ import { countStrikes, STRIKE_LIMIT } from "@/lib/strikes";
  */
 export default async function AccountPage() {
   const { user } = await requireSession("/account");
+  const unreadNotifications = await unreadNotificationCount(user.id);
+  // Read on the SERVER: whether this deployment has VAPID keys decides whether
+  // to offer the toggle at all, and a button that cannot work is worse than
+  // none.
+  const pushEnabled = pushAvailable();
 
   const [
     profile,
@@ -87,6 +95,24 @@ export default async function AccountPage() {
           }}
         />
       </section>
+
+      <Group title="การแจ้งเตือน">
+        <Row
+          href="/account/notifications"
+          title="การแจ้งเตือน"
+          detail={
+            unreadNotifications === 0
+              ? "อ่านครบแล้ว"
+              : `${unreadNotifications} รายการที่ยังไม่อ่าน`
+          }
+        />
+      </Group>
+
+      {/* Outside the Group list because it is a control, not a link to
+          somewhere else — and it belongs next to the page it configures. */}
+      {pushEnabled ? (
+        <PushToggle publicKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? ""} />
+      ) : null}
 
       <Group title="ข้อมูลผู้ขาย">
         <Row

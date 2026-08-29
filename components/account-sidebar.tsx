@@ -18,6 +18,7 @@ const GROUPS = [
     heading: "การซื้อ",
     links: [
       { href: "/account/bids", label: "ประวัติการประมูล" },
+      { href: "/account/notifications", label: "การแจ้งเตือน" },
       { href: "/account/addresses", label: "ที่อยู่จัดส่ง" },
     ],
   },
@@ -42,11 +43,14 @@ export function AccountSidebar({
   name,
   email,
   unpaidWins,
+  unreadNotifications,
 }: {
   name: string;
   email: string;
   /** Won auctions still to be paid for; puts a dot on ประวัติการประมูล. */
   unpaidWins: number;
+  /** Unread notifications; puts a count beside การแจ้งเตือน. */
+  unreadNotifications: number;
 }) {
   const pathname = usePathname();
 
@@ -71,6 +75,8 @@ export function AccountSidebar({
           {group.links.map((link) => {
             const active = pathname === link.href;
             const dot = link.href === "/account/bids" && unpaidWins > 0;
+            const count =
+              link.href === "/account/notifications" ? unreadNotifications : 0;
             return (
               <Link
                 key={link.href}
@@ -92,6 +98,17 @@ export function AccountSidebar({
                       className="h-2 w-2 shrink-0 rounded-full bg-brand"
                     />
                     <span className="sr-only">(มีรายการที่ต้องชำระเงิน)</span>
+                  </>
+                ) : null}
+                {count > 0 ? (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="ml-auto min-w-5 rounded-full bg-brand px-1.5 text-center text-xs font-medium leading-5 text-white"
+                    >
+                      {count > 9 ? "9+" : count}
+                    </span>
+                    <span className="sr-only">({count} รายการที่ยังไม่อ่าน)</span>
                   </>
                 ) : null}
               </Link>
