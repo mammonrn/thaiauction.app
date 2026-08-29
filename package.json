@@ -17,6 +17,7 @@
     "bids:prune": "tsx --conditions=react-server scripts/prune-bid-metadata.ts",
     "icons:build": "tsx scripts/build-icons.ts",
     "check:colors": "tsx scripts/check-colors.ts",
+    "test:payments": "tsx --conditions=react-server scripts/payment-regression.test.mts",
     "images:backfill": "tsx scripts/backfill-thumbnails.ts"
   },
   "dependencies": {
