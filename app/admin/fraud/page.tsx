@@ -40,10 +40,10 @@ export default async function AdminFraudPage() {
           {signals.map((signal) => (
             <li
               key={`${signal.signal}:${signal.value}:${signal.sellerId}`}
-              className="flex flex-col gap-2 rounded-xl border border-amber-500/30 bg-amber-50/50 p-5 text-sm"
+              className="flex flex-col gap-2 rounded-xl border border-warning/35 bg-warning/8 p-5 text-sm"
             >
               <div className="flex flex-wrap items-baseline gap-2">
-                <span className="rounded bg-amber-600/15 px-2 py-0.5 text-xs font-medium">
+                <span className="rounded bg-warning/12 px-2 py-0.5 text-xs font-medium">
                   {signal.signal === "ip" ? "IP เดียวกัน" : "อุปกรณ์เดียวกัน"}
                 </span>
                 <span className="font-medium">

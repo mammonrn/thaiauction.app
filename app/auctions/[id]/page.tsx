@@ -218,14 +218,14 @@ export default async function AuctionDetailPage({
                       : maskName(bid.bidder.name)}
                   </span>
                   {index === 0 ? (
-                    <span className="rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700">
+                    <span className="rounded-full bg-success/12 px-2 py-0.5 text-xs text-success">
                       สูงสุด
                     </span>
                   ) : null}
                   {(bidderStrikes.get(bid.bidderId) ?? 0) > 0 ? (
                     <span
                       title="ผู้ใช้รายนี้เคยชนะประมูลแล้วไม่ชำระเงินตามกำหนด (เห็นเฉพาะคุณในฐานะผู้ขาย)"
-                      className="rounded-full bg-amber-600/15 px-2 py-0.5 text-xs text-amber-800"
+                      className="rounded-full bg-warning/12 px-2 py-0.5 text-xs text-warning"
                     >
                       ⚠ เคยไม่ชำระเงิน{" "}
                       {bidderStrikes.get(bid.bidderId)}/{STRIKE_LIMIT}

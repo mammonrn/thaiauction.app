@@ -300,7 +300,7 @@ export function AddressForm({
       />
 
       {unknownPostcode ? (
-        <p className="-mt-2 text-xs text-amber-700">
+        <p className="-mt-2 text-xs text-warning">
           ไม่พบรหัสไปรษณีย์นี้ในฐานข้อมูล กรุณากรอกจังหวัด/อำเภอ/ตำบลเอง
         </p>
       ) : null}

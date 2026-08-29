@@ -101,7 +101,7 @@ function AddressCard({
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium">{address.recipientName}</span>
         {isDefault ? (
-          <span className="rounded-full bg-green-600/10 px-2.5 py-0.5 text-xs font-medium text-green-700">
+          <span className="rounded-full bg-success/12 px-2.5 py-0.5 text-xs font-medium text-success">
             ค่าเริ่มต้น
           </span>
         ) : null}

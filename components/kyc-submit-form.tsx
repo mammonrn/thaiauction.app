@@ -116,7 +116,7 @@ export function KycWithdrawButton() {
           role="status"
           className={
             state.ok
-              ? "text-sm text-green-700"
+              ? "text-sm text-success"
               : "text-sm text-brand"
           }
         >

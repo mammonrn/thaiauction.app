@@ -78,7 +78,7 @@ export default async function MyBidsPage() {
           className={`rounded-xl border p-5 text-sm ${
             banned
               ? "border-brand/30 bg-brand/[.05]"
-              : "border-amber-500/40 bg-amber-50"
+              : "border-warning/35 bg-warning/8"
           }`}
         >
           <h2 className="font-semibold">
@@ -172,9 +172,9 @@ function Badge({
   children: React.ReactNode;
 }) {
   const styles = {
-    good: "bg-green-600/15 text-green-800",
-    warn: "bg-amber-600/15 text-amber-800",
-    bad: "bg-red-600/15 text-brand-dark",
+    good: "bg-success/12 text-success",
+    warn: "bg-warning/12 text-warning",
+    bad: "bg-brand/12 text-brand-dark",
     plain: "bg-black/[0.06] text-ink/70",
   }[tone];
 

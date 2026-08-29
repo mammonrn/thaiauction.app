@@ -70,7 +70,7 @@ export default async function AdminVerificationsPage({
       {decided === "approved" || decided === "rejected" ? (
         <p
           role="status"
-          className="rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4 text-sm text-green-800"
+          className="rounded-xl border border-success/35 bg-success/12 px-5 py-4 text-sm text-success"
         >
           บันทึกผลเรียบร้อย — {decided === "approved" ? "อนุมัติ" : "ปฏิเสธ"}
           คำขอแล้ว และลบรูปบัตรออกจากระบบเรียบร้อย
@@ -153,7 +153,7 @@ export default async function AdminVerificationsPage({
                   <span
                     className={
                       row.status === "approved"
-                        ? "rounded-full bg-green-600/10 px-2 py-0.5 text-xs text-green-700"
+                        ? "rounded-full bg-success/12 px-2 py-0.5 text-xs text-success"
                         : "rounded-full bg-brand/10 px-2 py-0.5 text-xs text-brand-dark"
                     }
                   >

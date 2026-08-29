@@ -16,6 +16,7 @@
     "auctions:settle": "tsx --conditions=react-server scripts/settle-auctions.ts",
     "bids:prune": "tsx --conditions=react-server scripts/prune-bid-metadata.ts",
     "icons:build": "tsx scripts/build-icons.ts",
+    "check:colors": "tsx scripts/check-colors.ts",
     "images:backfill": "tsx scripts/backfill-thumbnails.ts"
   },
   "dependencies": {

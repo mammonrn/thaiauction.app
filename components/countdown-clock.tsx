@@ -9,7 +9,7 @@ import { countdownDigits } from "@/lib/time-left";
  *
  * Deliberately NOT in the price window's housing. One recessed readout per
  * card is a signature; two is a pattern, and the price stops being the thing
- * the eye goes to. This is gold mono type on the red band instead — same
+ * the eye goes to. This is white mono type on a dark housing instead — same
  * family, same tabular figures, a quarter of the weight.
  *
  * Used only where the seconds actually matter — the closing-soon rail — rather
@@ -44,7 +44,7 @@ export function CountdownClock({
 
   return (
     <span
-      className="font-mono text-[11px] font-semibold tabular-nums text-gold"
+      className="font-mono text-[11px] font-semibold tabular-nums text-white"
       role="timer"
       aria-live="off"
     >

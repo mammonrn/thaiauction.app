@@ -69,7 +69,7 @@ export default async function EditAuctionPage({
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">{item.title}</h1>
         {created ? (
-          <p className="text-sm text-green-700">
+          <p className="text-sm text-success">
             บันทึกฉบับร่างแล้ว ตรวจทานอีกครั้งแล้วกดเผยแพร่ได้เลย
           </p>
         ) : null}
@@ -79,7 +79,7 @@ export default async function EditAuctionPage({
           success message with it. This banner is the durable confirmation that
           publishing worked, and the way to the live listing. */}
       {item.status === "active" ? (
-        <p className="flex flex-wrap items-center gap-2 rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4 text-sm text-green-800">
+        <p className="flex flex-wrap items-center gap-2 rounded-xl border border-success/35 bg-success/12 px-5 py-4 text-sm text-success">
           เผยแพร่แล้ว — กำลังประมูลอยู่
           <Link
             href={`/auctions/${item.id}`}
@@ -132,7 +132,7 @@ export default async function EditAuctionPage({
           />
       </div>
       ) : (
-        <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800">
+        <p className="rounded-xl border border-warning/35 bg-warning/12 px-5 py-4 text-sm text-warning">
           {editLockReason({ status: item.status, bidCount: item._count.bids })}
         </p>
       )}

@@ -38,8 +38,11 @@ export async function SiteHeader() {
             priority
             className="h-8 w-8 shrink-0"
           />
+          {/* Plain white. Gold is the price readout and the focus ring; a
+              wordmark is neither, and a logotype that borrows the money colour
+              is how "reserved for one job" quietly becomes "used everywhere". */}
           <span className="hidden text-lg font-bold tracking-tight sm:inline">
-            Thai<span className="text-gold">Auction</span>
+            ThaiAuction
           </span>
         </Link>
 

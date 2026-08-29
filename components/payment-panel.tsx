@@ -146,11 +146,11 @@ export function PaymentPanel({
 
   if (payment?.status === "successful") {
     return (
-      <section className="flex flex-col gap-2 rounded-xl border border-green-600/30 bg-green-50 p-5 text-sm">
-        <h2 className="font-semibold text-green-800">
+      <section className="flex flex-col gap-2 rounded-xl border border-success/35 bg-success/8 p-5 text-sm">
+        <h2 className="font-semibold text-success">
           ชำระเงินสำเร็จ
         </h2>
-        <p className="text-green-900/80">
+        <p className="text-success/80">
           ขอบคุณครับ ทีมงานจะโอนเงินให้ผู้ขายและแจ้งให้จัดส่งสินค้าต่อไป
         </p>
       </section>

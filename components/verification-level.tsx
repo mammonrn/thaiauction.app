@@ -42,13 +42,18 @@ export function VerificationLevel({
       </div>
 
       {/* Three segments, filled to the level reached. The track carries real
-          information — how far along you are — rather than decorating it. */}
+          information — how far along you are — rather than decorating it.
+
+          Filled in success, not brand. Three full-width brand bars made a
+          finished account the loudest thing on the account page, which put the
+          accent colour on a state rather than on an action. Progress towards a
+          verified account IS a status, and status has its own colour now. */}
       <div className="flex items-center gap-1.5" aria-hidden="true">
         {([1, 2, 3] as const).map((step) => (
           <span
             key={step}
             className={`h-1.5 flex-1 rounded-full ${
-              step <= level ? "bg-brand" : "bg-black/10"
+              step <= level ? "bg-success" : "bg-black/10"
             }`}
           />
         ))}
@@ -74,21 +79,23 @@ export function VerificationLevel({
 }
 
 /**
- * Gold is the price colour and nothing else, so a completed account is marked
- * in brand red rather than borrowing it for a second meaning.
+ * A completed account is a STATUS, so it is marked in success — not in brand,
+ * which belongs to the brand and its buttons, and not in gold, which belongs
+ * to the price. This badge is the only place the level is stated, so getting
+ * its colour right settles it everywhere the component is used.
  */
 function LevelBadge({ level, title }: { level: number; title: string }) {
   const complete = level === 3;
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${
-        complete ? "bg-brand text-white" : "bg-black/[.06] text-ink/75"
+        complete ? "bg-success/12 text-success" : "bg-black/[.06] text-ink/75"
       }`}
     >
       <span
         aria-hidden="true"
         className={`grid h-4 w-4 place-items-center rounded-full text-[10px] ${
-          complete ? "bg-white/25" : "bg-ink/15"
+          complete ? "bg-success/20" : "bg-ink/15"
         }`}
       >
         {level}

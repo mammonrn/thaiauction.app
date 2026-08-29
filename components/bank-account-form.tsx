@@ -97,7 +97,7 @@ function LockedAccount({
       )}
 
       {!hasVerifiedPhone ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-warning/35 bg-warning/8 px-4 py-3 text-sm text-warning">
           ต้องยืนยันเบอร์โทรศัพท์ก่อนจึงจะเปลี่ยนบัญชีได้
         </p>
       ) : null}
@@ -123,7 +123,7 @@ function UnlockSteps() {
       {sendState.message ? (
         <p
           role="status"
-          className={`text-sm ${sendState.ok ? "text-green-700" : "text-brand"}`}
+          className={`text-sm ${sendState.ok ? "text-success" : "text-brand"}`}
         >
           {sendState.message}
           {sendState.ok && sendState.refno ? ` (Ref: ${sendState.refno})` : null}
@@ -243,7 +243,7 @@ function EditableForm({
       </button>
 
       {state.message ? (
-        <p className={`text-sm ${state.ok ? "text-green-700" : "text-brand"}`}>
+        <p className={`text-sm ${state.ok ? "text-success" : "text-brand"}`}>
           {state.message}
         </p>
       ) : null}

@@ -28,7 +28,7 @@ export function EndAuctionButton({
 
   if (state.ok) {
     return (
-      <p role="status" className="text-sm text-green-700">
+      <p role="status" className="text-sm text-success">
         {state.message}
       </p>
     );

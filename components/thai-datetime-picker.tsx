@@ -188,7 +188,7 @@ export function ThaiDateTimePicker({
       </p>
 
       {tooSoon ? (
-        <p className="text-xs text-amber-700">
+        <p className="text-xs text-warning">
           เวลาจบต้องห่างจากตอนนี้อย่างน้อย 1 ชั่วโมง
         </p>
       ) : null}

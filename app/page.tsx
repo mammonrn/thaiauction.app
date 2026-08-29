@@ -101,10 +101,17 @@ export default async function HomePage({ searchParams }: PageProps<"/">) {
  * rail is a pointer to the grid, so it has to stay smaller than the thing it
  * points at. The clock rides on the image as an overlay rather than taking a
  * row of its own.
+ *
+ * The band is INK, not brand-dark. On a 390px screen the red header plus a red
+ * rail put a third of the first viewport under the accent colour, which is
+ * where 60-30-10 breaks: the colour that is supposed to mark the one thing
+ * worth looking at had become the ground. Ink is structure, so the band can be
+ * as large as it needs to be, and it is the same dark-glass idiom the price
+ * window already uses — gold figures on ink — rather than a second red.
  */
 function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
   return (
-    <section className="bg-brand-dark text-white">
+    <section className="bg-ink text-white">
       <div className="mx-auto w-full max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
         <div className="mb-2.5 flex items-baseline justify-between gap-3">
           <h2 className="text-sm font-bold sm:text-base">ปิดเร็วๆ นี้</h2>
@@ -123,7 +130,7 @@ function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
                 href={`/auctions/${item.id}`}
                 className="group flex flex-col gap-1.5"
               >
-                <div className="relative aspect-square overflow-hidden rounded-md bg-white/10">
+                <div className="relative aspect-square overflow-hidden rounded-md bg-white/[.08]">
                   {item.images[0] ? (
                     <Image
                       src={thumbUrl(item.images[0])}
@@ -135,7 +142,7 @@ function ClosingSoonRail({ items, now }: { items: Listing[]; now: Date }) {
                     />
                   ) : null}
                   {item.endTime ? (
-                    <span className="absolute inset-x-0 bottom-0 flex justify-center bg-ink/85 py-0.5">
+                    <span className="absolute inset-x-0 bottom-0 flex justify-center bg-black/70 py-0.5">
                       <CountdownClock
                         endsAt={item.endTime.toISOString()}
                         serverNow={now.toISOString()}

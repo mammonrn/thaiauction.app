@@ -45,7 +45,7 @@ export function PhoneOtp({
   return (
     <div className="flex flex-col gap-3">
       {stubMode ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800">
+        <p className="rounded-lg border border-info/35 bg-info/10 px-4 py-3 text-sm text-info">
           โหมดทดสอบ (OTP_STUB_MODE) — ไม่ส่ง SMS จริง ใช้รหัส{" "}
           <code className="font-mono font-semibold">000000</code>
         </p>
@@ -78,7 +78,7 @@ export function PhoneOtp({
         <p
           role="status"
           className={
-            sendState.ok ? "text-sm text-green-700" : "text-sm text-brand"
+            sendState.ok ? "text-sm text-success" : "text-sm text-brand"
           }
         >
           {sendState.message}
@@ -110,7 +110,7 @@ function VerifyStep({
 
   if (state.ok) {
     return (
-      <p role="status" className="text-sm text-green-700">
+      <p role="status" className="text-sm text-success">
         {state.message}
       </p>
     );
