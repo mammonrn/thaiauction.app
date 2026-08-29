@@ -79,6 +79,12 @@ enum PaymentStatus {
 enum PaymentMethod {
   card
   promptpay
+  /// Credit-card instalments through a Thai issuer. The buyer is redirected to
+  /// the bank to accept the plan, so the charge settles asynchronously like
+  /// PromptPay rather than synchronously like a card.
+  installment
+  /// ShopeePay, via the app-redirect source (`shopeepay_jumpapp`).
+  shopeepay
 
   @@map("payment_method")
 }
@@ -567,6 +573,27 @@ model Payment {
   /// PromptPay only: where the QR image lives, and when it stops being valid.
   qrDownloadUri String?
   expiresAt     DateTime?
+
+  /// Where the buyer must be sent to authorise an instalment plan or a
+  /// ShopeePay payment. Stored rather than held in the page, so a buyer who
+  /// closes the tab can be handed the same link again instead of being made to
+  /// start a second charge — which the one-pending index would refuse anyway.
+  ///
+  /// It is a single-use authorisation URL, not a secret, and it is only ever
+  /// returned to the payer.
+  authorizeUri String?
+
+  /// Instalments only. Which issuer and how many months, as sent to Omise —
+  /// kept so a payout dispute can be read back without calling the API.
+  installmentBank String?
+  installmentTerm Int?
+
+  /// Instalments only: what the interest cost, straight from the Charge.
+  /// The buyer bears it (the account does not send zero_interest_installments),
+  /// so this is recorded for the audit trail rather than deducted from the
+  /// seller — `net` already has it removed by Omise where applicable.
+  interest    Int?
+  interestVat Int?
 
   paidAt    DateTime?
   createdAt DateTime  @default(now())

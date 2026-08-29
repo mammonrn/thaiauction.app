@@ -87,15 +87,24 @@ export type OmiseCharge = {
   fee_vat: number | null;
   net: number | null;
   funding_amount: number | null;
+  /// Instalments only, and only once the plan is accepted: what the interest
+  /// cost over the term. Zero on a pending charge.
+  interest: number | null;
+  interest_vat: number | null;
   failure_code: string | null;
   failure_message: string | null;
   expires_at: string | null;
+  /// Where the buyer must go to authorise. Present on every redirect-based
+  /// method (instalments, ShopeePay) and absent on card and PromptPay.
+  authorize_uri: string | null;
+  return_uri: string | null;
   /// Whatever we sent at creation. Always carries `paymentId`, which is how the
   /// reconcile sweep re-attaches an orphaned charge to its row.
   metadata: Record<string, string> | null;
   source: {
     id: string;
     type: string;
+    installment_term?: number | null;
     scannable_code?: {
       image?: { download_uri?: string | null } | null;
     } | null;
@@ -181,6 +190,126 @@ export async function createPromptPaySource(
       type: "promptpay",
     },
   });
+}
+
+/**
+ * Create an instalment source for one issuer and term.
+ *
+ * Server-side for the same reason PromptPay is: the amount comes from the
+ * auction row. The TERM is the one thing a buyer legitimately chooses, and it
+ * is checked against what this marketplace offered before it gets here — see
+ * isOfferedInstallment.
+ *
+ * `zero_interest_installments` is deliberately NOT sent. The account default
+ * is false (confirmed on GET /capability), which means the buyer carries the
+ * interest and the marketplace's cost is the same as an ordinary card. Sending
+ * true would move that cost onto us.
+ */
+export async function createInstallmentSource(params: {
+  amountSatang: number;
+  bankCode: string;
+  term: number;
+}): Promise<OmiseSource> {
+  assertUsableKey();
+  return request<OmiseSource>("/sources", {
+    method: "POST",
+    body: {
+      amount: String(params.amountSatang),
+      currency: "THB",
+      type: `installment_${params.bankCode}`,
+      installment_term: String(params.term),
+    },
+  });
+}
+
+/**
+ * Create a ShopeePay source.
+ *
+ * `shopeepay_jumpapp` rather than `shopeepay`: the jump-app variant opens the
+ * ShopeePay app directly, which is the only sensible flow on a phone, and this
+ * method is offered on phones only. The QR variant would put a second QR
+ * alongside PromptPay's for no gain.
+ *
+ * `platform_type` is required by the jump-app source and tells Omise which
+ * app-store link to fall back to when the app is not installed.
+ */
+export async function createShopeePaySource(params: {
+  amountSatang: number;
+  platform: "IOS" | "ANDROID";
+}): Promise<OmiseSource> {
+  assertUsableKey();
+  return request<OmiseSource>("/sources", {
+    method: "POST",
+    body: {
+      amount: String(params.amountSatang),
+      currency: "THB",
+      type: "shopeepay_jumpapp",
+      platform_type: params.platform,
+    },
+  });
+}
+
+/**
+ * Charge a redirect source (instalments, ShopeePay), returning authorize_uri.
+ *
+ * `return_uri` is where Omise sends the buyer back to. It must be absolute and
+ * HTTPS in production; it is NOT trusted as a statement of what happened —
+ * the return page re-reads the charge from Omise like every other status in
+ * this project.
+ *
+ * `expires_at` is sent but is honoured only for ShopeePay. Verified against
+ * the TEST API: a ShopeePay charge asked for a 45-minute window gets exactly
+ * that, while an instalment charge ignores it and keeps Omise's 7-day default.
+ * Neither the charges API reference nor the ShopeePay guide document this
+ * correctly — the guide claims a 60-minute default and that expires_at cannot
+ * be set at all. See expireCharge for how the instalment case is handled.
+ */
+export async function chargeRedirectSource(params: {
+  amountSatang: number;
+  sourceId: string;
+  description: string;
+  returnUri: string;
+  expiresAt: Date;
+  metadata: Record<string, string>;
+}): Promise<OmiseCharge> {
+  assertUsableKey();
+  return request<OmiseCharge>("/charges", {
+    method: "POST",
+    body: {
+      amount: String(params.amountSatang),
+      currency: "THB",
+      source: params.sourceId,
+      description: params.description,
+      return_uri: params.returnUri,
+      expires_at: params.expiresAt.toISOString().replace(/\.\d{3}Z$/, "Z"),
+      ...metadataFields(params.metadata),
+    },
+  });
+}
+
+/**
+ * Expire a pending charge now.
+ *
+ * This is what releases the auction's one-pending-attempt slot when a buyer
+ * backs out of a ShopeePay payment.
+ *
+ * SHOPEEPAY ONLY. The charges API reference lists the source types this
+ * endpoint supports and includes neither ShopeePay nor instalments; tried
+ * against the TEST API, `shopeepay_jumpapp` is accepted and returns status
+ * `expired`, while an instalment charge is refused outright with
+ * "expiring is not supported for chrg_...".
+ *
+ * That asymmetry is why the two methods behave differently when a buyer backs
+ * out — see cancelRedirectAttempt in lib/payments.ts. Because ShopeePay's
+ * support here is undocumented it could be withdrawn, so callers treat a
+ * refusal as survivable rather than as an error.
+ */
+export async function expireCharge(chargeId: string): Promise<OmiseCharge> {
+  assertUsableKey();
+  return request<OmiseCharge>(
+    `/charges/${encodeURIComponent(chargeId)}/expire`,
+    { method: "POST" },
+  );
 }
 
 /**

@@ -52,6 +52,7 @@ export async function GET(
       method: true,
       amount: true,
       qrDownloadUri: true,
+      authorizeUri: true,
       expiresAt: true,
       failureCode: true,
       failureMessage: true,
@@ -65,6 +66,9 @@ export async function GET(
       method: payment.method,
       amount: payment.amount,
       qrDownloadUri: payment.qrDownloadUri,
+      // Only ever returned to the payer, whose ownership was checked above.
+      // It is a single-use authorisation link, not a credential.
+      authorizeUri: payment.authorizeUri,
       expiresAt: payment.expiresAt?.toISOString() ?? null,
       // Omise's raw English message is kept in the database for the audit
       // trail; what the buyer sees is the Thai explanation for that code.

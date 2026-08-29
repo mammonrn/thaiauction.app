@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 
 import { PaymentPanel } from "@/components/payment-panel";
 import { PAYMENT_WINDOW_HOURS } from "@/lib/auction-rules";
+import { installmentsEnabled, shopeePayEnabled } from "@/lib/payments";
+import { installmentOffers } from "@/lib/payment-methods";
 import { formatBaht } from "@/lib/money";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/session";
@@ -50,6 +52,7 @@ export default async function PayPage({
       status: true,
       method: true,
       qrDownloadUri: true,
+      authorizeUri: true,
       expiresAt: true,
       failureMessage: true,
       amount: true,
@@ -66,6 +69,17 @@ export default async function PayPage({
   const now = Date.now();
   const overdue =
     !paid && item.paymentDueAt !== null && item.paymentDueAt.getTime() <= now;
+
+  // Both flags are read on the SERVER. An env var read in the client component
+  // would be inlined at build time, so turning a method off would need a
+  // rebuild rather than a restart.
+  //
+  // The offers are computed here too: which terms an amount qualifies for is a
+  // rule about money, and the browser has no business deciding it. The charge
+  // path re-checks the chosen plan under the auction's row lock regardless.
+  const offers = installmentsEnabled()
+    ? installmentOffers(item.currentPrice)
+    : [];
 
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-5 px-4 py-6 sm:px-6 sm:py-8">
@@ -126,6 +140,8 @@ export default async function PayPage({
           amount={item.currentPrice}
           publicKey={process.env.OMISE_PUBLIC_KEY ?? ""}
           windowHours={PAYMENT_WINDOW_HOURS}
+          installmentOffers={offers}
+          shopeePayAvailable={shopeePayEnabled()}
           initialPayment={
             payment && payment.status !== "successful"
               ? {
@@ -133,6 +149,7 @@ export default async function PayPage({
                   status: payment.status,
                   method: payment.method,
                   qrDownloadUri: payment.qrDownloadUri,
+                  authorizeUri: payment.authorizeUri,
                   expiresAt: payment.expiresAt?.toISOString() ?? null,
                   failureMessage: payment.failureMessage,
                 }

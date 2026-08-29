@@ -18,6 +18,7 @@
     "icons:build": "tsx scripts/build-icons.ts",
     "check:colors": "tsx scripts/check-colors.ts",
     "test:payments": "tsx --conditions=react-server scripts/payment-regression.test.mts",
+    "test:payments:phase2": "tsx --conditions=react-server scripts/payment-phase2.test.mts",
     "images:backfill": "tsx scripts/backfill-thumbnails.ts"
   },
   "dependencies": {
