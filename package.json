@@ -29,7 +29,8 @@
     "payouts:reconcile": "tsx --conditions=react-server scripts/reconcile-payouts.ts",
     "test:payouts": "tsx --conditions=react-server scripts/payouts.test.mts",
     "test:members": "tsx --conditions=react-server scripts/members.test.mts",
-    "test:sales-report": "tsx --conditions=react-server scripts/sales-report.test.mts"
+    "test:sales-report": "tsx --conditions=react-server scripts/sales-report.test.mts",
+    "test:referral": "tsx --conditions=react-server scripts/referral.test.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

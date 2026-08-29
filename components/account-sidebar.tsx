@@ -35,6 +35,7 @@ const GROUPS = [
     links: [
       { href: "/account/phone", label: "เบอร์โทรศัพท์" },
       { href: "/account/security", label: "ความปลอดภัย" },
+      { href: "/account/referral", label: "ชวนเพื่อน" },
     ],
   },
 ] as const;

@@ -5,6 +5,8 @@ import { nextCookies } from "better-auth/next-js";
 
 import { banMessageFor, loginBan } from "@/lib/bans";
 import { prisma } from "@/lib/prisma";
+import { recordSignupReferral } from "@/lib/referral";
+import { REFERRAL_COOKIE } from "@/lib/referral-code";
 
 /**
  * Better Auth server instance.
@@ -64,6 +66,42 @@ export const auth = betterAuth({
   },
 
   databaseHooks: {
+    user: {
+      create: {
+        /**
+         * Credit whoever invited this account.
+         *
+         * At user CREATION, so every way in is covered by one hook: Google and
+         * the password endpoint both end here, and a third provider added later
+         * would too. The alternative — a call in each sign-in path — is the
+         * arrangement that eventually misses one.
+         *
+         * Wrapped, and wrapped again inside `recordSignupReferral`. The account
+         * exists by the time this runs; a referral that fails to record is a
+         * loss, but refusing someone the account they just created because a
+         * bookkeeping row would not write is a much larger one. Same trade
+         * lib/notifications.ts makes.
+         */
+        async after(user, context) {
+          try {
+            const headers = context?.request?.headers;
+            await recordSignupReferral({
+              referredUserId: user.id,
+              code: readCookie(headers?.get("cookie"), REFERRAL_COOKIE),
+              // Kept for lib/fraud-signals.ts to group on later: one referrer
+              // collecting several accounts from one origin is what a person
+              // should look at.
+              ipAddress:
+                headers?.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null,
+              userAgent: headers?.get("user-agent") ?? null,
+            });
+          } catch (error) {
+            console.error("[referral] sign-up hook failed:", error);
+          }
+        },
+      },
+    },
+
     session: {
       create: {
         /**
@@ -93,3 +131,22 @@ export const auth = betterAuth({
   // Must be last: lets Better Auth set cookies from Next.js Server Actions.
   plugins: [nextCookies()],
 });
+
+/**
+ * One cookie out of a Cookie header.
+ *
+ * Hand-parsed because this runs inside Better Auth's own request handling,
+ * where next/headers is not the thing holding the request — the header on the
+ * context is. Only the first match counts, which is what a browser sends for a
+ * cookie set once at one path.
+ */
+function readCookie(header: string | null | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const separator = part.indexOf("=");
+    if (separator === -1) continue;
+    if (part.slice(0, separator).trim() !== name) continue;
+    return decodeURIComponent(part.slice(separator + 1).trim());
+  }
+  return null;
+}

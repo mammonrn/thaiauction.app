@@ -12,6 +12,7 @@ import {
   isThaiMobile,
 } from "@/lib/otp-policy";
 import { prisma } from "@/lib/prisma";
+import { markReferralVerified } from "@/lib/referral";
 import { requestOtp, ThaibulksmsError, verifyOtp } from "@/lib/thaibulksms";
 import { requireSession } from "@/lib/session";
 
@@ -222,6 +223,16 @@ export async function verifyOtpAction(
       create: { userId: user.id, phone },
     }),
   ]);
+
+  // If somebody invited this account, their history now says so. Wrapped, and
+  // wrapped again inside markReferralVerified: the number IS verified and the
+  // row proving it is already committed, so a failure here must not turn a
+  // successful verification into an error message.
+  try {
+    await markReferralVerified(user.id);
+  } catch (error) {
+    console.error("[referral] verification hook failed:", error);
+  }
 
   revalidatePath("/account/phone");
   revalidatePath("/account");

@@ -2,6 +2,12 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
+import {
+  REFERRAL_COOKIE,
+  REFERRAL_COOKIE_MAX_AGE,
+  referralCookieUpdate,
+} from "@/lib/referral-code";
+
 /**
  * Optimistic route protection.
  *
@@ -26,12 +32,43 @@ const PROTECTED_ROUTES = [
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  /**
+   * Remember who invited this visitor.
+   *
+   * Here rather than on a landing page, because an invite link is allowed to
+   * point anywhere: someone shares the listing they are excited about, not the
+   * home page, and `?ref=` has to work on whichever page that is. This layer
+   * sees all of them.
+   *
+   * It stays a string decision with no database in it, which is the rule this
+   * file already lives by — the code is only looked up later, at sign-up, on
+   * the server. An invented one is written to a cookie and then never matches
+   * anything, which costs nobody anything.
+   */
+  const referral = referralCookieUpdate(
+    request.nextUrl,
+    request.cookies.get(REFERRAL_COOKIE)?.value,
+  );
+
+  const withReferral = <T extends NextResponse>(response: T): T => {
+    if (referral) {
+      response.cookies.set(REFERRAL_COOKIE, referral, {
+        maxAge: REFERRAL_COOKIE_MAX_AGE,
+        path: "/",
+        sameSite: "lax",
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+      });
+    }
+    return response;
+  };
+
   const isProtected = PROTECTED_ROUTES.some(
     (route) => pathname === route || pathname.startsWith(`${route}/`),
   );
 
   if (!isProtected) {
-    return NextResponse.next();
+    return withReferral(NextResponse.next());
   }
 
   // Cheap, synchronous, no database access.
@@ -40,10 +77,12 @@ export function proxy(request: NextRequest) {
   if (!sessionCookie) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
-    return NextResponse.redirect(loginUrl);
+    // The cookie rides along on the redirect too: a link to a signed-in page
+    // is still an invite, and the credit must survive the trip to /login.
+    return withReferral(NextResponse.redirect(loginUrl));
   }
 
-  return NextResponse.next();
+  return withReferral(NextResponse.next());
 }
 
 export const config = {

@@ -259,6 +259,19 @@ enum AuctionStatus {
   @@map("auction_status")
 }
 
+/// How far a referred account has got.
+///
+/// Two states, and deliberately only two: an account exists, and an account has
+/// proved a phone number. There is no reward attached to either yet — this
+/// records what happened so that a reward scheme, if one is ever introduced,
+/// has a history to be built on rather than a blank table.
+enum ReferralStatus {
+  /// The account was created through someone's link.
+  signed_up
+  /// ...and has since verified a phone number.
+  verified
+}
+
 /// Application user.
 /// Field shapes deliberately match Better Auth's core `user` model so it can be
 /// wired up later without a destructive migration: String id, Boolean
@@ -302,6 +315,14 @@ model User {
   /// step existed; either way they are asked once before their next listing.
   sellerTermsAcceptedAt DateTime?
 
+  /// This account's own invite code, e.g. "K7QF3M".
+  ///
+  /// Nullable and generated on demand — the first time the account opens
+  /// /account/referral — rather than backfilled onto everybody. Most accounts
+  /// never invite anyone, and a code nobody has seen is a row of noise and one
+  /// more value competing for the unique index.
+  referralCode String? @unique
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -324,6 +345,9 @@ model User {
   paidOutPayments       Payment[]            @relation("PayoutMarkedBy")
   strikes               PaymentStrike[]
   bankAccount           SellerBankAccount?
+
+  referralsMade    Referral[] @relation("ReferralsMade")
+  referralReceived Referral?  @relation("ReferralReceived")
 
   sessions Session[]
   accounts Account[]
@@ -1114,4 +1138,48 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+/// One account brought in by another account's invite link.
+///
+/// Written once, at sign-up, and never rebound: `referredId` is UNIQUE, so an
+/// account has at most one referrer for as long as it exists and a second
+/// attempt is refused by the database rather than by a check someone could
+/// forget to write. Nothing here grants anything — see ReferralStatus.
+///
+/// Both sides CASCADE. A referral is a fact about two accounts and means
+/// nothing once either is gone, and the practical half of that matters just as
+/// much: every test suite in scripts/ deletes its fixture users directly, and a
+/// restricting foreign key here would have made this table break all of them
+/// the moment a fixture happened to have a referral row. Cascade keeps the
+/// cleanup order those suites already use correct.
+model Referral {
+  id         String @id @default(cuid())
+  referrerId String
+  /// UNIQUE: one referrer per account, permanently.
+  referredId String @unique
+
+  /// The code as it was actually used, kept even though the referrer could be
+  /// reached through referrerId. If a code is ever reissued, this is what says
+  /// which one brought this person in.
+  code String
+
+  status     ReferralStatus @default(signed_up)
+  signedUpAt DateTime       @default(now())
+  /// When the referred account verified a phone. Null until it does.
+  verifiedAt DateTime?
+
+  /// Where the sign-up came from, for lib/fraud-signals.ts to group on later:
+  /// one referrer collecting several accounts from a single origin is the shape
+  /// worth a human's attention. Recorded, not acted on — this file adds no
+  /// signal and blocks nothing.
+  ipAddress String?
+  userAgent String?
+
+  referrer User @relation("ReferralsMade", fields: [referrerId], references: [id], onDelete: Cascade)
+  referred User @relation("ReferralReceived", fields: [referredId], references: [id], onDelete: Cascade)
+
+  /// "Who did this person bring in, and how far did each get."
+  @@index([referrerId, status])
+  @@map("referrals")
 }
