@@ -22,7 +22,7 @@ export const metadata = { title: "ผู้ดูแลระบบ" };
 export default async function AdminHomePage() {
   const session = await requireAdmin("/admin");
 
-  const [pendingKyc, pendingPayouts, owed, signals] = await Promise.all([
+  const [pendingKyc, pendingPayouts, owed, signals, openReports] = await Promise.all([
     prisma.sellerVerification.count({ where: { status: "pending" } }),
     prisma.payment.count({
       where: { status: "successful", payoutStatus: "pending" },
@@ -34,6 +34,12 @@ export default async function AdminHomePage() {
     // The heaviest of the three: it groups every bid by origin. Bounded by the
     // same limit the fraud page uses, and this page is admin-only traffic.
     findFraudSignals(50),
+    // Distinct listings with something open, not the raw report count: the
+    // queue is a list of things to look at, and ten reports of one listing is
+    // still one decision.
+    prisma.itemReport
+      .groupBy({ by: ["auctionItemId"], where: { status: "open" } })
+      .then((rows) => rows.length),
   ]);
 
   return (
@@ -69,6 +75,17 @@ export default async function AdminHomePage() {
           }
         />
         <Tile
+          href="/admin/reports"
+          title="สินค้าที่ถูกแจ้ง"
+          count={openReports}
+          unit="รายการ"
+          detail={
+            openReports === 0
+              ? "ไม่มีเรื่องค้าง"
+              : "ผู้ใช้แจ้งว่าไม่เหมาะสม — ตรวจแล้วลบหรือปิดเรื่องได้"
+          }
+        />
+        <Tile
           href="/admin/fraud"
           title="สัญญาณน่าสงสัย"
           count={signals.length}
@@ -80,6 +97,13 @@ export default async function AdminHomePage() {
           }
         />
       </div>
+
+      <Link
+        href="/admin/bans"
+        className="text-sm text-info underline-offset-4 hover:underline"
+      >
+        ประวัติการแบนบัญชี →
+      </Link>
 
       <p className="text-xs text-ink/45">
         สิทธิ์เข้าถึงกำหนดด้วย ADMIN_EMAILS

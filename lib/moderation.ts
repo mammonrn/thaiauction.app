@@ -1,6 +1,19 @@
 import "server-only";
 
+import {
+  isReportReason,
+  MAX_REPORT_NOTE,
+  type ReportReason,
+} from "@/lib/moderation-labels";
 import { prisma } from "@/lib/prisma";
+
+export {
+  isReportReason,
+  MAX_REPORT_NOTE,
+  REPORT_REASONS,
+  REPORT_REASON_LABEL,
+  type ReportReason,
+} from "@/lib/moderation-labels";
 
 /**
  * Reporting a listing, and taking one down.
@@ -9,31 +22,6 @@ import { prisma } from "@/lib/prisma";
  * somebody an item is refused outright rather than reached around — see
  * `deleteItem`.
  */
-
-export type ReportReason =
-  | "illegal"
-  | "counterfeit"
-  | "inappropriate"
-  | "other";
-
-export const REPORT_REASONS: { value: ReportReason; label: string }[] = [
-  { value: "illegal", label: "ผิดกฎหมาย" },
-  { value: "counterfeit", label: "ของปลอม" },
-  { value: "inappropriate", label: "เนื้อหาไม่เหมาะสม" },
-  { value: "other", label: "อื่น ๆ" },
-];
-
-export const REPORT_REASON_LABEL: Record<ReportReason, string> =
-  Object.fromEntries(
-    REPORT_REASONS.map((entry) => [entry.value, entry.label]),
-  ) as Record<ReportReason, string>;
-
-export function isReportReason(value: string): value is ReportReason {
-  return REPORT_REASONS.some((entry) => entry.value === value);
-}
-
-/** A note longer than this is a conversation, not a report. */
-export const MAX_REPORT_NOTE = 500;
 
 export type ReportFailure =
   | "not_found"

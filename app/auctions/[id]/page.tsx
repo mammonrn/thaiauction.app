@@ -11,6 +11,7 @@ import { isStubMode } from "@/lib/thaibulksms";
 import { isSellerVerified } from "@/lib/seller-verification";
 import { LiveAuction } from "@/components/live-auction";
 import { PublishedBanner } from "@/components/published-banner";
+import { ReportItem } from "@/components/report-item";
 import { ShareItem } from "@/components/share-item";
 import { minimumBid } from "@/lib/auction-rules";
 import { settleIfExpired } from "@/lib/bidding";
@@ -259,6 +260,12 @@ export default async function AuctionDetailPage({
         </p>
 
         <ShareItem title={item.title} />
+
+        {/* Signed in, and not the seller. Both re-checked on the server; this
+            only decides whether the control is worth rendering. */}
+        {session && session.user.id !== item.seller.id ? (
+          <ReportItem itemId={item.id} />
+        ) : null}
       </section>
     </main>
   );

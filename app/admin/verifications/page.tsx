@@ -1,4 +1,3 @@
-import Link from "next/link";
 
 import { AdminBackLink } from "@/components/admin-back-link";
 
