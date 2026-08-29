@@ -58,7 +58,11 @@ export class KycUploadError extends Error {}
 export function resolveKycKey(key: string): string | null {
   if (!isKycKey(key)) return null;
 
-  const root = path.resolve(kycRoot());
+  // turbopackIgnore: same as lib/uploads.ts — KYC_DIR is an absolute path
+  // chosen by the deployment, so static analysis traces the whole project into
+  // the server bundle unless told otherwise. Build-tracing only; the pattern
+  // check and the prefix comparison below are unchanged.
+  const root = path.resolve(/* turbopackIgnore: true */ kycRoot());
   const full = path.resolve(root, key);
 
   if (full !== root && !full.startsWith(root + path.sep)) return null;

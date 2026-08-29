@@ -50,7 +50,7 @@ export default async function PhonePage({
         </p>
 
         {reason === "sell" ? (
-          <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-800">
+          <p className="rounded-lg border border-warning/35 bg-warning/12 px-4 py-3 text-sm text-warning">
             ต้องยืนยันเบอร์โทรก่อนจึงจะลงสินค้าประมูลได้
             {backTo ? (
               <>

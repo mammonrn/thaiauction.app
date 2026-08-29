@@ -199,7 +199,7 @@ export function AvatarUpload({
       {result ? (
         <p
           role="status"
-          className={`text-sm ${result.ok ? "text-green-700" : "text-brand"}`}
+          className={`text-sm ${result.ok ? "text-success" : "text-brand"}`}
         >
           {result.message}
         </p>

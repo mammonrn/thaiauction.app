@@ -67,13 +67,13 @@ export default async function VerificationPage() {
       </div>
 
       {status === "approved" ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4">
-          <p className="font-medium text-green-800">
+        <section className="flex flex-col gap-2 rounded-xl border border-success/35 bg-success/12 px-5 py-4">
+          <p className="font-medium text-success">
             ยืนยันตัวตนแล้ว
           </p>
           {/* The retention rule is in /privacy. Restating it here made the
               reader parse a sentence to find the date. */}
-          <p className="text-sm text-green-800/80">
+          <p className="text-sm text-success/80">
             อนุมัติเมื่อ{" "}
             {latest?.reviewedAt ? formatThaiDateTime(latest.reviewedAt) : "-"}
           </p>
@@ -85,33 +85,33 @@ export default async function VerificationPage() {
           card was erased on approval, so there is nothing to check against
           after the fact — submitting again is the only way to close the gap. */}
       {mustResubmit && !resubmitPending ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
-          <p className="font-medium text-amber-800">
+        <section className="flex flex-col gap-2 rounded-xl border border-warning/35 bg-warning/12 px-5 py-4">
+          <p className="font-medium text-warning">
             ต้องยืนยันตัวตนอีกครั้ง
           </p>
-          <p className="text-sm text-amber-800/80">
+          <p className="text-sm text-warning/80">
             กรอกข้อมูลและส่งรูปบัตรใหม่อีกครั้ง · สถานะผู้ขายเดิมยังใช้งานได้
           </p>
         </section>
       ) : null}
 
       {resubmitPending ? (
-        <section className="flex flex-col gap-2 rounded-xl border border-green-600/40 bg-green-600/10 px-5 py-4">
-          <p className="font-medium text-green-800">
+        <section className="flex flex-col gap-2 rounded-xl border border-success/35 bg-success/12 px-5 py-4">
+          <p className="font-medium text-success">
             ส่งคำขอใหม่แล้ว — สถานะผู้ขายเดิมยังใช้งานได้
           </p>
-          <p className="text-sm text-green-800/80">
+          <p className="text-sm text-success/80">
             ลงขายและรับเงินได้ตามปกติระหว่างรอตรวจสอบ
           </p>
         </section>
       ) : null}
 
       {status === "pending" ? (
-        <section className="flex flex-col gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4">
-          <p className="font-medium text-amber-800">
+        <section className="flex flex-col gap-3 rounded-xl border border-warning/35 bg-warning/12 px-5 py-4">
+          <p className="font-medium text-warning">
             รอตรวจสอบ
           </p>
-          <p className="text-sm text-amber-800/80">
+          <p className="text-sm text-warning/80">
             ส่งเมื่อ{" "}
             {latest ? formatThaiDateTime(latest.submittedAt) : "-"} ·
             ใช้เวลาตรวจสอบประมาณ 2-3 ชั่วโมง
@@ -191,7 +191,7 @@ export default async function VerificationPage() {
               กรอกข้อมูลในขั้นที่ 1 ให้ครบก่อน แล้วช่องอัปโหลดจะปรากฏขึ้น
             </p>
           ) : !oldEnough ? (
-            <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-5 py-4 text-sm text-amber-800">
+            <p className="rounded-xl border border-warning/35 bg-warning/12 px-5 py-4 text-sm text-warning">
               ผู้ขายต้องมีอายุ {MIN_SELLER_AGE} ปีขึ้นไป
             </p>
           ) : (

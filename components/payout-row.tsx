@@ -36,7 +36,7 @@ export function PayoutRow({ paymentId }: { paymentId: string }) {
         <span
           className={`text-sm ${
             state.ok
-              ? "text-green-700"
+              ? "text-success"
               : "text-brand"
           }`}
         >

@@ -59,7 +59,7 @@ export function BottomNav({ signedIn }: { signedIn: boolean }) {
             aria-current={pathname.startsWith("/sell") ? "page" : undefined}
             className="-mt-5 flex flex-col items-center gap-1 pb-1.5"
           >
-            <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-brand text-white shadow-[0_4px_12px_rgb(196_30_42/0.35)] transition-colors active:bg-brand-dark">
+            <span className="flex h-14 w-14 items-center justify-center rounded-full border-4 border-white bg-brand text-white shadow-[0_4px_12px_color-mix(in_srgb,var(--color-brand)_35%,transparent)] transition-colors active:bg-brand-dark">
               <PlusIcon />
             </span>
             <span className="text-[11px] font-medium text-brand">ลงขาย</span>

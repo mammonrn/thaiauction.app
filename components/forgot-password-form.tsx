@@ -62,7 +62,7 @@ export function ForgotPasswordForm() {
 
       <p className="text-xs leading-relaxed text-ink/50">
         ไม่มีเบอร์ที่ยืนยันไว้?{" "}
-        <Link href="/login" className="underline underline-offset-4">
+        <Link href="/login" className="text-info underline underline-offset-4">
           เข้าสู่ระบบด้วย Google
         </Link>{" "}
         แล้วตั้งรหัสผ่านในหน้าความปลอดภัย
@@ -80,7 +80,7 @@ function NewPasswordStep({ email }: { email: string }) {
   if (state.ok) {
     return (
       <div className="flex flex-col gap-3 rounded-xl border border-black/10 bg-black/[.02] p-4">
-        <p role="status" className="text-sm text-green-700">
+        <p role="status" className="text-sm text-success">
           {state.message}
         </p>
         <Link href="/login" className={`${btnPrimary} self-start`}>

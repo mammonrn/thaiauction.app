@@ -128,11 +128,11 @@ export default async function AdminPayoutsPage() {
                           title prefixes and inconsistent spacing, so a
                           mismatch is a prompt to look, not a verdict. */}
                       {account.nameMatchesKyc ? (
-                        <p className="text-green-700">
+                        <p className="text-success">
                           ✓ ตรงกับชื่อที่ยืนยันตัวตน
                         </p>
                       ) : (
-                        <p className="text-amber-700">
+                        <p className="text-warning">
                           ⚠ ไม่ตรงกับชื่อที่ยืนยันตัวตน (
                           {seller.firstName && seller.lastName
                             ? `${seller.firstName} ${seller.lastName}`

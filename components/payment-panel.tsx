@@ -1,15 +1,25 @@
 "use client";
 
 import Script from "next/script";
-import { useActionState, useEffect, useState } from "react";
+import {
+  useActionState,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
+  cancelRedirectAction,
   payWithCardAction,
+  payWithInstallmentAction,
   payWithPromptPayAction,
+  payWithShopeePayAction,
   type PayActionState,
 } from "@/app/auctions/[id]/pay/actions";
+import { InstallmentPicker } from "@/components/installment-picker";
 import { formatBaht } from "@/lib/money";
-import { btnPrimary } from "@/lib/button";
+import { btnPrimary, btnSecondarySm } from "@/lib/button";
+import type { InstallmentOffer } from "@/lib/payment-methods";
 
 /**
  * Card details are typed into THIS component and never leave the browser
@@ -37,14 +47,41 @@ declare global {
   }
 }
 
+type Method = "card" | "promptpay" | "installment" | "shopeepay";
+
 type PaymentSnapshot = {
   id: string;
   status: "pending" | "successful" | "failed" | "expired";
-  method: "card" | "promptpay";
+  method: Method;
   qrDownloadUri: string | null;
   expiresAt: string | null;
   failureMessage: string | null;
+  /** Redirect methods: where to send the buyer, if the attempt is still live. */
+  authorizeUri?: string | null;
 };
+
+const METHOD_LABEL: Record<Method, string> = {
+  promptpay: "PromptPay QR",
+  card: "บัตรเครดิต/เดบิต",
+  installment: "ผ่อนชำระ",
+  shopeepay: "ShopeePay",
+};
+
+/**
+ * Whether this is a phone.
+ *
+ * ShopeePay is offered on mobile only: `shopeepay_jumpapp` opens the app, and
+ * on a desktop that is a dead end when the card and QR paths already work
+ * there. Read through useSyncExternalStore rather than an effect, so the first
+ * paint is already correct and the React Compiler has nothing to complain
+ * about.
+ */
+function readMobile(): boolean {
+  return /android|iphone|ipad|ipod/i.test(navigator.userAgent);
+}
+function noSubscribe() {
+  return () => {};
+}
 
 const EMPTY: PayActionState = { ok: false, message: null };
 
@@ -54,14 +91,29 @@ export function PaymentPanel({
   publicKey,
   windowHours,
   initialPayment,
+  installmentOffers,
+  shopeePayAvailable,
 }: {
   itemId: string;
   amount: number;
   publicKey: string;
   windowHours: number;
   initialPayment: PaymentSnapshot | null;
+  /** Empty when instalments are switched off, or this amount cannot be split. */
+  installmentOffers: InstallmentOffer[];
+  /** Whether the ShopeePay flag is on. Mobile is decided in the browser. */
+  shopeePayAvailable: boolean;
 }) {
-  const [method, setMethod] = useState<"card" | "promptpay">(
+  const isMobile = useSyncExternalStore(noSubscribe, readMobile, () => false);
+
+  const methods: Method[] = [
+    "promptpay",
+    "card",
+    ...(installmentOffers.length > 0 ? (["installment"] as const) : []),
+    ...(shopeePayAvailable && isMobile ? (["shopeepay"] as const) : []),
+  ];
+
+  const [method, setMethod] = useState<Method>(
     initialPayment?.method ?? "promptpay",
   );
   const [payment, setPayment] = useState<PaymentSnapshot | null>(
@@ -78,6 +130,18 @@ export function PaymentPanel({
     payWithPromptPayAction,
     EMPTY,
   );
+  const [instState, instAction, instPending] = useActionState(
+    payWithInstallmentAction,
+    EMPTY,
+  );
+  const [shopeeState, shopeeAction, shopeePending] = useActionState(
+    payWithShopeePayAction,
+    EMPTY,
+  );
+  const [cancelState, cancelAction, cancelPending] = useActionState(
+    cancelRedirectAction,
+    EMPTY,
+  );
 
   // A Server Action that started an attempt hands back its id; adopt it so the
   // poll below picks it up. Adjusted during render rather than in an effect —
@@ -86,7 +150,12 @@ export function PaymentPanel({
   const [adopted, setAdopted] = useState<string | null>(
     initialPayment?.id ?? null,
   );
-  const started = cardState.paymentId ?? qrState.paymentId ?? null;
+  const started =
+    cardState.paymentId ??
+    qrState.paymentId ??
+    instState.paymentId ??
+    shopeeState.paymentId ??
+    null;
   if (started && started !== adopted) {
     setAdopted(started);
     setPayment({
@@ -144,13 +213,21 @@ export function PaymentPanel({
     };
   }, [paymentId, settled]);
 
+  // A redirect method hands back the URL to leave for. Navigating from an
+  // effect rather than during render: this is a side effect on the document,
+  // and doing it in the render pass would fire twice under StrictMode.
+  const authorizeUri = instState.authorizeUri ?? shopeeState.authorizeUri ?? null;
+  useEffect(() => {
+    if (authorizeUri) window.location.assign(authorizeUri);
+  }, [authorizeUri]);
+
   if (payment?.status === "successful") {
     return (
-      <section className="flex flex-col gap-2 rounded-xl border border-green-600/30 bg-green-50 p-5 text-sm">
-        <h2 className="font-semibold text-green-800">
+      <section className="flex flex-col gap-2 rounded-xl border border-success/35 bg-success/8 p-5 text-sm">
+        <h2 className="font-semibold text-success">
           ชำระเงินสำเร็จ
         </h2>
-        <p className="text-green-900/80">
+        <p className="text-success/80">
           ขอบคุณครับ ทีมงานจะโอนเงินให้ผู้ขายและแจ้งให้จัดส่งสินค้าต่อไป
         </p>
       </section>
@@ -199,15 +276,16 @@ export function PaymentPanel({
     );
   }
 
-  const busy = tokenising || cardPending || qrPending;
+  const busy =
+    tokenising || cardPending || qrPending || instPending || shopeePending;
   const qrLive = payment?.status === "pending" && payment.qrDownloadUri;
 
   return (
     <section className="flex flex-col gap-5">
       <Script src="https://cdn.omise.co/omise.js" strategy="afterInteractive" />
 
-      <div className="flex gap-2" role="tablist">
-        {(["promptpay", "card"] as const).map((option) => (
+      <div className="flex flex-wrap gap-2" role="tablist">
+        {methods.map((option) => (
           <button
             key={option}
             type="button"
@@ -215,16 +293,113 @@ export function PaymentPanel({
             aria-selected={method === option}
             onClick={() => setMethod(option)}
             disabled={payment?.status === "pending"}
-            className={`rounded-lg border px-4 py-2 text-sm disabled:opacity-50 ${
+            className={`rounded-lg border px-4 py-2 text-sm transition-colors disabled:opacity-50 ${
               method === option
-                ? "border-brand bg-brand text-white"
-                : "border-black/15"
+                ? "border-brand bg-brand font-medium text-white"
+                : "border-black/15 text-ink hover:border-brand/40"
             }`}
           >
-            {option === "promptpay" ? "PromptPay QR" : "บัตรเครดิต/เดบิต"}
+            {METHOD_LABEL[option]}
           </button>
         ))}
       </div>
+
+      {/* A redirect attempt already exists. The one-pending index will refuse
+          a second charge, so the buyer gets the same link back rather than a
+          refusal — and a way out that actually frees the slot. */}
+      {payment?.status === "pending" &&
+      (payment.method === "installment" || payment.method === "shopeepay") ? (
+        <div className="flex flex-col gap-3 rounded-xl border border-info/35 bg-info/10 p-5">
+          <p className="text-sm font-medium text-info">
+            มีรายการชำระเงินที่ยังไม่เสร็จสิ้น
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {payment.authorizeUri ? (
+              <a href={payment.authorizeUri} className={btnPrimary}>
+                ชำระเงินต่อ
+              </a>
+            ) : null}
+            {/* Only ShopeePay. Omise refuses to expire an instalment charge,
+                so a cancel button there would free our slot while a live
+                charge could still take the buyer's money. */}
+            {payment.method === "shopeepay" ? (
+              <form action={cancelAction}>
+                <input type="hidden" name="itemId" value={itemId} />
+                <input type="hidden" name="paymentId" value={payment.id} />
+                <button
+                  type="submit"
+                  disabled={cancelPending}
+                  className={btnSecondarySm}
+                >
+                  {cancelPending ? "กำลังยกเลิก…" : "ยกเลิกและเลือกวิธีอื่น"}
+                </button>
+              </form>
+            ) : (
+              <span className="text-sm text-info/80">
+                รอผลจากธนาคาร แล้วจึงเลือกวิธีอื่นได้
+              </span>
+            )}
+          </div>
+          {cancelState.message ? (
+            <p className="text-sm text-brand">{cancelState.message}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {method === "installment" && !payment ? (
+        <>
+          <InstallmentPicker
+            offers={installmentOffers}
+            amount={amount}
+            pending={instPending}
+            onSubmit={(bank, term) => {
+              const data = new FormData();
+              data.set("itemId", itemId);
+              data.set("bank", bank);
+              data.set("term", String(term));
+              instAction(data);
+            }}
+          />
+          {instState.message ? (
+            <p role="alert" className="text-sm text-brand">
+              {instState.message}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+
+      {method === "shopeepay" && !payment ? (
+        <div className="flex flex-col gap-3 rounded-xl bg-white p-5">
+          <p className="text-sm text-ink/70">
+            ชำระผ่านแอป ShopeePay {formatBaht(amount)}
+          </p>
+          <form action={shopeeAction}>
+            <input type="hidden" name="itemId" value={itemId} />
+            <input
+              type="hidden"
+              name="platform"
+              value={
+                typeof navigator !== "undefined" &&
+                /iphone|ipad|ipod/i.test(navigator.userAgent)
+                  ? "IOS"
+                  : "ANDROID"
+              }
+            />
+            <button
+              type="submit"
+              disabled={shopeePending}
+              className={btnPrimary}
+            >
+              {shopeePending ? "กำลังเปิดแอป…" : "ชำระด้วย ShopeePay"}
+            </button>
+          </form>
+          {shopeeState.message ? (
+            <p role="alert" className="text-sm text-brand">
+              {shopeeState.message}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
 
       {payment?.status === "pending" && !qrLive && method === "promptpay" ? (
         <p className="text-sm text-ink/60">
@@ -270,25 +445,23 @@ export function PaymentPanel({
         </p>
       ) : null}
 
-      {!qrLive && payment?.status !== "pending" ? (
-        method === "promptpay" ? (
-          <form action={qrAction} className="flex flex-col gap-3">
-            <input type="hidden" name="itemId" value={itemId} />
-            <button
-              type="submit"
-              disabled={busy}
-              className={btnPrimary}
-            >
-              {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
-            </button>
-            {qrState.message ? (
-              <p className="text-sm text-brand">
-                {qrState.message}
-              </p>
-            ) : null}
-          </form>
-        ) : (
-          <form onSubmit={handleCardSubmit} className="flex flex-col gap-3">
+      {/* Explicit per method, not "promptpay or else card". With four methods
+          an else-branch silently rendered the card form underneath the
+          instalment picker and the ShopeePay button. */}
+      {!qrLive && payment?.status !== "pending" && method === "promptpay" ? (
+        <form action={qrAction} className="flex flex-col gap-3">
+          <input type="hidden" name="itemId" value={itemId} />
+          <button type="submit" disabled={busy} className={btnPrimary}>
+            {qrPending ? "กำลังสร้าง QR…" : `สร้าง QR — ${formatBaht(amount)}`}
+          </button>
+          {qrState.message ? (
+            <p className="text-sm text-brand">{qrState.message}</p>
+          ) : null}
+        </form>
+      ) : null}
+
+      {!qrLive && payment?.status !== "pending" && method === "card" ? (
+        <form onSubmit={handleCardSubmit} className="flex flex-col gap-3">
             <Field id="card-name" label="ชื่อบนบัตร" autoComplete="cc-name" />
             <Field
               id="card-number"
@@ -335,11 +508,10 @@ export function PaymentPanel({
                 {cardState.message}
               </p>
             ) : null}
-            <p className="text-xs text-ink/50">
-              หมายเลขบัตรส่งตรงถึง Omise — ระบบของเราไม่เห็นและไม่เก็บ
-            </p>
-          </form>
-        )
+          <p className="text-xs text-ink/50">
+            หมายเลขบัตรส่งตรงถึง Omise — ระบบของเราไม่เห็นและไม่เก็บ
+          </p>
+        </form>
       ) : null}
 
       <p className="text-xs text-ink/50">

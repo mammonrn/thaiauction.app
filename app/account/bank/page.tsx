@@ -66,7 +66,7 @@ export default async function BankAccountPage() {
           </strong>
         </p>
       ) : (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-warning/35 bg-warning/8 px-4 py-3 text-sm text-warning">
           ต้องยืนยันตัวตนก่อนจึงจะรับเงินได้{" "}
           <Link href="/account/verification" className="underline">
             ยืนยันตัวตน
@@ -75,7 +75,7 @@ export default async function BankAccountPage() {
       )}
 
       {account && !account.nameMatchesKyc && hasKycName ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <p className="rounded-lg border border-warning/35 bg-warning/8 px-4 py-3 text-sm text-warning">
           <strong>{account.accountName}</strong> ไม่ตรงกับชื่อที่ยืนยันตัวตน —
           ทีมงานจะตรวจสอบก่อนโอน
         </p>

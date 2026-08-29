@@ -4,7 +4,11 @@ import { Prisma } from "@/generated/prisma/client";
 import {
   chargeCardToken,
   chargePromptPaySource,
+  chargeRedirectSource,
+  createInstallmentSource,
   createPromptPaySource,
+  createShopeePaySource,
+  expireCharge,
   listCharges,
   OmiseApiError,
   promptPayQrUri,
@@ -13,6 +17,11 @@ import {
   retrieveCharge,
   type OmiseCharge,
 } from "@/lib/omise";
+import {
+  INSTALLMENT_MAX_SATANG,
+  INSTALLMENT_MIN_SATANG,
+  isOfferedInstallment,
+} from "@/lib/payment-methods";
 import { failureMessage } from "@/lib/omise-failures";
 import { splitPayment } from "@/lib/payment-math";
 import { prisma } from "@/lib/prisma";
@@ -36,6 +45,48 @@ import { prisma } from "@/lib/prisma";
 export const QR_WINDOW_MS = 15 * 60 * 1000;
 
 /**
+ * How long a redirect attempt (instalments, ShopeePay) may stay open.
+ *
+ * Longer than the QR window because the buyer leaves the site entirely: they
+ * have to reach a bank's page or open the ShopeePay app, possibly install it,
+ * possibly log in, and come back. Fifteen minutes would strand people who are
+ * genuinely trying to pay.
+ *
+ * ShopeePay honours this as expires_at. Instalments IGNORE it and keep Omise's
+ * seven-day default — verified against the TEST API — so for those it is the
+ * deadline this project enforces itself, by expiring the charge when the buyer
+ * returns unsuccessful or asks to start again.
+ */
+export const REDIRECT_WINDOW_MS = 45 * 60 * 1000;
+
+/**
+ * Where Omise returns the buyer to.
+ *
+ * The payment id is in the URL, but nothing is believed because of it: the
+ * return page checks that the signed-in user owns that payment and then
+ * re-reads the charge from Omise. A guessed id gets a 404, and a tampered one
+ * cannot make a payment look paid.
+ */
+function returnUriFor(origin: string, paymentId: string): string {
+  return `${origin}/payments/return?p=${encodeURIComponent(paymentId)}`;
+}
+
+/**
+ * Whether each phase-2 method is switched on.
+ *
+ * Read at call time, not at import time, so a deploy can turn a method on or
+ * off by restarting rather than rebuilding. Both default to OFF: this code can
+ * ship to production without offering anything new until the owner decides.
+ */
+export function installmentsEnabled(): boolean {
+  return process.env.PAYMENT_INSTALLMENTS_ENABLED === "1";
+}
+
+export function shopeePayEnabled(): boolean {
+  return process.env.PAYMENT_SHOPEEPAY_ENABLED === "1";
+}
+
+/**
  * How long a charge may sit with no Omise id before the sweep gives up on it.
  * Long enough that a slow API call is never mistaken for a crash.
  */
@@ -53,10 +104,14 @@ export type StartPaymentFailure =
   | "attempt_in_flight"
   | "amount_out_of_range"
   | "declined"
+  | "method_unavailable"
+  | "invalid_installment"
   | "gateway_error";
 
 export type StartPaymentResult =
   | { ok: true; paymentId: string }
+  /** Redirect methods hand back the URL the buyer must be sent to. */
+  | { ok: true; paymentId: string; authorizeUri: string }
   | { ok: false; reason: StartPaymentFailure; message?: string };
 
 /** The auction facts a payment attempt depends on, read under the row lock. */
@@ -85,7 +140,8 @@ type PayableAuction = {
 async function reserveAttempt(
   itemId: string,
   userId: string,
-  method: "card" | "promptpay",
+  method: "card" | "promptpay" | "installment" | "shopeepay",
+  extra?: { installmentBank?: string; installmentTerm?: number },
 ): Promise<
   | { ok: true; paymentId: string; amount: number; title: string }
   | { ok: false; reason: StartPaymentFailure }
@@ -126,6 +182,17 @@ async function reserveAttempt(
         return { ok: false, reason: "amount_out_of_range" } as const;
       }
 
+      // Re-checked under the lock against the auction's own price, not the
+      // one the page was rendered with. A buyer cannot pick a term for an
+      // amount and then be charged a different amount.
+      if (
+        method === "installment" &&
+        (item.currentPrice < INSTALLMENT_MIN_SATANG ||
+          item.currentPrice > INSTALLMENT_MAX_SATANG)
+      ) {
+        return { ok: false, reason: "amount_out_of_range" } as const;
+      }
+
       const payment = await tx.payment.create({
         data: {
           auctionItemId: item.id,
@@ -133,6 +200,8 @@ async function reserveAttempt(
           method,
           status: "pending",
           amount: item.currentPrice,
+          installmentBank: extra?.installmentBank ?? null,
+          installmentTerm: extra?.installmentTerm ?? null,
           omiseChargeId: `${PLACEHOLDER_PREFIX}${crypto.randomUUID()}`,
         },
         select: { id: true },
@@ -255,6 +324,222 @@ export async function startPromptPayPayment(
 }
 
 /**
+ * Pay in instalments, through the buyer's own card issuer.
+ *
+ * The redirect twin of PromptPay: the charge is created here and settles later,
+ * so everything downstream — mapChargeStatus, the poll, the reconcile sweep —
+ * is the code PromptPay already uses. The only new part is that the buyer has
+ * to be sent somewhere, which is what `authorizeUri` carries back.
+ *
+ * The (bank, term) pair is the one thing the buyer chooses, so it is validated
+ * against what this marketplace actually offered FOR THIS AMOUNT rather than
+ * against Omise's list. Omise enforces the per-month minimum for SCB, TTB and
+ * UOB only; for the other five issuers an under-minimum plan is accepted here
+ * and refused at the bank's page, after the redirect, with the auction's one
+ * pending slot already spent.
+ */
+export async function startInstallmentPayment(
+  itemId: string,
+  userId: string,
+  bankCode: string,
+  term: number,
+  /** Site origin, e.g. "https://thaiauction.app". The return path is built
+   *  here because it names the payment, which does not exist until the
+   *  reservation below has run. */
+  origin: string,
+): Promise<StartPaymentResult> {
+  if (!installmentsEnabled()) {
+    return { ok: false, reason: "method_unavailable" };
+  }
+
+  const reserved = await reserveAttempt(itemId, userId, "installment", {
+    installmentBank: bankCode,
+    installmentTerm: term,
+  });
+  if (!reserved.ok) return reserved;
+
+  // After the reservation, so the amount checked is the one under the lock.
+  if (!isOfferedInstallment(reserved.amount, bankCode, term)) {
+    await abandonAttempt(reserved.paymentId, "installment plan not offered");
+    return { ok: false, reason: "invalid_installment" };
+  }
+
+  let charge: OmiseCharge;
+  try {
+    const source = await createInstallmentSource({
+      amountSatang: reserved.amount,
+      bankCode,
+      term,
+    });
+    charge = await chargeRedirectSource({
+      amountSatang: reserved.amount,
+      sourceId: source.id,
+      description: `thaiauction ${itemId}`,
+      returnUri: returnUriFor(origin, reserved.paymentId),
+      expiresAt: new Date(Date.now() + REDIRECT_WINDOW_MS),
+      metadata: { paymentId: reserved.paymentId, auctionItemId: itemId },
+    });
+  } catch (error) {
+    const message =
+      error instanceof OmiseApiError ? error.message : "gateway unreachable";
+    await abandonAttempt(reserved.paymentId, message);
+    return { ok: false, reason: "gateway_error", message };
+  }
+
+  await adoptCharge(reserved.paymentId, charge);
+
+  if (!charge.authorize_uri) {
+    // Nothing to redirect to means the buyer cannot complete this, so the slot
+    // is released rather than held by an attempt that can never finish.
+    await releaseAttempt(reserved.paymentId, charge.id, "no authorize_uri");
+    return { ok: false, reason: "gateway_error", message: "no authorize_uri" };
+  }
+
+  return {
+    ok: true,
+    paymentId: reserved.paymentId,
+    authorizeUri: charge.authorize_uri,
+  };
+}
+
+/**
+ * Pay with ShopeePay, by jumping into the app.
+ *
+ * Offered on phones only, so `platform` is always a real mobile OS; the caller
+ * decides that from the browser and the value only chooses which app-store
+ * fallback Omise shows.
+ *
+ * Unlike instalments, ShopeePay honours `expires_at`, so the window here is
+ * gateway-enforced. Without one the charge would default to SEVEN DAYS — a
+ * buyer who opened the app and changed their mind would hold the auction's one
+ * pending slot for a week, well past the payment deadline, and lose the item
+ * they had actually won.
+ */
+export async function startShopeePayPayment(
+  itemId: string,
+  userId: string,
+  platform: "IOS" | "ANDROID",
+  /** Site origin; see startInstallmentPayment. */
+  origin: string,
+): Promise<StartPaymentResult> {
+  if (!shopeePayEnabled()) {
+    return { ok: false, reason: "method_unavailable" };
+  }
+
+  const reserved = await reserveAttempt(itemId, userId, "shopeepay");
+  if (!reserved.ok) return reserved;
+
+  let charge: OmiseCharge;
+  try {
+    const source = await createShopeePaySource({
+      amountSatang: reserved.amount,
+      platform,
+    });
+    charge = await chargeRedirectSource({
+      amountSatang: reserved.amount,
+      sourceId: source.id,
+      description: `thaiauction ${itemId}`,
+      returnUri: returnUriFor(origin, reserved.paymentId),
+      expiresAt: new Date(Date.now() + REDIRECT_WINDOW_MS),
+      metadata: { paymentId: reserved.paymentId, auctionItemId: itemId },
+    });
+  } catch (error) {
+    const message =
+      error instanceof OmiseApiError ? error.message : "gateway unreachable";
+    await abandonAttempt(reserved.paymentId, message);
+    return { ok: false, reason: "gateway_error", message };
+  }
+
+  await adoptCharge(reserved.paymentId, charge);
+
+  if (!charge.authorize_uri) {
+    await releaseAttempt(reserved.paymentId, charge.id, "no authorize_uri");
+    return { ok: false, reason: "gateway_error", message: "no authorize_uri" };
+  }
+
+  return {
+    ok: true,
+    paymentId: reserved.paymentId,
+    authorizeUri: charge.authorize_uri,
+  };
+}
+
+/**
+ * Give up on a ShopeePay attempt and free the auction's pending slot.
+ *
+ * SHOPEEPAY ONLY, and that is a limitation of Omise rather than a choice.
+ * Releasing the slot safely requires killing the charge first: the pending row
+ * is what holds the slot, and freeing it while a live charge still exists
+ * would let a buyer who wanders back to the payment tab pay for an auction
+ * this project believes is unpaid — money moving with nothing watching for it,
+ * because a released row is no longer polled.
+ *
+ * Omise will expire a ShopeePay charge on request but refuses outright for
+ * instalments ("expiring is not supported for chrg_..."), and instalment
+ * charges also ignore expires_at. So an instalment attempt genuinely cannot be
+ * called off early, and this returns `cannot_cancel` rather than pretending:
+ * the buyer completes it at the bank, or it resolves when Omise's own window
+ * closes. The pay page says so before the buyer commits to the method.
+ *
+ * Expiring at Omise FIRST also handles the race where the buyer paid a moment
+ * ago: the call returns a successful charge instead of expiring it, and
+ * adoptCharge settles the auction rather than throwing the payment away.
+ */
+export async function cancelRedirectAttempt(
+  paymentId: string,
+  userId: string,
+): Promise<{ ok: boolean; reason?: string }> {
+  const payment = await prisma.payment.findFirst({
+    where: { id: paymentId, payerId: userId },
+    select: { id: true, status: true, method: true, omiseChargeId: true },
+  });
+
+  if (!payment) return { ok: false, reason: "not_found" };
+  if (payment.method !== "shopeepay") {
+    return { ok: false, reason: "cannot_cancel" };
+  }
+  if (payment.status !== "pending") return { ok: true };
+  if (payment.omiseChargeId.startsWith(PLACEHOLDER_PREFIX)) {
+    return { ok: false, reason: "no_charge_yet" };
+  }
+
+  // Ask Omise first. If the buyer paid in the meantime this returns a
+  // successful charge instead of expiring it, and adoptCharge settles the
+  // auction rather than throwing the payment away.
+  let charge: OmiseCharge;
+  try {
+    charge = await expireCharge(payment.omiseChargeId);
+  } catch (error) {
+    // Omise refused. The slot stays held rather than being freed over a live
+    // charge — reporting failure is the safe answer, not a silent success.
+    const message =
+      error instanceof OmiseApiError ? error.message : "gateway unreachable";
+    console.error(`[payments] could not expire ${payment.omiseChargeId}: ${message}`);
+    return { ok: false, reason: "expire_refused" };
+  }
+
+  await adoptCharge(paymentId, charge);
+  return { ok: true };
+}
+
+/** Mark a reserved attempt failed once its charge is known to be dead. */
+async function releaseAttempt(
+  paymentId: string,
+  chargeId: string,
+  message: string,
+) {
+  await prisma.payment.update({
+    where: { id: paymentId },
+    data: {
+      omiseChargeId: chargeId,
+      status: "failed",
+      failureCode: "unusable_charge",
+      failureMessage: message,
+    },
+  });
+}
+
+/**
  * Write a charge's state onto its payment row, and settle the auction if it
  * succeeded.
  *
@@ -308,9 +593,17 @@ async function recordCharge(
         omiseChargeId: charge.id,
         status,
         qrDownloadUri: promptPayQrUri(charge),
+        // Kept so a buyer who closed the tab can be handed the same link
+        // again; the one-pending index would refuse a second charge anyway.
+        authorizeUri: charge.authorize_uri,
         expiresAt: charge.expires_at ? new Date(charge.expires_at) : null,
         failureCode: charge.failure_code,
         failureMessage: charge.failure_message,
+        // Omise's own interest figures, recorded for the audit trail. The
+        // buyer bears the interest, so this never changes the seller's share:
+        // `net` already accounts for whatever Omise deducted.
+        interest: charge.interest,
+        interestVat: charge.interest_vat,
         ...(money
           ? {
               fee: money.fee,

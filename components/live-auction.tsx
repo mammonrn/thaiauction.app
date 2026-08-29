@@ -164,7 +164,7 @@ export function LiveAuction({
             : `จบแล้ว — ${END_REASON_LABEL[state.endReason ?? ""] ?? "ปิดการประมูล"}`}
         </span>
         {!live && state.winner ? (
-          <span className="text-sm text-green-700">
+          <span className="text-sm text-success">
             ผู้ชนะ: {state.winner} ที่ {formatBaht(state.currentPrice)}
           </span>
         ) : null}
@@ -183,7 +183,7 @@ export function LiveAuction({
           role={bidState.ok ? "status" : "alert"}
           className={
             bidState.ok
-              ? "text-sm text-green-700"
+              ? "text-sm text-success"
               : "text-sm text-brand"
           }
         >

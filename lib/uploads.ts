@@ -69,7 +69,15 @@ export class UploadError extends Error {}
 export function resolveKey(key: string): string | null {
   if (!isStagingKey(key) && !isItemKey(key) && !isAvatarKey(key)) return null;
 
-  const root = path.resolve(uploadRoot());
+  // turbopackIgnore: the root is an absolute path chosen by the deployment
+  // (UPLOAD_DIR points outside the project on the VPS, so uploads survive a
+  // redeploy). Turbopack cannot see that at build time, so it assumes the
+  // whole project may be read and traces every source file — including
+  // /public — into the server bundle. The comment tells it not to; it is a
+  // build-tracing hint with no runtime effect. The traversal guard below is
+  // untouched: the key is still pattern-checked first, still resolved against
+  // this root, and still refused unless it lands inside it.
+  const root = path.resolve(/* turbopackIgnore: true */ uploadRoot());
   const full = path.resolve(root, key);
 
   if (full !== root && !full.startsWith(root + path.sep)) return null;

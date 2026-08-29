@@ -1,11 +1,18 @@
 @import "tailwindcss";
 
 /**
- * Design tokens.
+ * Design tokens. Eight colours, each with exactly one job.
  *
- * The palette is fixed by the brief, not chosen here. Red carries the brand
- * chrome (header, hero, primary actions); GOLD IS RESERVED for one job only —
- * the price readout and genuine urgency — so it never becomes wallpaper.
+ * The full table and the rules that govern them are in CLAUDE.md under "Color
+ * System" — that is the document, this is the implementation. The short
+ * version: brand and brand-dark are the brand and its buttons; gold is the
+ * price readout and the focus ring and nothing else; ink and paper are
+ * structure, type and ground; success, warning and info are status text and
+ * badges only, never a button and never decoration.
+ *
+ * There is no ninth colour and no separate error red — error is the brand red
+ * doing a second job, which is correct here because the brand IS red and a
+ * second one would be a near-miss rather than a distinction.
  *
  * There is no dark theme. The palette has no dark counterpart and Thai
  * marketplaces are light-only; a half-translated dark mode looked worse than
@@ -17,6 +24,18 @@
   --color-gold: #f0b429;
   --color-ink: #1a1a1a;
   --color-paper: #f7f7f7;
+
+  /* Status. All three are muted on purpose: they carry meaning, not emphasis,
+     and they have to coexist with a red brand without any of them reading as a
+     second brand colour. Each clears 4.5:1 on paper, because status text is
+     often the smallest type on the screen.
+
+     success  #1E7D45  deep green, 149deg from the brand
+     warning  #8C6024  bronze; a relative of the gold rather than of the red
+     info     #2B5182  steel blue, the one cool note, kept low in saturation */
+  --color-success: #1e7d45;
+  --color-warning: #8c6024;
+  --color-info: #2b5182;
 
   /* IBM Plex Sans Thai and IBM Plex Mono are one superfamily, drawn to sit
      together. The mono is not decoration: prices update live while an auction

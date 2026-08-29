@@ -77,7 +77,7 @@ export function IdentityForm({
             role={state.ok ? "status" : "alert"}
             className={
               state.ok
-                ? "text-sm text-green-700"
+                ? "text-sm text-success"
                 : "text-sm text-brand"
             }
           >
