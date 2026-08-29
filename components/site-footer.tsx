@@ -14,12 +14,14 @@ import { InstallApp } from "@/components/install-app";
  * account page is behind a login, and PDPA expects the disclosure to be
  * reachable by anyone. This is the only surface on every page.
  *
- * `pb` clears the fixed tab bar on mobile, and the iPhone home bar under it.
+ * `pb` clears the fixed tab bar on mobile, the iPhone home bar under it, AND
+ * the raised "ลงขาย" disc, which stands 20px proud of the bar and would
+ * otherwise be drawn straight over this line.
  */
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-t border-black/[.07] bg-white">
-      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-[calc(3.75rem+env(safe-area-inset-bottom))] pt-2.5 text-[11px] text-ink/45 sm:px-6 sm:pb-2.5">
+      <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-2.5 text-[11px] text-ink/45 sm:px-6 sm:pb-2.5">
         <span className="font-medium text-ink/60">ThaiAuction</span>
         <Link href="/privacy" className="underline-offset-4 hover:underline">
           นโยบายความเป็นส่วนตัว

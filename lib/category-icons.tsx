@@ -29,12 +29,12 @@ import type { ReactNode } from "react";
  */
 type Glyph = ReactNode;
 
-/** Amulet — the arched frame Thai amulets are cased in, with its cord loop. */
+/** Amulet — the arched case, with the seated figure it always frames. */
 const Amulet: Glyph = (
   <>
-    <path d="M12 3c3.2 0 5 2.2 5 5.4V19a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V8.4C7 5.2 8.8 3 12 3Z" />
-    <circle cx="12" cy="10" r="2.2" />
-    <path d="M9.5 16.5h5" />
+    <path d="M12 3.2c3.4 1.2 5 3.6 5 6.6V19a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V9.8c0-3 1.6-5.4 5-6.6Z" />
+    <circle cx="12" cy="10.4" r="1.5" />
+    <path d="M8.9 17.2c0-2 1.4-3.5 3.1-3.5s3.1 1.5 3.1 3.5Z" />
   </>
 );
 
@@ -81,12 +81,12 @@ const Art: Glyph = (
   </>
 );
 
-/** Vinyl-style disc, standing in for collectibles generally. */
+/** Bell jar over a base — a thing kept because it is kept. */
 const Collectible: Glyph = (
   <>
-    <rect x="3.5" y="3.5" width="17" height="17" rx="2" />
-    <circle cx="12" cy="12" r="5" />
-    <circle cx="12" cy="12" r="1.2" />
+    <path d="M6 16.5v-4.2a6 6 0 0 1 12 0v4.2" />
+    <path d="M4 16.5h16v3H4z" />
+    <path d="M12 8.6v3.4" />
   </>
 );
 
@@ -147,12 +147,12 @@ const Plant: Glyph = (
   </>
 );
 
-/** Acoustic guitar. */
+/** A quaver. A guitar outline at 24px is two circles and a stick. */
 const Instrument: Glyph = (
   <>
-    <path d="M10.2 11.2a4.4 4.4 0 1 0 3.6 3.6 4.2 4.2 0 1 0-3.6-3.6Z" />
-    <circle cx="12" cy="14.5" r="1.6" />
-    <path d="m14.8 9.2 5-5M17.6 4.2l2.2 2.2" />
+    <path d="M9.2 17.8V5.9l9-2.1v11.9" />
+    <ellipse cx="6.9" cy="18.1" rx="2.4" ry="2" transform="rotate(-12 6.9 18.1)" />
+    <ellipse cx="15.9" cy="16" rx="2.4" ry="2" transform="rotate(-12 15.9 16)" />
   </>
 );
 
@@ -165,32 +165,37 @@ const Sports: Glyph = (
   </>
 );
 
-/** Bicycle. */
+/** Bicycle — thin wheels set wide, a diamond frame, seat and bars above it. */
 const Bicycle: Glyph = (
   <>
-    <circle cx="5.5" cy="16.5" r="3.5" />
-    <circle cx="18.5" cy="16.5" r="3.5" />
-    <path d="M5.5 16.5 9 8h4l3 8.5M9 8h5.5M12.5 16.5H9" />
+    <circle cx="5.3" cy="16.4" r="4.1" />
+    <circle cx="18.7" cy="16.4" r="4.1" />
+    <path d="M5.3 16.4 10 8.6h4.4l4.3 7.8" />
+    <path d="M10 8.6h5.4M14.4 16.4H8.2L10 8.6" />
+    <path d="M8.6 6.6h2.8M16.4 5.9l-1.6 2.7" />
   </>
 );
 
-/** Scooter — the Thai city motorbike, not a sports bike. */
+/** Scooter — small wheels, a solid deck between them, a bar stalk above. */
 const Motorcycle: Glyph = (
   <>
-    <circle cx="5.5" cy="17" r="3" />
-    <circle cx="18.5" cy="17" r="3" />
-    <path d="M8.5 17h7l-1.5-6.5H9L7 14" />
-    <path d="M13 10.5h3.5l2 6.5M9 6h3l.8 4.5" />
+    <circle cx="5.6" cy="17.2" r="2.9" />
+    <circle cx="18.4" cy="17.2" r="2.9" />
+    <path d="M8.5 17.2h7" />
+    <path d="M5.6 14.3c0-3 1.4-4.6 4.2-4.6h3.4l2.6 7.5" />
+    <path d="M9.8 9.7 8.6 6.2h3.6" />
+    <path d="M13.2 9.7h4.2" />
   </>
 );
 
-/** Car, three-quarter silhouette flattened to a side profile. */
+/** Car — a cabin narrower than the body, so it is not a van. */
 const Car: Glyph = (
   <>
-    <path d="M3 15.5v-2.2l1.8-4A2 2 0 0 1 6.7 8h10.6a2 2 0 0 1 1.9 1.3l1.8 4v2.2" />
-    <path d="M3 15.5h18M4.5 15.5v1.8M19.5 15.5v1.8" />
-    <circle cx="7.5" cy="17.5" r="1.8" />
-    <circle cx="16.5" cy="17.5" r="1.8" />
+    <path d="M6.9 12.2 8.6 8.5A1.8 1.8 0 0 1 10.2 7.5h3.6a1.8 1.8 0 0 1 1.6 1l1.7 3.7" />
+    <path d="M3.8 16.6v-2.5a1.8 1.8 0 0 1 1.5-1.8l1.6-.3h10.2l1.6.3a1.8 1.8 0 0 1 1.5 1.8v2.5" />
+    <path d="M3.8 16.6h16.4" />
+    <circle cx="7.9" cy="17.4" r="1.8" />
+    <circle cx="16.1" cy="17.4" r="1.8" />
   </>
 );
 
@@ -219,11 +224,11 @@ const Beauty: Glyph = (
   </>
 );
 
-/** House with a potted plant beside it. */
+/** A house with a door. The potted plant beside it read as a stray hook. */
 const Home: Glyph = (
   <>
-    <path d="M3 11 9.5 5.5 16 11v8.5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V11Z" />
-    <path d="M19 20.5v-4M19 16.5a2.5 2.5 0 0 1 2.5-2.5M19 16.5A2.5 2.5 0 0 0 16.5 14" />
+    <path d="M3.5 10.5 12 4l8.5 6.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19v-8.5Z" />
+    <path d="M9.6 20.5v-5.9h4.8v5.9" />
   </>
 );
 
@@ -244,11 +249,12 @@ const Game: Glyph = (
   </>
 );
 
-/** Stacked books. */
+/** An open book. Two upright blocks read as a barcode at this size. */
 const Books: Glyph = (
   <>
-    <path d="M4 5.5h4.5v14H4zM9.5 5.5H14v14H9.5z" />
-    <path d="m15.3 6.6 3.9 1-3.2 12.2-3.4-.9" />
+    <path d="M12 7.4v12" />
+    <path d="M12 7.4C10.1 5.9 7.2 5.6 3.8 6.3v11.9c3.4-.7 6.3-.4 8.2 1.2" />
+    <path d="M12 7.4c1.9-1.5 4.8-1.8 8.2-1.1v11.9c-3.4-.7-6.3-.4-8.2 1.2" />
   </>
 );
 
