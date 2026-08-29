@@ -92,6 +92,49 @@ export async function biddingBan(userId: string): Promise<ActiveBan | null> {
   return (await activeBan(userId, "bidding")) ?? (await activeBan(userId, "login"));
 }
 
+/**
+ * The bans in force right now, for a page-worth of accounts at once.
+ *
+ * Same definition of "in force" as `activeBan` — not lifted, and permanent or
+ * not yet expired — evaluated in the same place, the query. It exists because
+ * the member list would otherwise ask that question twice per row: at
+ * twenty-five rows and two kinds that is fifty round trips to render one page.
+ *
+ * Every active ban is returned rather than a single "worst" one. Login and
+ * bidding are separate abilities and an account can lose both; picking one to
+ * show would invent a precedence this codebase does not otherwise have.
+ */
+export async function activeBansFor(
+  userIds: string[],
+): Promise<Map<string, ActiveBan[]>> {
+  const byUser = new Map<string, ActiveBan[]>();
+  if (userIds.length === 0) return byUser;
+
+  const now = new Date();
+  const bans = await prisma.userBan.findMany({
+    where: {
+      userId: { in: userIds },
+      liftedAt: null,
+      OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+    },
+    select: { id: true, userId: true, kind: true, reason: true, expiresAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  for (const ban of bans) {
+    const list = byUser.get(ban.userId) ?? [];
+    list.push({
+      id: ban.id,
+      kind: ban.kind,
+      reason: ban.reason,
+      expiresAt: ban.expiresAt,
+    });
+    byUser.set(ban.userId, list);
+  }
+
+  return byUser;
+}
+
 /** Every ban ever applied to this account, newest first, for the admin view. */
 export async function banHistory(userId: string) {
   return prisma.userBan.findMany({

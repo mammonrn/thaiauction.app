@@ -22,7 +22,7 @@ export const metadata = { title: "ผู้ดูแลระบบ" };
 export default async function AdminHomePage() {
   const session = await requireAdmin("/admin");
 
-  const [pendingKyc, pendingPayouts, owed, signals, openReports] = await Promise.all([
+  const [pendingKyc, pendingPayouts, owed, signals, openReports, members] = await Promise.all([
     prisma.sellerVerification.count({ where: { status: "pending" } }),
     prisma.payment.count({
       where: { status: "successful", payoutStatus: "pending" },
@@ -40,6 +40,7 @@ export default async function AdminHomePage() {
     prisma.itemReport
       .groupBy({ by: ["auctionItemId"], where: { status: "open" } })
       .then((rows) => rows.length),
+    prisma.user.count(),
   ]);
 
   return (
@@ -98,12 +99,24 @@ export default async function AdminHomePage() {
         />
       </div>
 
-      <Link
-        href="/admin/bans"
-        className="text-sm text-info underline-offset-4 hover:underline"
-      >
-        ประวัติการแบนบัญชี →
-      </Link>
+      {/* Not a tile. Every tile above counts something WAITING, and a member
+          count is not a queue — nothing is owed and nothing is overdue. Putting
+          it in the row would make the one number on the page that never needs
+          acting on look exactly like the four that do. */}
+      <div className="flex flex-wrap gap-4">
+        <Link
+          href="/admin/members"
+          className="text-sm text-info underline-offset-4 hover:underline"
+        >
+          สมาชิกทั้งหมด {members.toLocaleString("th-TH")} คน →
+        </Link>
+        <Link
+          href="/admin/bans"
+          className="text-sm text-info underline-offset-4 hover:underline"
+        >
+          ประวัติการแบนบัญชี →
+        </Link>
+      </div>
 
       <p className="text-xs text-ink/45">
         สิทธิ์เข้าถึงกำหนดด้วย ADMIN_EMAILS

@@ -27,7 +27,8 @@
     "test:notifications": "tsx --conditions=react-server scripts/notifications.test.mts",
     "payouts:backfill-recipients": "tsx --conditions=react-server scripts/backfill-recipients.ts",
     "payouts:reconcile": "tsx --conditions=react-server scripts/reconcile-payouts.ts",
-    "test:payouts": "tsx --conditions=react-server scripts/payouts.test.mts"
+    "test:payouts": "tsx --conditions=react-server scripts/payouts.test.mts",
+    "test:members": "tsx --conditions=react-server scripts/members.test.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

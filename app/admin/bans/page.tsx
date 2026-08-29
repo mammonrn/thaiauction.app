@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { AdminBackLink } from "@/components/admin-back-link";
 import { AdminBanRow } from "@/components/admin-ban-row";
 import { requireAdmin } from "@/lib/admin";
@@ -16,10 +18,20 @@ export const metadata = { title: "บัญชีที่ถูกแบน" };
  * account already?". Nothing is deleted when a ban ends, so the list is
  * complete by construction.
  */
-export default async function AdminBansPage() {
+export default async function AdminBansPage({
+  searchParams,
+}: PageProps<"/admin/bans">) {
   await requireAdmin("/admin/bans");
 
+  const params = await searchParams;
+  // Narrowed to one account when the member list sends an admin here. The
+  // whole history is still the default view — this only answers "what has
+  // happened to THIS person", which is the question you arrive with when you
+  // came from a row about them.
+  const userId = typeof params.user === "string" ? params.user : undefined;
+
   const bans = await prisma.userBan.findMany({
+    where: userId ? { userId } : {},
     orderBy: { createdAt: "desc" },
     take: 200,
     select: {
@@ -72,10 +84,20 @@ export default async function AdminBansPage() {
         <p className="text-sm text-ink/60">
           กำลังมีผล {active} รายการ · ทั้งหมด {rows.length} รายการ
         </p>
+        {userId ? (
+          <Link
+            href="/admin/bans"
+            className="self-start text-sm text-info underline-offset-4 hover:underline"
+          >
+            ดูทั้งหมด
+          </Link>
+        ) : null}
       </header>
 
       {rows.length === 0 ? (
-        <p className="text-sm text-ink/60">ยังไม่เคยแบนบัญชีใด</p>
+        <p className="text-sm text-ink/60">
+          {userId ? "บัญชีนี้ไม่เคยถูกแบน" : "ยังไม่เคยแบนบัญชีใด"}
+        </p>
       ) : (
         <ul className="flex flex-col gap-2">
           {rows.map((row) => (
