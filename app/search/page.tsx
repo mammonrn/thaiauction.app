@@ -9,10 +9,17 @@ import {
   parseSort,
 } from "@/lib/listing";
 
-export const metadata = { title: "ค้นหาสินค้า" };
+export const metadata = { title: "สินค้าทั้งหมด" };
 
 /**
- * Search results.
+ * Search results — and, with no query, the whole catalogue.
+ *
+ * The bottom bar's second tab points here and is labelled "หมวดหมู่", so an
+ * empty query has to land on something browsable. It used to land on a page
+ * that said "type in the box above", which is a dead end reached by pressing a
+ * button: the category chips and the grid were already built and were simply
+ * withheld. Nothing about the MATCHING changed — `findListings` ignores an
+ * empty `search`, so this is the same query the home grid runs.
  *
  * A substring match on the title, which is what the brief asks for and what
  * the data supports: Postgres has no Thai word segmentation, so a full-text
@@ -34,9 +41,8 @@ export default async function SearchPage({
   const page = Math.max(1, Number(params.page) || 1);
 
   const [{ items, total, pageCount }, categories] = await Promise.all([
-    q
-      ? findListings({ search: q, categorySlug, sort, page })
-      : Promise.resolve({ items: [], total: 0, pageCount: 1 }),
+    // An empty `search` is no filter at all, which is exactly the browse view.
+    findListings({ search: q || undefined, categorySlug, sort, page }),
     findCategoriesWithCounts(),
   ]);
 
@@ -52,21 +58,19 @@ export default async function SearchPage({
                 ผลการค้นหา <span className="text-brand">{q}</span>
               </>
             ) : (
-              "ค้นหาสินค้า"
+              "สินค้าทั้งหมด"
             )}
           </h1>
-          {q ? (
+          {items.length > 0 ? (
             <p className="text-xs text-ink/50">
-              พบ {total.toLocaleString("th-TH")} รายการ
+              {q
+                ? `พบ ${total.toLocaleString("th-TH")} รายการ`
+                : `${total.toLocaleString("th-TH")} รายการกำลังประมูล`}
             </p>
-          ) : (
-            <p className="text-sm text-ink/60">
-              พิมพ์ชื่อสินค้าที่ช่องค้นหาด้านบนเพื่อเริ่มค้นหา
-            </p>
-          )}
+          ) : null}
         </header>
 
-        {q && (items.length > 0 || categorySlug) ? (
+        {items.length > 0 || categorySlug ? (
           <ListingControls
             basePath="/search"
             categories={categories}
@@ -76,20 +80,39 @@ export default async function SearchPage({
           />
         ) : null}
 
-        {q && items.length === 0 ? (
+        {items.length === 0 ? (
           <div className="flex flex-col items-center gap-3 rounded-lg bg-white px-6 py-16 text-center">
-            <p className="text-sm text-ink/70">
-              ไม่พบสินค้าที่ตรงกับ “{q}”
-            </p>
-            <p className="text-xs text-ink/50">
-              ลองใช้คำที่สั้นลง หรือดูตามหมวดหมู่แทน
-            </p>
-            <Link
-              href="/"
-              className={btnPrimarySm}
-            >
-              ดูสินค้าทั้งหมด
-            </Link>
+            {q ? (
+              <>
+                <p className="text-sm text-ink/70">
+                  ไม่พบสินค้าที่ตรงกับ “{q}”
+                </p>
+                <p className="text-xs text-ink/50">
+                  ลองใช้คำที่สั้นลง หรือดูตามหมวดหมู่แทน
+                </p>
+                <Link href="/search" className={btnPrimarySm}>
+                  ดูสินค้าทั้งหมด
+                </Link>
+              </>
+            ) : categorySlug ? (
+              <>
+                <p className="text-sm text-ink/70">
+                  หมวดนี้ยังไม่มีสินค้าที่กำลังประมูล
+                </p>
+                <Link href="/search" className={btnPrimarySm}>
+                  ดูสินค้าทั้งหมด
+                </Link>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-ink/70">
+                  ยังไม่มีสินค้าที่กำลังประมูลตอนนี้
+                </p>
+                <Link href="/sell/new" className={btnPrimarySm}>
+                  ลงขายสินค้า
+                </Link>
+              </>
+            )}
           </div>
         ) : null}
 
