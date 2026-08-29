@@ -74,6 +74,7 @@ export async function findListings(query: ListingQuery): Promise<{
   pageCount: number;
 }> {
   const where: Prisma.AuctionItemWhereInput = {
+    deletedAt: null,
     status: "active",
     // Settlement is lazy — an auction stays `active` until someone reads it or
     // the sweep runs — so a listing filtered on status alone briefly shows
@@ -106,7 +107,7 @@ export async function findListings(query: ListingQuery): Promise<{
 /** The closing-soonest live auctions, for the home page rail. */
 export async function findClosingSoon(take = 8): Promise<ListingCard[]> {
   return prisma.auctionItem.findMany({
-    where: { status: "active", endTime: { not: null, gt: new Date() } },
+    where: { deletedAt: null, status: "active", endTime: { not: null, gt: new Date() } },
     orderBy: { endTime: "asc" },
     take,
     select: CARD_FIELDS,
@@ -119,7 +120,9 @@ export async function findCategoriesWithCounts() {
     select: {
       name: true,
       slug: true,
-      _count: { select: { auctionItems: { where: { status: "active" } } } },
+      _count: {
+        select: { auctionItems: { where: { deletedAt: null, status: "active" } } },
+      },
     },
   });
   // A category with nothing live in it is a dead end, so it is not offered.

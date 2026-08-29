@@ -1,7 +1,9 @@
+import { APIError } from "@better-auth/core/error";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 
+import { banMessageFor, loginBan } from "@/lib/bans";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -58,6 +60,33 @@ export const auth = betterAuth({
       // at the victim's address from having the victim's Google identity
       // linked into the attacker-owned row.
       trustedProviders: ["google"],
+    },
+  },
+
+  databaseHooks: {
+    session: {
+      create: {
+        /**
+         * Refuse a session to an account under a login ban.
+         *
+         * At session CREATION, so the ban lands at the point of signing in
+         * rather than being hidden from afterwards: no cookie is issued, and
+         * Google and password sign-in are both covered because both end here.
+         * Hiding the UI would leave a working session behind it.
+         *
+         * Expiry needs no sweep. `loginBan` only returns a ban that is still
+         * in force, so the day one lapses the next attempt simply succeeds.
+         */
+        async before(session) {
+          const ban = await loginBan(session.userId);
+          if (!ban) return;
+
+          throw APIError.from("FORBIDDEN", {
+            message: banMessageFor(ban),
+            code: "BANNED_USER",
+          });
+        },
+      },
     },
   },
 

@@ -107,6 +107,44 @@ enum AuctionPaymentState {
   @@map("auction_payment_state")
 }
 
+/// Why someone reported a listing.
+///
+/// Four buckets, not a taxonomy: a reporter picks in a second or picks wrong,
+/// and an admin opens the listing to judge it either way. `other` carries the
+/// free-text note, which is why the note exists at all.
+enum ReportReason {
+  /// Selling it is against the law — weapons, drugs, protected wildlife.
+  illegal
+  /// Passed off as genuine when it is not.
+  counterfeit
+  /// The listing itself is obscene, hateful, or otherwise not publishable.
+  inappropriate
+  other
+
+  @@map("report_reason")
+}
+
+/// What an admin decided about a report.
+enum ReportStatus {
+  open
+  /// Looked at, listing left up.
+  dismissed
+  /// Looked at, listing taken down.
+  actioned
+
+  @@map("report_status")
+}
+
+/// What a ban stops someone from doing.
+enum BanKind {
+  /// No session at all: refused at the login screen.
+  login
+  /// Signs in normally, but cannot bid or buy outright.
+  bidding
+
+  @@map("ban_kind")
+}
+
 /// Whether a sold item has been posted.
 ///
 /// Two states on purpose. A third — "delivered" — would have to be entered by
@@ -196,6 +234,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   shippingAddresses     ShippingAddress[]
+  submittedReports      ItemReport[]      @relation("SubmittedReports")
+  reviewedReports       ItemReport[]      @relation("ReviewedReports")
+  bansReceived          UserBan[]         @relation("BansReceived")
+  bansIssued            UserBan[]         @relation("BansIssued")
+  deletedItems          AuctionItem[]     @relation("DeletedItems")
   verifiedPhones        VerifiedPhone[]
   sellerVerifications   SellerVerification[] @relation("SubmittedVerifications")
   reviewedVerifications SellerVerification[] @relation("ReviewedVerifications")
@@ -311,6 +354,18 @@ model AuctionItem {
   /// When the current holder's right to buy lapses. Null when no offer is live.
   paymentDueAt DateTime?
 
+  /// When an admin took this listing down. Null = visible.
+  ///
+  /// Soft, not a DELETE. A listing is referenced by bids, payments, strikes and
+  /// reports, and it is the thing an admin's decision was ABOUT — erasing the
+  /// row would erase the evidence for the removal along with it, and orphan a
+  /// buyer's own bid history. Every public query filters on this; the admin
+  /// pages deliberately do not.
+  deletedAt   DateTime?
+  deletedById String?
+  /// What the admin recorded as the reason, shown to the seller.
+  deletedReason String?
+
   /// Whether the seller has posted it. Manual: nobody is talking to a courier,
   /// so this is the seller's own statement and nothing verifies it.
   shippingStatus ShippingStatus @default(not_shipped)
@@ -346,12 +401,16 @@ model AuctionItem {
   bids     Bid[]
   payments Payment[]
   strikes  PaymentStrike[]
+  reports  ItemReport[]
+  deletedBy User?          @relation("DeletedItems", fields: [deletedById], references: [id], onDelete: Restrict)
 
   // "Live auctions, soonest ending first" — the main marketplace query.
   // Category browse pages.
   // A seller's own listings.
   // Sweeping auctions whose time has passed but that nobody has opened yet.
   @@index([status, endTime])
+  // Public listing queries all filter deletedAt IS NULL first.
+  @@index([deletedAt, status])
   // Sweeping offers whose 24-hour deadline has passed.
   @@index([paymentState, paymentDueAt])
   @@index([winnerId])
@@ -782,4 +841,77 @@ model PasswordResetRequest {
   @@index([emailHash, createdAt])
   @@index([ipAddress, createdAt])
   @@map("password_reset_requests")
+}
+
+
+/// One person's report of one listing.
+///
+/// Unique on (auctionItemId, reporterId): reporting the same listing twice is
+/// the same person still unhappy, not two independent signals, and the count
+/// an admin sorts by has to mean "how many people", or one determined reporter
+/// could push anything to the top of the queue. A second attempt updates the
+/// reason rather than adding a row.
+model ItemReport {
+  id            String @id @default(cuid())
+  auctionItemId String
+  reporterId    String
+
+  reason ReportReason
+  /// Only meaningful for `other`, and capped in the action layer.
+  note   String?
+
+  status     ReportStatus @default(open)
+  reviewedAt DateTime?
+  reviewedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Cascade: a report is about a listing and means nothing without it. Hard
+  // deletion is not how listings are removed (see deletedAt), so this fires
+  // only if a draft is deleted outright.
+  auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Cascade)
+  // Restrict: who reported is part of the record an admin judges.
+  reporter    User        @relation("SubmittedReports", fields: [reporterId], references: [id], onDelete: Restrict)
+  reviewedBy  User?       @relation("ReviewedReports", fields: [reviewedById], references: [id], onDelete: Restrict)
+
+  @@unique([auctionItemId, reporterId])
+  @@index([status, createdAt])
+  @@index([auctionItemId])
+  @@map("item_reports")
+}
+
+/// A time-boxed ban applied by an admin.
+///
+/// Deliberately NOT the strike system. Strikes are automatic, permanent and
+/// earned by missing payment deadlines; this is a human decision with an end
+/// date. Keeping them apart means neither can quietly change the other's
+/// meaning, and lib/bidding.ts keeps counting strikes exactly as it did.
+///
+/// Rows are never deleted or edited when a ban ends — expiry is `expiresAt`
+/// passing, so a ban lifts itself with nobody logging in to do it, and the
+/// history stays readable. `liftedAt` records an admin ending one EARLY, which
+/// is a different fact from it running its course.
+model UserBan {
+  id     String  @id @default(cuid())
+  userId String
+  kind   BanKind
+
+  reason String
+
+  /// Null = permanent. An expiry in the past is simply no longer in force.
+  expiresAt DateTime?
+  /// Set when an admin ends it before expiry; the row stays for the history.
+  liftedAt  DateTime?
+
+  bannedById String
+  createdAt  DateTime @default(now())
+
+  user     User @relation("BansReceived", fields: [userId], references: [id], onDelete: Cascade)
+  bannedBy User @relation("BansIssued", fields: [bannedById], references: [id], onDelete: Restrict)
+
+  // "Is this person banned right now?", asked on every login and every bid.
+  @@index([userId, kind, expiresAt])
+  @@index([userId, createdAt])
+  @@map("user_bans")
 }

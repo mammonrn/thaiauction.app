@@ -21,7 +21,8 @@
     "test:payments:phase2": "tsx --conditions=react-server scripts/payment-phase2.test.mts",
     "images:backfill": "tsx scripts/backfill-thumbnails.ts",
     "test:bidding": "tsx --conditions=react-server scripts/bidding-regression.test.mts",
-    "test:shipping": "tsx --conditions=react-server scripts/shipping.test.mts"
+    "test:shipping": "tsx --conditions=react-server scripts/shipping.test.mts",
+    "test:moderation": "tsx --conditions=react-server scripts/moderation.test.mts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

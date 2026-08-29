@@ -25,7 +25,7 @@ export async function GET(
   await settleIfExpired(id);
 
   const item = await prisma.auctionItem.findFirst({
-    where: { id, status: { in: ["active", "ended", "cancelled"] } },
+    where: { id, deletedAt: null, status: { in: ["active", "ended", "cancelled"] } },
     select: {
       currentPrice: true,
       bidIncrement: true,

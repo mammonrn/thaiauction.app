@@ -11,6 +11,7 @@ import { isStubMode } from "@/lib/thaibulksms";
 import { isSellerVerified } from "@/lib/seller-verification";
 import { LiveAuction } from "@/components/live-auction";
 import { PublishedBanner } from "@/components/published-banner";
+import { ShareItem } from "@/components/share-item";
 import { minimumBid } from "@/lib/auction-rules";
 import { settleIfExpired } from "@/lib/bidding";
 import { maskName } from "@/lib/mask-name";
@@ -41,7 +42,7 @@ export default async function AuctionDetailPage({
   // leaked draft id shows nothing. Cancelled ones stay readable so anyone who
   // bid can see what happened.
   const item = await prisma.auctionItem.findFirst({
-    where: { id, status: { in: ["active", "ended", "cancelled"] } },
+    where: { id, deletedAt: null, status: { in: ["active", "ended", "cancelled"] } },
     include: {
       category: { select: { name: true, slug: true } },
       seller: { select: { id: true, name: true, image: true, avatarKey: true } },
@@ -256,6 +257,8 @@ export default async function AuctionDetailPage({
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink/80">
           {item.description}
         </p>
+
+        <ShareItem title={item.title} />
       </section>
     </main>
   );

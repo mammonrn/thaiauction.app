@@ -10,6 +10,7 @@ import { requestOrigin } from "@/lib/request-origin";
 import { requireSession } from "@/lib/session";
 import { shillMessage } from "@/lib/anti-shill";
 import { banMessage } from "@/lib/strikes";
+import { banMessageFor, biddingBan } from "@/lib/bans";
 
 export type BidActionState = {
   ok: boolean;
@@ -43,6 +44,12 @@ export async function placeBidAction(
       message: "กรุณายืนยันเบอร์โทรศัพท์ก่อนเสนอราคา — โหลดหน้านี้ใหม่แล้วกดปุ่มยืนยันเบอร์โทร",
     };
   }
+
+  // An admin's ban, checked here rather than in lib/bidding.ts. It is a
+  // separate system from strikes — a human decision with an end date, not an
+  // automatic count — and the strike logic stays exactly as it was.
+  const ban = await biddingBan(user.id);
+  if (ban) return { ok: false, message: banMessageFor(ban) };
 
   const raw = String(formData.get("amount") ?? "").trim();
   const baht = Number(raw);
@@ -133,6 +140,9 @@ export async function buyNowAction(
       message: "กรุณายืนยันเบอร์โทรศัพท์ก่อนซื้อ — โหลดหน้านี้ใหม่แล้วกดปุ่มยืนยันเบอร์โทร",
     };
   }
+
+  const ban = await biddingBan(user.id);
+  if (ban) return { ok: false, message: banMessageFor(ban) };
 
   let result;
   try {

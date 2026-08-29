@@ -68,6 +68,13 @@ async function resetFixtures() {
     select: { id: true },
   });
   const itemIds = items.map((i) => i.id);
+  await prisma.itemReport.deleteMany({
+    where: { OR: [{ auctionItemId: { in: itemIds } }, { reporterId: { in: ids } }, { reviewedById: { in: ids } }] },
+  });
+  // bannedById is Restrict, so bans ISSUED by a fixture must go too.
+  await prisma.userBan.deleteMany({
+    where: { OR: [{ userId: { in: ids } }, { bannedById: { in: ids } }] },
+  });
   await prisma.payment.deleteMany({ where: { auctionItemId: { in: itemIds } } });
   await prisma.paymentStrike.deleteMany({ where: { userId: { in: ids } } });
   await prisma.bid.deleteMany({ where: { auctionItemId: { in: itemIds } } });
