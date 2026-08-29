@@ -7,6 +7,22 @@
  * own arithmetic rather than against a constant, and the rows that must NOT be
  * counted are created deliberately and then proven absent.
  *
+ * Which means the suite has to be able to tell its own rows apart from the
+ * marketplace's. It runs against whatever database DATABASE_URL points at, and
+ * on a live one "Σ amount over every paid row" is a moving number — so nothing
+ * here asserts a database-wide total. Two things keep the fixtures separable,
+ * and neither deletes anything that is not this suite's own:
+ *
+ *   - every fixture sale settles inside ONE far-future year, which the suite
+ *     proves empty before it writes anything, so a window over that year sees
+ *     this run and nothing else;
+ *   - every fixture category is created for this run under its own slug, so
+ *     the by-category rows cannot collide with a real category of the same name.
+ *
+ * The two reports that cannot be windowed — no filter at all, and an end date
+ * with no start — are checked as a DELTA across the inserts instead: what the
+ * report gained is what this run put in.
+ *
  * The admin gate is not asserted here — requireAdmin reaches for the request's
  * headers, so it can only be exercised through a real request. It is proven in
  * the browser: a signed-in non-admin asking for /admin/reports/sales gets 404.
@@ -38,53 +54,87 @@ function eq(label: string, actual: unknown, expected: unknown) {
 
 /* ----------------------------------------------------------------- fixtures */
 
+/**
+ * The year the fixtures live in.
+ *
+ * Far enough ahead that no real charge can have settled in it, which is what
+ * lets a window over it stand in for "everything this run sold". The suite does
+ * not take that on trust: it reads the window before writing and fails loudly
+ * if anything is already there.
+ */
+const EPOCH = "2099";
+const epochWindow = {
+  from: bangkokDayStart(`${EPOCH}-01-01`),
+  to: bangkokDayEnd(`${EPOCH}-12-31`),
+};
+
+/** Distinguishes this run's categories from the marketplace's, and from each
+ *  other's — two runs at once must not share a row. */
+const RUN = randomUUID().slice(0, 8);
+const TEST_CATEGORY_PREFIX = "sales-report-test-";
+
 async function resetFixtures() {
   const fixtures = await prisma.user.findMany({
     where: { email: { endsWith: "@example.com" } },
     select: { id: true },
   });
-  if (fixtures.length === 0) return;
-  const ids = fixtures.map((u) => u.id);
-  const items = await prisma.auctionItem.findMany({
-    where: { OR: [{ sellerId: { in: ids } }, { winnerId: { in: ids } }] },
-    select: { id: true },
+  if (fixtures.length > 0) {
+    const ids = fixtures.map((u) => u.id);
+    const items = await prisma.auctionItem.findMany({
+      where: { OR: [{ sellerId: { in: ids } }, { winnerId: { in: ids } }] },
+      select: { id: true },
+    });
+    const itemIds = items.map((i) => i.id);
+    await prisma.notification.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.itemReport.deleteMany({
+      where: {
+        OR: [
+          { auctionItemId: { in: itemIds } },
+          { reporterId: { in: ids } },
+          { reviewedById: { in: ids } },
+        ],
+      },
+    });
+    await prisma.userBan.deleteMany({
+      where: { OR: [{ userId: { in: ids } }, { bannedById: { in: ids } }] },
+    });
+    await prisma.sellerVerification.deleteMany({
+      where: { OR: [{ userId: { in: ids } }, { reviewedById: { in: ids } }] },
+    });
+    await prisma.verifiedPhone.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.auctionItem.updateMany({
+      where: { deletedById: { in: ids } },
+      data: { deletedById: null },
+    });
+    await prisma.payment.updateMany({
+      where: { payoutById: { in: ids } },
+      data: { payoutById: null },
+    });
+    await prisma.payment.deleteMany({ where: { auctionItemId: { in: itemIds } } });
+    await prisma.paymentStrike.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.bid.deleteMany({
+      where: { OR: [{ auctionItemId: { in: itemIds } }, { bidderId: { in: ids } }] },
+    });
+    await prisma.auctionItem.deleteMany({ where: { id: { in: itemIds } } });
+    await prisma.bankAccountChange.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.sellerBankAccount.deleteMany({ where: { userId: { in: ids } } });
+    await prisma.user.deleteMany({ where: { id: { in: ids } } });
+  }
+
+  // The categories this suite invented, once nothing points at them any more.
+  // A run that died halfway leaves them behind, and every one of them is a row
+  // in quietCategories on a real report until it goes. Only ever the prefixed
+  // ones, and only ever the empty ones — a category another run is still using
+  // is that run's to clean up.
+  const invented = await prisma.category.findMany({
+    where: { slug: { startsWith: TEST_CATEGORY_PREFIX } },
+    select: { id: true, _count: { select: { auctionItems: true } } },
   });
-  const itemIds = items.map((i) => i.id);
-  await prisma.notification.deleteMany({ where: { userId: { in: ids } } });
-  await prisma.pushSubscription.deleteMany({ where: { userId: { in: ids } } });
-  await prisma.itemReport.deleteMany({
-    where: {
-      OR: [
-        { auctionItemId: { in: itemIds } },
-        { reporterId: { in: ids } },
-        { reviewedById: { in: ids } },
-      ],
-    },
-  });
-  await prisma.userBan.deleteMany({
-    where: { OR: [{ userId: { in: ids } }, { bannedById: { in: ids } }] },
-  });
-  await prisma.sellerVerification.deleteMany({
-    where: { OR: [{ userId: { in: ids } }, { reviewedById: { in: ids } }] },
-  });
-  await prisma.verifiedPhone.deleteMany({ where: { userId: { in: ids } } });
-  await prisma.auctionItem.updateMany({
-    where: { deletedById: { in: ids } },
-    data: { deletedById: null },
-  });
-  await prisma.payment.updateMany({
-    where: { payoutById: { in: ids } },
-    data: { payoutById: null },
-  });
-  await prisma.payment.deleteMany({ where: { auctionItemId: { in: itemIds } } });
-  await prisma.paymentStrike.deleteMany({ where: { userId: { in: ids } } });
-  await prisma.bid.deleteMany({
-    where: { OR: [{ auctionItemId: { in: itemIds } }, { bidderId: { in: ids } }] },
-  });
-  await prisma.auctionItem.deleteMany({ where: { id: { in: itemIds } } });
-  await prisma.bankAccountChange.deleteMany({ where: { userId: { in: ids } } });
-  await prisma.sellerBankAccount.deleteMany({ where: { userId: { in: ids } } });
-  await prisma.user.deleteMany({ where: { id: { in: ids } } });
+  const spent = invented.filter((c) => c._count.auctionItems === 0).map((c) => c.id);
+  if (spent.length > 0) {
+    await prisma.category.deleteMany({ where: { id: { in: spent } } });
+  }
 }
 
 async function person(tag: string) {
@@ -97,11 +147,10 @@ async function person(tag: string) {
   });
 }
 
-async function category(name: string, slug: string) {
-  return prisma.category.upsert({
-    where: { slug },
-    update: {},
-    create: { name, slug },
+/** A category nothing but this run sells in, so its row is this run's row. */
+async function category(name: string, tag: string) {
+  return prisma.category.create({
+    data: { name: `${name} (ทดสอบ ${RUN})`, slug: `${TEST_CATEGORY_PREFIX}${tag}-${RUN}` },
   });
 }
 
@@ -159,8 +208,25 @@ async function sale(sellerId: string, buyerId: string, spec: SaleSpec) {
 
 const DAY = 24 * 60 * 60 * 1000;
 
+/** What this run's three settled sales come to, from the fixtures' own figures. */
+const SALES = 1_000_000 + 500_000 + 250_000;
+const COMMISSION = 96_100 + 48_050 + 20_000;
+
 async function main() {
   await resetFixtures();
+
+  // Everything the fixtures are about to add is measured against these, so
+  // nothing below has to know what the database already held.
+  const before = {
+    epoch: await salesReport(epochWindow),
+    unfiltered: await salesReport({}),
+    upTo: await salesReport({ to: bangkokDayEnd(`${EPOCH}-02-28`) }),
+    openEnded: await salesReport({ from: bangkokDayStart(`${EPOCH}-02-01`) }),
+  };
+
+  console.log("\nA CLEAR WINDOW TO WORK IN");
+  eq("no leftovers from another run", before.epoch.totals.count, 0);
+  eq("  and no category left standing in it", before.epoch.categories.length, 0);
 
   const seller = await person("ผู้ขาย");
   const buyer = await person("ผู้ซื้อ");
@@ -171,9 +237,9 @@ async function main() {
 
   // Three settled sales in two categories, with figures that are deliberately
   // not round so a recomputed VAT could not accidentally match.
-  const jan = new Date("2026-01-15T05:00:00.000Z");
-  const feb = new Date("2026-02-20T05:00:00.000Z");
-  const mar = new Date("2026-03-10T05:00:00.000Z");
+  const jan = new Date(`${EPOCH}-01-15T05:00:00.000Z`);
+  const feb = new Date(`${EPOCH}-02-20T05:00:00.000Z`);
+  const mar = new Date(`${EPOCH}-03-10T05:00:00.000Z`);
 
   await sale(seller.id, buyer.id, {
     categoryId: amulets.id,
@@ -207,45 +273,47 @@ async function main() {
   });
 
   // Never counted: a QR nobody scanned, a declined card, an expired window.
-  await sale(seller.id, buyer.id, {
-    categoryId: amulets.id,
-    amount: 9_999_900,
-    fee: 0,
-    feeVat: 0,
-    commission: 0,
-    paidAt: null,
-    status: "pending",
-  });
-  await sale(seller.id, buyer.id, {
-    categoryId: watches.id,
-    amount: 8_888_800,
-    fee: 0,
-    feeVat: 0,
-    commission: 0,
-    paidAt: null,
-    status: "failed",
-  });
-  await sale(seller.id, buyer.id, {
-    categoryId: watches.id,
-    amount: 7_777_700,
-    fee: 0,
-    feeVat: 0,
-    commission: 0,
-    paidAt: null,
-    status: "expired",
-  });
+  const unsettled = [
+    await sale(seller.id, buyer.id, {
+      categoryId: amulets.id,
+      amount: 9_999_900,
+      fee: 0,
+      feeVat: 0,
+      commission: 0,
+      paidAt: null,
+      status: "pending",
+    }),
+    await sale(seller.id, buyer.id, {
+      categoryId: watches.id,
+      amount: 8_888_800,
+      fee: 0,
+      feeVat: 0,
+      commission: 0,
+      paidAt: null,
+      status: "failed",
+    }),
+    await sale(seller.id, buyer.id, {
+      categoryId: watches.id,
+      amount: 7_777_700,
+      fee: 0,
+      feeVat: 0,
+      commission: 0,
+      paidAt: null,
+      status: "expired",
+    }),
+  ];
 
-  console.log("\nALL-TIME TOTALS");
+  console.log("\nTHIS RUN'S TOTALS");
   {
-    const report = await salesReport({});
+    const report = await salesReport(epochWindow);
     const t = report.totals;
 
     eq("every settled sale is counted", t.count, 3);
-    eq("sales are the sum of amount", t.sales, 1_000_000 + 500_000 + 250_000);
+    eq("sales are the sum of amount", t.sales, SALES);
     eq("the Omise fee is the sum of fee", t.omiseFee, 36_449 + 18_224 + 9_112);
     eq("the VAT is the sum of feeVat", t.omiseVat, 2_551 + 1_276 + 700);
     eq("and the two add up to what Omise took", t.omiseTotal, t.omiseFee + t.omiseVat);
-    eq("commission is the sum of commission", t.commission, 96_100 + 48_050 + 20_000);
+    eq("commission is the sum of commission", t.commission, COMMISSION);
 
     // The figures are READ, not derived. If the report worked VAT back out of
     // amount at 7% it would get these numbers instead — and they are wrong.
@@ -259,23 +327,41 @@ async function main() {
     const derivedCommission = Math.floor((t.sales - t.omiseTotal) / 10);
     check(
       "and the commission is the stored one, not 10% recomputed from net",
-      t.commission === 164_150 && t.commission !== derivedCommission,
+      t.commission === COMMISSION && t.commission !== derivedCommission,
       `stored ${t.commission}, a recomputation would give ${derivedCommission}`,
+    );
+  }
+
+  console.log("\nWITH NO FILTER AT ALL");
+  {
+    // The one report that cannot be windowed. What it gained is this run.
+    const after = await salesReport({});
+    eq("an unfiltered report picks the three up", after.totals.count - before.unfiltered.totals.count, 3);
+    eq("  and gains exactly their sales", after.totals.sales - before.unfiltered.totals.sales, SALES);
+    eq(
+      "  and exactly their commission",
+      after.totals.commission - before.unfiltered.totals.commission,
+      COMMISSION,
     );
   }
 
   console.log("\nWHAT IS NOT COUNTED");
   {
-    const report = await salesReport({});
+    const report = await salesReport(epochWindow);
     const unpaidTotal = 9_999_900 + 8_888_800 + 7_777_700;
+
+    const stillThere = await prisma.payment.count({
+      where: { id: { in: unsettled.map((p) => p.id) }, paidAt: null },
+    });
+    eq("the three unsettled charges are there to be missed", stillThere, 3);
     check(
       "a pending, a failed and an expired charge add nothing",
-      report.totals.sales < unpaidTotal,
-      `sales ${report.totals.sales} should not include ${unpaidTotal}`,
+      report.totals.sales === SALES && report.totals.sales < unpaidTotal,
+      `sales ${report.totals.sales} should be ${SALES}, with none of ${unpaidTotal}`,
     );
     eq("  the count stays at the settled three", report.totals.count, 3);
 
-    const watchRow = report.categories.find((row) => row.slug === "watches");
+    const watchRow = report.categories.find((row) => row.slug === watches.slug);
     check(
       "a category whose only charges failed does not appear",
       watchRow === undefined,
@@ -285,11 +371,11 @@ async function main() {
 
   console.log("\nBY CATEGORY");
   {
-    const report = await salesReport({});
+    const report = await salesReport(epochWindow);
 
     eq("only categories with a sale are listed", report.categories.length, 2);
-    eq("  the biggest first", report.categories[0]?.slug, "amulets");
-    eq("  then the next", report.categories[1]?.slug, "trading-cards");
+    eq("  the biggest first", report.categories[0]?.slug, amulets.slug);
+    eq("  then the next", report.categories[1]?.slug, cards.slug);
 
     const [top, second] = report.categories;
     eq("the leading category's sales", top?.sales, 1_500_000);
@@ -308,6 +394,9 @@ async function main() {
     );
     eq("and so does the commission", summedCommission, report.totals.commission);
 
+    // Read live, because how many categories the marketplace has is none of
+    // this suite's business — only that the ones with nothing sold are counted
+    // rather than listed, whatever their number.
     const allCategories = await prisma.category.count();
     eq(
       "the categories with nothing sold are counted, not listed",
@@ -320,8 +409,8 @@ async function main() {
   console.log("\nDATE RANGE");
   {
     const febOnly = await salesReport({
-      from: bangkokDayStart("2026-02-01"),
-      to: bangkokDayEnd("2026-02-28"),
+      from: bangkokDayStart(`${EPOCH}-02-01`),
+      to: bangkokDayEnd(`${EPOCH}-02-28`),
     });
     eq("a month window keeps only that month", febOnly.totals.count, 1);
     eq("  with that month's figures", febOnly.totals.sales, 500_000);
@@ -329,21 +418,33 @@ async function main() {
     eq("  in one category", febOnly.categories.length, 1);
 
     const janToFeb = await salesReport({
-      from: bangkokDayStart("2026-01-01"),
-      to: bangkokDayEnd("2026-02-28"),
+      from: bangkokDayStart(`${EPOCH}-01-01`),
+      to: bangkokDayEnd(`${EPOCH}-02-28`),
     });
     eq("a two-month window keeps two", janToFeb.totals.count, 2);
     eq("  and their total", janToFeb.totals.sales, 1_500_000);
 
-    const openEnded = await salesReport({ from: bangkokDayStart("2026-02-01") });
-    eq("a start with no end runs to today", openEnded.totals.count, 2);
+    // Both of these run off one end of the fixtures' year and into whatever
+    // else the database holds, so they are read as a delta like the unfiltered
+    // report above: which of this run's three they reached, not how many rows
+    // came back.
+    const openEnded = await salesReport({ from: bangkokDayStart(`${EPOCH}-02-01`) });
+    eq(
+      "a start with no end runs to today",
+      openEnded.totals.count - before.openEnded.totals.count,
+      2,
+    );
 
-    const upTo = await salesReport({ to: bangkokDayEnd("2026-02-28") });
-    eq("an end with no start runs from the beginning", upTo.totals.count, 2);
+    const upTo = await salesReport({ to: bangkokDayEnd(`${EPOCH}-02-28`) });
+    eq(
+      "an end with no start runs from the beginning",
+      upTo.totals.count - before.upTo.totals.count,
+      2,
+    );
 
     const empty = await salesReport({
-      from: bangkokDayStart("2020-01-01"),
-      to: bangkokDayEnd("2020-12-31"),
+      from: bangkokDayStart(`${EPOCH}-06-01`),
+      to: bangkokDayEnd(`${EPOCH}-06-30`),
     });
     eq("a window with nothing in it is zero, not an error", empty.totals.sales, 0);
     eq("  with no categories", empty.categories.length, 0);
@@ -353,14 +454,14 @@ async function main() {
     // window built from UTC midnights would place it correctly by luck; one
     // built the other way round would not. This pins the direction of the shift.
     const jan15 = await salesReport({
-      from: bangkokDayStart("2026-01-15"),
-      to: bangkokDayEnd("2026-01-15"),
+      from: bangkokDayStart(`${EPOCH}-01-15`),
+      to: bangkokDayEnd(`${EPOCH}-01-15`),
     });
     eq("a single Bangkok day finds the sale made in it", jan15.totals.count, 1);
 
     const jan14 = await salesReport({
-      from: bangkokDayStart("2026-01-14"),
-      to: bangkokDayEnd("2026-01-14"),
+      from: bangkokDayStart(`${EPOCH}-01-14`),
+      to: bangkokDayEnd(`${EPOCH}-01-14`),
     });
     eq("  and the day before finds nothing", jan14.totals.count, 0);
   }
@@ -388,6 +489,16 @@ async function main() {
   }
 
   await resetFixtures();
+
+  console.log("\nNOTHING LEFT BEHIND");
+  {
+    const after = await salesReport(epochWindow);
+    eq("the window is clear again", after.totals.count, 0);
+    const strays = await prisma.category.count({
+      where: { slug: { startsWith: TEST_CATEGORY_PREFIX } },
+    });
+    eq("  and this run's categories are gone", strays, 0);
+  }
 
   console.log(failures === 0 ? "\nsales report holds" : `\n${failures} FAILED`);
   process.exitCode = failures === 0 ? 0 : 1;
