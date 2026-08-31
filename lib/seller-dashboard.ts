@@ -39,19 +39,21 @@ import type {
  *
  *   live             — running; nothing to do but wait
  *   awaiting_payment — it ended and the winner's deadline is running
+ *   failed           — nobody paid and there is nobody left to hand it to. The
+ *                      seller decides what happens next: see lib/failed-deal.ts
  *   to_ship          — PAID and not posted. The only stage where somebody is
  *                      waiting on the seller, so it is the one the page leads on
  *   awaiting_payout  — posted; the marketplace still has the money
  *   done             — posted and paid out
  *
- * Null for everything else: a draft, a cancelled listing, an auction that ended
- * with no bids, and one where every winner in turn let their deadline lapse.
- * None of those is a stage of a sale, and counting them as one would put "จบ
- * ดีล" on an item that never sold.
+ * Null for everything else: a draft, a cancelled listing, and an auction that
+ * ended with no bids at all. None of those is a stage of a sale, and counting
+ * them as one would put "จบดีล" on an item that never sold.
  */
 export type SellerStage =
   | "live"
   | "awaiting_payment"
+  | "failed"
   | "to_ship"
   | "awaiting_payout"
   | "done";
@@ -76,6 +78,11 @@ export function sellerStage(item: {
   // paymentState rather than "has a payment row".
   if (item.paymentState === "awaiting_payment") return "awaiting_payment";
 
+  // Every bidder in turn let their deadline pass and lib/bidding.ts ran out of
+  // people to offer it to. Waiting on the seller now — and until this stage
+  // existed, waiting on nobody at all.
+  if (item.status === "ended" && item.paymentState === "unpaid") return "failed";
+
   if (item.status === "active") return "live";
 
   return null;
@@ -84,6 +91,7 @@ export function sellerStage(item: {
 export const STAGE_LABEL: Record<SellerStage, string> = {
   live: "กำลังประมูล",
   awaiting_payment: "รอผู้ชนะจ่าย",
+  failed: "ดีลล้ม รอตัดสินใจ",
   to_ship: "จ่ายแล้ว รอเราส่ง",
   awaiting_payout: "ส่งแล้ว รอเงินเข้า",
   done: "จบดีล",
@@ -92,6 +100,7 @@ export const STAGE_LABEL: Record<SellerStage, string> = {
 /** The order they are shown in: the seller's own work first, then waiting. */
 export const STAGE_ORDER: SellerStage[] = [
   "to_ship",
+  "failed",
   "awaiting_payment",
   "live",
   "awaiting_payout",
@@ -195,6 +204,7 @@ export async function sellerDashboard(
   const stages: StageCounts = {
     live: 0,
     awaiting_payment: 0,
+    failed: 0,
     to_ship: 0,
     awaiting_payout: 0,
     done: 0,

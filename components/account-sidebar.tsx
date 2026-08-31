@@ -18,6 +18,7 @@ const GROUPS = [
     heading: "การซื้อ",
     links: [
       { href: "/account/bids", label: "ประวัติการประมูล" },
+      { href: "/account/offers", label: "ข้อเสนอถึงคุณ" },
       { href: "/account/notifications", label: "การแจ้งเตือน" },
       { href: "/account/addresses", label: "ที่อยู่จัดส่ง" },
     ],

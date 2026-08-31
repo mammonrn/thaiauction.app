@@ -35,7 +35,10 @@ export type NotificationType =
   | "auction_won"
   | "bank_verified"
   | "bank_rejected"
-  | "payout_sent";
+  | "payout_sent"
+  | "deal_failed"
+  | "second_chance_offered"
+  | "second_chance_closed";
 
 /** Older than this and the list page stops showing it. */
 export const NOTIFICATION_MAX_AGE_DAYS = 90;
@@ -313,6 +316,78 @@ export async function notifyPaymentMissed(params: {
 }
 
 /**
+ * Nobody paid, and there is nobody left the system could hand it to.
+ *
+ * The gap this fills: lib/bidding.ts strikes the winner and works down the
+ * bidders by itself, and when it runs out of them the item was simply left
+ * `unpaid` with nobody told. The seller is the one person who can do anything
+ * about it — offer it to a bidder who is still eligible, or list it again — so
+ * they are the one person told.
+ *
+ * `onceEver` on the item: the sweep that notices runs every few minutes, and
+ * the deal fell through once.
+ */
+export async function notifyDealFailed(params: {
+  itemId: string;
+  itemTitle: string;
+  sellerId: string;
+}): Promise<void> {
+  await notify({
+    userId: params.sellerId,
+    type: "deal_failed",
+    title: "ดีลล้ม — รอคุณตัดสินใจ",
+    body: `${params.itemTitle} — ไม่มีใครชำระเงิน เลือกเสนอผู้เสนอราคารายอื่น หรือลงขายใหม่`,
+    url: "/sell",
+    dedupeKey: `deal_failed:${params.itemId}`,
+    onceEver: true,
+  });
+}
+
+/**
+ * Somebody is being offered an item they bid on, at their own bid.
+ *
+ * The amount is in the body because it is the whole decision. No mention of a
+ * penalty, because there is none: declining and ignoring both cost nothing.
+ */
+export async function notifySecondChanceOffered(params: {
+  offerId: string;
+  itemTitle: string;
+  bidderId: string;
+  amount: number;
+}): Promise<void> {
+  await notify({
+    userId: params.bidderId,
+    type: "second_chance_offered",
+    title: "คุณได้รับข้อเสนอซื้อสินค้า",
+    body: `${params.itemTitle} — ในราคาที่คุณเคยเสนอ ${formatBaht(params.amount)} · ตอบรับภายใน 24 ชั่วโมง`,
+    url: "/account/offers",
+    dedupeKey: `second_chance_offered:${params.offerId}`,
+    onceEver: true,
+  });
+}
+
+/** The offer came back unaccepted, so the item is the seller's decision again. */
+export async function notifySecondChanceClosed(params: {
+  offerId: string;
+  itemTitle: string;
+  sellerId: string;
+  outcome: "declined" | "expired";
+}): Promise<void> {
+  await notify({
+    userId: params.sellerId,
+    type: "second_chance_closed",
+    title:
+      params.outcome === "declined"
+        ? "ผู้รับข้อเสนอปฏิเสธ"
+        : "ข้อเสนอหมดอายุแล้ว",
+    body: `${params.itemTitle} — เลือกเสนอผู้เสนอราคารายถัดไป หรือลงขายใหม่ได้`,
+    url: "/sell",
+    dedupeKey: `second_chance_closed:${params.offerId}`,
+    onceEver: true,
+  });
+}
+
+/**
  * An auction someone is bidding on is about to close.
  *
  * `onceEver`, not `collapseUnread`: an auction ends once, and the reminder sweep
@@ -573,6 +648,34 @@ export async function syncAuctionNotifications(itemId?: string): Promise<void> {
  * is the durable record that it happened. `onceEver` on the item keeps a
  * re-run silent.
  */
+export async function syncFailedDealNotifications(): Promise<void> {
+  try {
+    const stranded = await prisma.auctionItem.findMany({
+      where: {
+        status: "ended",
+        paymentState: "unpaid",
+        deletedAt: null,
+        // Recent ones only. The sweep is for telling somebody something has
+        // just happened, not for reopening every dead listing in the archive
+        // the first time it runs.
+        endedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+      },
+      select: { id: true, title: true, sellerId: true },
+      take: 200,
+    });
+
+    for (const item of stranded) {
+      await notifyDealFailed({
+        itemId: item.id,
+        itemTitle: item.title,
+        sellerId: item.sellerId,
+      });
+    }
+  } catch (error) {
+    console.error("[notify] failed-deal sync failed:", error);
+  }
+}
+
 export async function syncMissedPaymentNotifications(): Promise<void> {
   try {
     const strikes = await prisma.paymentStrike.findMany({

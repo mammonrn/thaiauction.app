@@ -41,6 +41,7 @@ export default async function AccountPage() {
     strikes,
     bankAccount,
     referredFriends,
+    openOffers,
   ] = await Promise.all([
     prisma.user.findUniqueOrThrow({
       where: { id: user.id },
@@ -63,6 +64,9 @@ export default async function AccountPage() {
       select: { id: true },
     }),
     prisma.referral.count({ where: { referrerId: user.id } }),
+    prisma.secondChanceOffer.count({
+      where: { bidderId: user.id, status: "offered", expiresAt: { gt: new Date() } },
+    }),
   ]);
 
   const hasPassword = Boolean(credentialAccount?.password);
@@ -167,6 +171,15 @@ export default async function AccountPage() {
       </Group>
 
       <Group title="การใช้งาน">
+        <Row
+          href="/account/offers"
+          title="ข้อเสนอถึงคุณ"
+          detail={
+            openOffers === 0
+              ? "ยังไม่มีข้อเสนอ"
+              : `${openOffers.toLocaleString("th-TH")} รายการรอคำตอบ`
+          }
+        />
         <Row
           href="/account/referral"
           title="ชวนเพื่อน"

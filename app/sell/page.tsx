@@ -16,6 +16,8 @@ import {
   sellerDashboard,
   type SellerDashboard,
 } from "@/lib/seller-dashboard";
+import { FailedDealCard } from "@/components/failed-deal-card";
+import { failedDeals, type FailedDeal } from "@/lib/failed-deal";
 import { formatThaiDateTime } from "@/lib/thai-datetime";
 
 export const metadata = { title: "สินค้าของฉัน" };
@@ -66,6 +68,9 @@ export default async function SellPage() {
   // dashboard its thirty days — against the same instant.
   const now = new Date();
   const dashboard = await sellerDashboard(user.id, now);
+  // Only asked for when there is one, so the common page costs nothing.
+  const deals =
+    dashboard.stages.failed > 0 ? await failedDeals(user.id) : ([] as FailedDeal[]);
 
   const items = await prisma.auctionItem.findMany({
     where: { sellerId: user.id },
@@ -111,6 +116,7 @@ export default async function SellPage() {
       ) : (
         <>
           <ToShip dashboard={dashboard} />
+          <FailedDeals deals={deals} />
           <Stages dashboard={dashboard} />
           <Earnings dashboard={dashboard} />
         </>
@@ -235,6 +241,54 @@ export default async function SellPage() {
         })
       )}
     </main>
+  );
+}
+
+/**
+ * Deals that fell through, and are waiting on a decision.
+ *
+ * Second only to the shipping queue, and above everything else, because until
+ * this existed these items simply stopped: lib/bidding.ts had struck everyone
+ * who could be struck and run out of bidders to hand it to, and the listing sat
+ * there with nobody told and nothing to press. Now the seller is told, and has
+ * the two ways out — offer it on, or list it again.
+ *
+ * Rendered only when there is one. A section that says "no failed deals" on a
+ * page about selling is a section about failure.
+ */
+function FailedDeals({ deals }: { deals: FailedDeal[] }) {
+  if (deals.length === 0) return null;
+
+  return (
+    <section className="flex flex-col gap-2">
+      <h2 className="flex items-baseline gap-2 text-sm font-semibold text-ink/70">
+        ดีลล้ม รอตัดสินใจ
+        <span className="text-xs font-normal text-ink/45">{deals.length}</span>
+      </h2>
+
+      <ul className="flex flex-col gap-2">
+        {deals.map((deal) => (
+          <FailedDealCard
+            key={deal.itemId}
+            deal={{
+              itemId: deal.itemId,
+              title: deal.title,
+              lastPrice: deal.lastPrice,
+              offer: deal.offer
+                ? {
+                    amount: deal.offer.amount,
+                    // Formatted on the server, through the same helper every
+                    // other date in the app goes through.
+                    expiresLabel: formatThaiDateTime(deal.offer.expiresAt),
+                  }
+                : null,
+              candidateAmount: deal.candidate?.amount ?? null,
+            }}
+            relistHref={`/sell/relist/${deal.itemId}`}
+          />
+        ))}
+      </ul>
+    </section>
   );
 }
 

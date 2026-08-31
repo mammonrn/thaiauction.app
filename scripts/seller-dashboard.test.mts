@@ -213,10 +213,15 @@ async function main() {
       stage("ended", "awaiting_payment", "not_shipped"),
       "awaiting_payment",
     );
+    // This one CHANGED when failed deals were given somewhere to go. It used to
+    // be null — the item fell off the dashboard, which is exactly the bug: a
+    // seller was never told the deal had collapsed and had no way to act on it.
+    // It is now a stage of its own, and lib/failed-deal.ts is what a seller does
+    // about it.
     eq(
-      "  and an auction nobody ever paid for is in no stage at all",
+      "  and an auction nobody ever paid for is waiting on the seller",
       stage("ended", "unpaid"),
-      null,
+      "failed",
     );
 
     eq("a draft is in no stage", stage("draft", "not_applicable"), null);
@@ -369,6 +374,7 @@ async function main() {
     eq("one paid and waiting to be posted", board.stages.to_ship, 1);
     eq("one posted, money still here", board.stages.awaiting_payout, 1);
     eq("one finished end to end", board.stages.done, 1);
+    eq("and one deal that fell through", board.stages.failed, 1);
 
     eq("the next deadline is the soonest one still to come", board.closingSoon?.id, soonest.id);
     check(

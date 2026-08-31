@@ -134,6 +134,12 @@ enum NotificationType {
   bank_rejected
   /// Your money has been sent to your bank account.
   payout_sent
+  /// Nobody paid for your item and there is nobody left to offer it to.
+  deal_failed
+  /// You are being offered an item you bid on, at your own bid.
+  second_chance_offered
+  /// The person you offered it to said no, or let it lapse.
+  second_chance_closed
 
   @@map("notification_type")
 }
@@ -259,6 +265,21 @@ enum AuctionStatus {
   @@map("auction_status")
 }
 
+/// What became of a second-chance offer.
+///
+/// `offered` is the only live state; the other three are how it ended. An offer
+/// that was declined or left to expire costs the person nothing — see
+/// lib/failed-deal.ts — so the distinction between them is history rather than
+/// consequence.
+enum SecondChanceStatus {
+  offered
+  accepted
+  declined
+  expired
+
+  @@map("second_chance_status")
+}
+
 /// How far a referred account has got.
 ///
 /// Two states, and deliberately only two: an account exists, and an account has
@@ -345,6 +366,8 @@ model User {
   paidOutPayments       Payment[]            @relation("PayoutMarkedBy")
   strikes               PaymentStrike[]
   bankAccount           SellerBankAccount?
+
+  secondChanceOffers SecondChanceOffer[]
 
   referralsMade    Referral[] @relation("ReferralsMade")
   referralReceived Referral?  @relation("ReferralReceived")
@@ -493,14 +516,15 @@ model AuctionItem {
 
   // Restrict, not Cascade: an auction is a financial record. Deleting a seller
   // must not silently erase auctions other people bid on.
-  seller    User            @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
-  winner    User?           @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
-  category  Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  bids      Bid[]
-  payments  Payment[]
-  strikes   PaymentStrike[]
-  reports   ItemReport[]
-  deletedBy User?           @relation("DeletedItems", fields: [deletedById], references: [id], onDelete: Restrict)
+  seller             User                @relation("SellerAuctionItems", fields: [sellerId], references: [id], onDelete: Restrict)
+  winner             User?               @relation("WonAuctionItems", fields: [winnerId], references: [id], onDelete: Restrict)
+  category           Category            @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  bids               Bid[]
+  payments           Payment[]
+  secondChanceOffers SecondChanceOffer[]
+  strikes            PaymentStrike[]
+  reports            ItemReport[]
+  deletedBy          User?               @relation("DeletedItems", fields: [deletedById], references: [id], onDelete: Restrict)
 
   // "Live auctions, soonest ending first" — the main marketplace query.
   // Category browse pages.
@@ -1182,4 +1206,61 @@ model Referral {
   /// "Who did this person bring in, and how far did each get."
   @@index([referrerId, status])
   @@map("referrals")
+}
+
+/// A second chance at a deal that fell through.
+///
+/// When a winner lets their deadline pass, lib/bidding.ts strikes them and
+/// hands the item to the next eligible bidder by itself. This table is for what
+/// happens AFTER that chain runs out: the item is left `ended` + `unpaid` with
+/// nobody on the hook, and the seller — who until now was simply not told — can
+/// offer it to a bidder who is still eligible, at the price that bidder
+/// actually bid.
+///
+/// Nothing here touches bidding. An accepted offer writes the same three fields
+/// a normal win writes (winner, price, deadline) and then the existing payment
+/// flow takes over unchanged, including the strike for an acceptance that is
+/// not paid for. Declining or letting it lapse costs nothing at all: the
+/// original deal is already over and this is a new offer, not a second
+/// obligation.
+model SecondChanceOffer {
+  id            String @id @default(cuid())
+  auctionItemId String
+  bidderId      String
+
+  /// What this bidder actually bid, in satang. The offer is at their own
+  /// number, never the forfeited one — they never offered that.
+  amount Int
+
+  status SecondChanceStatus @default(offered)
+
+  /// Mirrors auctionItemId while the offer is live, and NULL the moment it is
+  /// not. UNIQUE, so ONE ITEM CAN HAVE ONLY ONE LIVE OFFER and the database is
+  /// what says so: Postgres ignores NULLs in a unique index, which turns "at
+  /// most one active" into a constraint rather than a rule someone has to
+  /// remember to check. A redundant column, deliberately — the alternative is a
+  /// partial index Prisma cannot express, and drift between schema and database
+  /// is a worse problem than one extra column.
+  liveForItemId String? @unique
+
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  /// When it was accepted or declined. Null on one that simply lapsed.
+  respondedAt DateTime?
+
+  // Cascade on both sides. An offer is not a financial record — the payment
+  // rows are — and it means nothing once either the item or the person is
+  // gone. It also keeps every suite in scripts/ working: they delete their
+  // fixture users and items directly, and a restricting key here would break
+  // all of them the first time a fixture had an offer.
+  auctionItem AuctionItem @relation(fields: [auctionItemId], references: [id], onDelete: Cascade)
+  bidder      User        @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  /// "What has been offered on this item", newest first.
+  @@index([auctionItemId, createdAt])
+  /// "What is waiting for me to answer."
+  @@index([bidderId, status])
+  /// The expiry sweep reads exactly this.
+  @@index([status, expiresAt])
+  @@map("second_chance_offers")
 }

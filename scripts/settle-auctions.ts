@@ -11,10 +11,11 @@
  * run it with the same DATABASE_URL the app already uses, so there is no public
  * route to protect and no shared secret to manage.
  *
- * Three passes, in this order, because each depends on the one before:
+ * Four passes, in this order, because each depends on the one before:
  *   1. close auctions whose time is up;
  *   2. reconcile payments against Omise;
- *   3. forfeit winners who did not pay, and offer the item to the next bidder.
+ *   3. forfeit winners who did not pay, and offer the item to the next bidder;
+ *   4. close second-chance offers nobody answered inside their 24 hours.
  *
  * Reconciling before judging deadlines is the important part: a payment that
  * landed while nobody was watching must be seen BEFORE the deadline sweep, or
@@ -26,8 +27,11 @@
  *   asterisk/5 * * * * cd /srv/thaiauction && /usr/bin/npm run auctions:settle >> /var/log/thaiauction-settle.log 2>&1
  */
 import { settleAllExpired, sweepPaymentDeadlines } from "../lib/bidding";
+import { expireSecondChances } from "../lib/failed-deal";
 import {
+  notifySecondChanceClosed,
   syncAuctionNotifications,
+  syncFailedDealNotifications,
   syncMissedPaymentNotifications,
 } from "../lib/notifications";
 import { reconcilePayments } from "../lib/payments";
@@ -66,13 +70,38 @@ async function main() {
       : `[payment-deadline] ${stamp} forfeited ${forfeited.length}: ${forfeited.join(", ")}`,
   );
 
-  // 4. Say what happened. Last, so it reports the state the three passes above
-  //    have just settled on, and reconciled rather than hooked: the
-  //    transitions live inside lib/bidding and lib/payments, which this
-  //    feature does not modify. Both calls swallow their own failures — a
-  //    notification problem must never stop the sweep that moves money.
+  // 4. Close second-chance offers whose 24 hours ran out. Nobody is struck for
+  //    one of these: an offer nobody answered is an offer nobody took on. The
+  //    item goes back to waiting on its seller, who is told below.
+  const lapsed = await expireSecondChances();
+  console.log(
+    lapsed.length === 0
+      ? `[second-chance] ${stamp} nothing lapsed`
+      : `[second-chance] ${stamp} closed ${lapsed.length}: ${lapsed.map((o) => o.itemId).join(", ")}`,
+  );
+  for (const offer of lapsed) {
+    // Wrapped, like every other notification in this file's world: a sweep that
+    // has already moved the state must not fail because a bell did not ring.
+    try {
+      await notifySecondChanceClosed({
+        offerId: offer.offerId,
+        itemTitle: offer.itemTitle,
+        sellerId: offer.sellerId,
+        outcome: "expired",
+      });
+    } catch (error) {
+      console.error(`[second-chance] ${stamp} notify failed:`, error);
+    }
+  }
+
+  // 5. Say what happened. Last, so it reports the state the passes above have
+  //    just settled on, and reconciled rather than hooked: the transitions live
+  //    inside lib/bidding and lib/payments, which this feature does not modify.
+  //    Every call swallows its own failures — a notification problem must never
+  //    stop the sweep that moves money.
   await syncAuctionNotifications();
   await syncMissedPaymentNotifications();
+  await syncFailedDealNotifications();
   console.log(`[notify] ${stamp} caught up`);
 }
 
